@@ -2,7 +2,7 @@ package com.lewisesteban.paxos.node.proposer;
 
 import com.lewisesteban.paxos.node.MembershipGetter;
 import com.lewisesteban.paxos.node.acceptor.PrepareAnswer;
-import com.lewisesteban.paxos.rpc.NodeRPCHandle;
+import com.lewisesteban.paxos.rpc.RemotePaxosNode;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -24,7 +24,7 @@ public class Proposer {
         Proposal proposal = propFac.make(proposalData);
         AtomicInteger nbOk = new AtomicInteger(0);
         Queue<Proposal> alreadyAcceptedProps = new ConcurrentLinkedQueue<Proposal>();
-        for (NodeRPCHandle node : memberList.getMembers()) {
+        for (RemotePaxosNode node : memberList.getMembers()) {
             try {
                 PrepareAnswer answer = node.getAcceptor().reqPrepare(proposal.getId()); // TODO should be async
                 if (answer.isPrepareOK()) {
@@ -66,7 +66,7 @@ public class Proposer {
 
     private boolean accept(Proposal proposal) {
         AtomicInteger nbOk = new AtomicInteger(0);
-        for (NodeRPCHandle node : memberList.getMembers()) {
+        for (RemotePaxosNode node : memberList.getMembers()) {
             try {
                 if (node.getAcceptor().reqAccept(proposal)) {
                     nbOk.incrementAndGet();

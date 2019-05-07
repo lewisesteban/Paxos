@@ -4,15 +4,12 @@ import com.lewisesteban.paxos.node.acceptor.Acceptor;
 import com.lewisesteban.paxos.node.listener.Listener;
 import com.lewisesteban.paxos.node.membership.Membership;
 import com.lewisesteban.paxos.node.proposer.Proposer;
-import com.lewisesteban.paxos.rpc.AcceptorRPCHandle;
-import com.lewisesteban.paxos.rpc.ListenerRPCHandle;
-import com.lewisesteban.paxos.rpc.MembershipRPCHandle;
-import com.lewisesteban.paxos.rpc.NodeRPCHandle;
+import com.lewisesteban.paxos.rpc.*;
 
 import java.io.Serializable;
 import java.util.List;
 
-public class PaxosNode implements NodeRPCHandle {
+public class PaxosNode implements RemotePaxosNode, PaxosServer {
 
     private Acceptor acceptor;
     private Listener listener;
@@ -20,7 +17,7 @@ public class PaxosNode implements NodeRPCHandle {
     private Membership membership;
     private boolean running = false;
 
-    public PaxosNode(int myNodeId, List<NodeRPCHandle> members) {
+    public PaxosNode(int myNodeId, List<RemotePaxosNode> members) {
         membership = new Membership(myNodeId, members);
         acceptor = new Acceptor(membership);
         listener = new Listener(membership);
@@ -38,10 +35,7 @@ public class PaxosNode implements NodeRPCHandle {
     }
 
     public boolean propose(Serializable proposalData) {
-        if (!running) {
-            start();
-        }
-        return proposer.propose(proposalData);
+        return running && proposer.propose(proposalData);
     }
 
     public int getId() {

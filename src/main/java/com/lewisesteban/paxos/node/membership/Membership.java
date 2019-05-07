@@ -2,17 +2,17 @@ package com.lewisesteban.paxos.node.membership;
 
 import com.lewisesteban.paxos.node.MembershipGetter;
 import com.lewisesteban.paxos.rpc.MembershipRPCHandle;
-import com.lewisesteban.paxos.rpc.NodeRPCHandle;
+import com.lewisesteban.paxos.rpc.RemotePaxosNode;
 
 import java.util.List;
 
 public class Membership implements MembershipGetter, MembershipRPCHandle {
 
-    private List<NodeRPCHandle> nodes;
+    private List<RemotePaxosNode> nodes;
     private int myNodeId;
     private int nbNodes;
 
-    public Membership(int myNodeId, List<NodeRPCHandle> nodes) {
+    public Membership(int myNodeId, List<RemotePaxosNode> nodes) {
         this.nodes = nodes;
         this.myNodeId = myNodeId;
     }
@@ -29,7 +29,7 @@ public class Membership implements MembershipGetter, MembershipRPCHandle {
         return myNodeId;
     }
 
-    public List<NodeRPCHandle> getMembers() {
+    public List<RemotePaxosNode> getMembers() {
         return nodes;
     }
 
