@@ -9,7 +9,7 @@ import com.lewisesteban.paxos.rpc.*;
 import java.io.Serializable;
 import java.util.List;
 
-public class PaxosNode implements RemotePaxosNode, PaxosServer {
+public class PaxosNode implements RemotePaxosNode, PaxosProposer {
 
     private Acceptor acceptor;
     private Listener listener;
@@ -32,6 +32,11 @@ public class PaxosNode implements RemotePaxosNode, PaxosServer {
     public void stop() {
         running = false;
         membership.stop();
+    }
+
+    public void stopNow() {
+        running = false;
+        membership.stopNow();
     }
 
     public boolean propose(Serializable proposalData) {

@@ -2,18 +2,20 @@ package com.lewisesteban.paxos;
 
 import com.lewisesteban.paxos.rpc.RemotePaxosNode;
 import com.lewisesteban.paxos.virtualnet.Network;
-import com.lewisesteban.paxos.virtualnet.VirtualNode;
+import com.lewisesteban.paxos.virtualnet.VirtualNetNode;
 import com.lewisesteban.paxos.virtualnet.node.NodeConnection;
-import com.lewisesteban.paxos.virtualnet.node.PaxosNodeWrapper;
+import com.lewisesteban.paxos.virtualnet.node.PaxosNetworkNode;
+import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
 import junit.framework.TestCase;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
 public class Test extends TestCase {
 
-    private List<PaxosNodeWrapper> createVirtualNetwork(int totalNbNodes, Network network) {
+    private List<PaxosNetworkNode> createVirtualNetwork(int totalNbNodes, Network network) {
 
         List<List<RemotePaxosNode>> networkViews = new ArrayList<>();
         for (int i = 0; i < totalNbNodes; ++i) {
@@ -21,31 +23,33 @@ public class Test extends TestCase {
         }
 
         int nodeId = 0;
-        List<PaxosNodeWrapper> paxosNodes = new ArrayList<>();
+        List<PaxosNetworkNode> paxosNodes = new ArrayList<>();
         for (List<RemotePaxosNode> networkView : networkViews) {
-            paxosNodes.add(new PaxosNodeWrapper(new PaxosNode(nodeId, networkView)));
+            PaxosNode paxos = new PaxosNode(nodeId, networkView);
+            PaxosServer srv = new PaxosServer(paxos);
+            paxosNodes.add(new PaxosNetworkNode(srv));
             nodeId++;
         }
 
-        Iterator<PaxosNodeWrapper> refNodeIt = paxosNodes.iterator();
+        Iterator<PaxosNetworkNode> refNodeIt = paxosNodes.iterator();
         for (List<RemotePaxosNode> networkView : networkViews) {
-            PaxosNodeWrapper refNode = refNodeIt.next();
-            for (PaxosNodeWrapper connectedNode : paxosNodes) {
+            PaxosNetworkNode refNode = refNodeIt.next();
+            for (PaxosNetworkNode connectedNode : paxosNodes) {
                 networkView.add(new NodeConnection(connectedNode, refNode.getAddress(), network));
             }
         }
 
-        for (VirtualNode node : paxosNodes) {
+        for (VirtualNetNode node : paxosNodes) {
             network.addNode(node);
         }
         network.startAll();
         return paxosNodes;
     }
 
-    public void testSimpleTwoProposals() {
+    public void testSimpleTwoProposals() throws IOException {
         Network network = new Network();
-        List<PaxosNodeWrapper> nodes = createVirtualNetwork(2, network);
-        PaxosNode node0 = nodes.get(0).getPaxosNode();
+        List<PaxosNetworkNode> nodes = createVirtualNetwork(2, network);
+        PaxosServer node0 = nodes.get(0).getPaxosSrv();
         assert node0.propose("ONE");
         assert !node0.propose("TWO");
     }

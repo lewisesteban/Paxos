@@ -11,20 +11,20 @@ import java.io.IOException;
 
 public class NodeConnection implements RemotePaxosNode, VirtualConnection {
 
-    private PaxosNodeWrapper targetNode;
+    private PaxosNetworkNode targetNode;
     private Network network;
     private NodeConAcceptor acceptor;
     private NodeConListener listener;
     private NodeConMembership membership;
     private int callerAddr;
 
-    public NodeConnection(PaxosNodeWrapper targetPaxosNode, int callerAddr, final Network network) {
+    public NodeConnection(PaxosNetworkNode targetPaxosNode, int callerAddr, final Network network) {
         this.targetNode = targetPaxosNode;
         this.callerAddr = callerAddr;
         this.network = network;
-        acceptor = new NodeConAcceptor(this, targetNode.getPaxosNode().getAcceptor());
-        listener = new NodeConListener(this, targetNode.getPaxosNode().getListener());
-        membership = new NodeConMembership(this, targetNode.getPaxosNode().getMembership());
+        acceptor = new NodeConAcceptor(this, targetNode.getPaxosSrv().getAcceptor());
+        listener = new NodeConListener(this, targetNode.getPaxosSrv().getListener());
+        membership = new NodeConMembership(this, targetNode.getPaxosSrv().getMembership());
     }
 
     public void tryNetCall() throws IOException {
@@ -33,7 +33,7 @@ public class NodeConnection implements RemotePaxosNode, VirtualConnection {
     }
 
     public int getId() {
-        return targetNode.getPaxosNode().getId();
+        return targetNode.getPaxosSrv().getId();
     }
 
     public AcceptorRPCHandle getAcceptor() {

@@ -1,6 +1,9 @@
 package com.lewisesteban.paxos.virtualnet;
 
-public interface VirtualNode {
+/**
+ * A node on the virtual network, which contains all network-related information and commands.
+ */
+public interface VirtualNetNode {
 
     int getAddress();
     int getRack();
