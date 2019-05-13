@@ -1,4 +1,4 @@
-package com.lewisesteban.paxos.virtualnet.node;
+package com.lewisesteban.paxos.virtualnet.paxosnet;
 
 import com.lewisesteban.paxos.node.acceptor.PrepareAnswer;
 import com.lewisesteban.paxos.node.proposer.Proposal;

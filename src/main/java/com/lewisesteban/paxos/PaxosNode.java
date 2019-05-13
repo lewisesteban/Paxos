@@ -6,6 +6,7 @@ import com.lewisesteban.paxos.node.membership.Membership;
 import com.lewisesteban.paxos.node.proposer.Proposer;
 import com.lewisesteban.paxos.rpc.*;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 
@@ -39,7 +40,7 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
         membership.stopNow();
     }
 
-    public boolean propose(Serializable proposalData) {
+    public boolean propose(Serializable proposalData) throws IOException {
         return running && proposer.propose(proposalData);
     }
 

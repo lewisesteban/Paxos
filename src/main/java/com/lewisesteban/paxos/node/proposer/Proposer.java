@@ -20,10 +20,10 @@ public class Proposer {
         this.propFac = new ProposalFactory(memberList.getMyNodeId());
     }
 
-    public boolean propose(Serializable proposalData) {
+    public boolean propose(Serializable proposalData) throws IOException {
         Proposal proposal = propFac.make(proposalData);
         AtomicInteger nbOk = new AtomicInteger(0);
-        Queue<Proposal> alreadyAcceptedProps = new ConcurrentLinkedQueue<Proposal>();
+        Queue<Proposal> alreadyAcceptedProps = new ConcurrentLinkedQueue<>();
         for (RemotePaxosNode node : memberList.getMembers()) {
             try {
                 PrepareAnswer answer = node.getAcceptor().reqPrepare(proposal.getId()); // TODO should be async
@@ -35,8 +35,8 @@ public class Proposer {
                 } else {
                     // Someone else is proposing: abandon proposal. May try again in another instance of Paxos.
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
+            } catch (IOException ignored) {
+                // Connection with server lost.
             }
         }
 

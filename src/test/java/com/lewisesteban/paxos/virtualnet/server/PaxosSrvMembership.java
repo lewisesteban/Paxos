@@ -2,15 +2,13 @@ package com.lewisesteban.paxos.virtualnet.server;
 
 import com.lewisesteban.paxos.rpc.MembershipRPCHandle;
 
-import java.util.concurrent.ExecutorService;
-
 public class PaxosSrvMembership implements MembershipRPCHandle {
 
     private MembershipRPCHandle paxosMembership;
-    private ExecutorService threadPool;
+    private PaxosServer.ThreadManager threadManager;
 
-    PaxosSrvMembership(MembershipRPCHandle paxosMembership, ExecutorService threadPool) {
+    PaxosSrvMembership(MembershipRPCHandle paxosMembership, PaxosServer.ThreadManager threadManager) {
         this.paxosMembership = paxosMembership;
-        this.threadPool = threadPool;
+        this.threadManager = threadManager;
     }
 }

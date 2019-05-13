@@ -1,4 +1,4 @@
-package com.lewisesteban.paxos.virtualnet.node;
+package com.lewisesteban.paxos.virtualnet.paxosnet;
 
 import com.lewisesteban.paxos.rpc.AcceptorRPCHandle;
 import com.lewisesteban.paxos.rpc.ListenerRPCHandle;

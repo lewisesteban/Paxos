@@ -5,10 +5,8 @@ import com.lewisesteban.paxos.rpc.*;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A virtual paxos server running an instance of PaxosNode.
@@ -17,44 +15,41 @@ import java.util.concurrent.ThreadFactory;
  */
 public class PaxosServer implements PaxosProposer, RemotePaxosNode {
 
+    public static final String SRV_FAILURE_MSG = "Server failed";
+
     private PaxosSrvAcceptor acceptor;
     private PaxosSrvListener listener;
     private PaxosSrvMembership membership;
 
     private PaxosNode paxos;
 
-    private ExecutorService threadPool = Executors.newFixedThreadPool(4, new DaemonThreadFactory());
+    private final ThreadManager threadManager = new ThreadManager();
 
     public PaxosServer(PaxosNode paxos) {
         this.paxos = paxos;
-        acceptor = new PaxosSrvAcceptor(paxos.getAcceptor(), threadPool);
-        listener = new PaxosSrvListener(paxos.getListener(), threadPool);
-        membership = new PaxosSrvMembership(paxos.getMembership(), threadPool);
+        acceptor = new PaxosSrvAcceptor(paxos.getAcceptor(), threadManager);
+        listener = new PaxosSrvListener(paxos.getListener(), threadManager);
+        membership = new PaxosSrvMembership(paxos.getMembership(), threadManager);
     }
 
     public void start() {
-        threadPool = Executors.newFixedThreadPool(4);
+        threadManager.start();
         paxos.start();
     }
 
     public void stop() {
         paxos.stop();
-        threadPool.shutdown();
+        threadManager.stop();
     }
 
     public void kill() {
-        threadPool.shutdownNow();
+        threadManager.shutDownNow();
         paxos.stopNow();
     }
 
     @Override
     public boolean propose(final Serializable proposalData) throws IOException {
-        System.out.println("PaxosServer propose");
-        try {
-            return threadPool.submit(() -> paxos.propose(proposalData)).get();
-        } catch (InterruptedException | ExecutionException e) {
-            throw new IOException(e);
-        }
+        return threadManager.pleaseDo(() -> paxos.propose(proposalData));
     }
 
     @Override
@@ -77,13 +72,76 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
         return membership;
     }
 
-    static class DaemonThreadFactory implements ThreadFactory {
-        @Override
-        public Thread newThread(Runnable r) {
-            Thread t = new Thread(r);
-            t.setName("Daemon Thread");
-            t.setDaemon(true);
-            return t;
+    class ThreadManager {
+
+        private ConcurrentSkipListSet<FutureWithId> waitingTasks = new ConcurrentSkipListSet<>();
+        private AtomicInteger lastGivenId = new AtomicInteger(0);
+        private boolean isRunning = true;
+
+        <T> T pleaseDo(Callable<T> task) throws IOException {
+            FutureTask<T> future = new FutureTask<>(task);
+            FutureWithId storedTask = new FutureWithId(future, lastGivenId.getAndIncrement());
+            try {
+                synchronized (this) {
+                    if (!isRunning)
+                        throw new RejectedExecutionException("Shutdown");
+                    waitingTasks.add(storedTask);
+                }
+                new Thread(future).start();
+                return future.get();
+            } catch (InterruptedException | RejectedExecutionException | CancellationException e) {
+                throw new IOException(SRV_FAILURE_MSG);
+            } catch (ExecutionException e) {
+                throw new IOException(e);
+            } finally {
+                waitingTasks.remove(storedTask);
+            }
+        }
+
+        synchronized void start() {
+            waitingTasks = new ConcurrentSkipListSet<>();
+            lastGivenId = new AtomicInteger(0);
+            isRunning = true;
+        }
+
+        synchronized void stop() {
+            isRunning = false;
+            for (FutureWithId task : waitingTasks) {
+                try {
+                    task.getFuture().get();
+                } catch (InterruptedException | ExecutionException ignored) { }
+            }
+        }
+
+        synchronized void shutDownNow() {
+            isRunning = false;
+            for (FutureWithId task : waitingTasks) {
+                task.getFuture().cancel(true);
+            }
+        }
+
+        private class FutureWithId implements Comparable<FutureWithId> {
+
+            private FutureTask futureTask;
+            private int id;
+
+            FutureWithId(FutureTask futureTask, int id) {
+                this.futureTask = futureTask;
+                this.id = id;
+            }
+
+            FutureTask getFuture() {
+                return futureTask;
+            }
+
+            @Override
+            public int compareTo(FutureWithId other) {
+                if (id == other.id) {
+                    return 0;
+                }
+                return id > other.id ? 1 : -1;
+            }
         }
     }
+
 }

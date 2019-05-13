@@ -1,4 +1,4 @@
-package com.lewisesteban.paxos.virtualnet.node;
+package com.lewisesteban.paxos.virtualnet.paxosnet;
 
 import com.lewisesteban.paxos.virtualnet.VirtualNetNode;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;

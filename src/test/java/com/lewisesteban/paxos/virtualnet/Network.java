@@ -116,8 +116,6 @@ public class Network {
         }
         try {
             Thread.sleep(wait);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        } catch (InterruptedException ignored) { }
     }
 }
