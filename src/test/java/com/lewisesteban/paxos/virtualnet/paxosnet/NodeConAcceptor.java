@@ -17,13 +17,13 @@ class NodeConAcceptor implements AcceptorRPCHandle {
         this.paxosHandle = paxosHandle;
     }
 
-    public PrepareAnswer reqPrepare(Proposal.ID propId) throws IOException {
+    public PrepareAnswer reqPrepare(long instanceId, Proposal.ID propId) throws IOException {
         parent.tryNetCall();
-        return paxosHandle.reqPrepare(propId);
+        return paxosHandle.reqPrepare(instanceId, propId);
     }
 
-    public boolean reqAccept(Proposal proposal) throws IOException {
+    public boolean reqAccept(long instanceId, Proposal proposal) throws IOException {
         parent.tryNetCall();
-        return paxosHandle.reqAccept(proposal);
+        return paxosHandle.reqAccept(instanceId, proposal);
     }
 }

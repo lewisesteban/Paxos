@@ -27,9 +27,9 @@ public class Proposal implements Serializable {
     public static class ID implements Serializable {
 
         private int nodeId;
-        private long nodePropNb;
+        private int nodePropNb;
 
-        ID(int nodeId, long nodeReqNb) {
+        ID(int nodeId, int nodeReqNb) {
             this.nodeId = nodeId;
             this.nodePropNb = nodeReqNb;
         }

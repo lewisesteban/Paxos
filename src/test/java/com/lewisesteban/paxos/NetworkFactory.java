@@ -13,7 +13,7 @@ import java.util.List;
 
 public class NetworkFactory {
 
-    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network, PaxosFactory paxosFactory) {
+    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network, PaxosFactory paxosFactory) {
 
         List<List<RemotePaxosNode>> networkViews = new ArrayList<>();
         for (int i = 0; i < totalNbNodes; ++i) {
@@ -25,7 +25,8 @@ public class NetworkFactory {
         for (List<RemotePaxosNode> networkView : networkViews) {
             PaxosNode paxos = paxosFactory.createNode(nodeId, networkView);
             PaxosServer srv = new PaxosServer(paxos);
-            paxosNodes.add(new PaxosNetworkNode(srv));
+            int rack = srv.getId() % nbRacks;
+            paxosNodes.add(new PaxosNetworkNode(srv, rack));
             nodeId++;
         }
 
@@ -42,6 +43,14 @@ public class NetworkFactory {
         }
         network.startAll();
         return paxosNodes;
+    }
+
+    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network, PaxosFactory paxosFactory) {
+        return initSimpleNetwork(totalNbNodes, 1, network, paxosFactory);
+    }
+
+    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network) {
+        return initSimpleNetwork(totalNbNodes, nbRacks, network, PaxosNode::new);
     }
 
     static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network) {

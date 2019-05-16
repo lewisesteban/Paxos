@@ -48,8 +48,8 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
     }
 
     @Override
-    public boolean propose(final Serializable proposalData) throws IOException {
-        return threadManager.pleaseDo(() -> paxos.propose(proposalData));
+    public boolean propose(long instanceId, final Serializable proposalData) throws IOException {
+        return threadManager.pleaseDo(() -> paxos.propose(instanceId, proposalData));
     }
 
     @Override

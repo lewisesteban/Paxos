@@ -5,5 +5,5 @@ import java.io.Serializable;
 
 public interface PaxosProposer {
 
-    boolean propose(Serializable proposalData) throws IOException;
+    boolean propose(long instanceId, Serializable proposalData) throws IOException;
 }

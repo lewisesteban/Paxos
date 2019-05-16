@@ -6,6 +6,7 @@ import com.lewisesteban.paxos.rpc.AcceptorRPCHandle;
 import com.lewisesteban.paxos.rpc.RemotePaxosNode;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
+import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
 import junit.framework.TestCase;
 
 import java.io.IOException;
@@ -15,12 +16,22 @@ import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.lewisesteban.paxos.NetworkFactory.initSimpleNetwork;
 import static com.lewisesteban.paxos.virtualnet.server.PaxosServer.SRV_FAILURE_MSG;
 
 public class VirtualNetTest extends TestCase {
 
     private boolean slowPropose = false;
     private int slowAcceptorId = 0;
+
+    public void testCutRackConnection() throws IOException {
+        Network network = new Network();
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(2, 2, network);
+        network.disconnectRack(1);
+        PaxosServer node0 = nodes.get(0).getPaxosSrv();
+        assert !node0.propose(0, "ONE");
+    }
+
 
     public void testKillProposingServer() throws InterruptedException {
 
@@ -38,7 +49,7 @@ public class VirtualNetTest extends TestCase {
             final String proposalData = String.valueOf(i);
             clients.add(new Thread(() -> {
                 try {
-                    server.getPaxosSrv().propose(proposalData);
+                    server.getPaxosSrv().propose(0, proposalData);
                     nbSuccesses.incrementAndGet();
                 } catch (IOException e) {
                     if (e.getMessage().equals(SRV_FAILURE_MSG) && !(e.getCause() instanceof ExecutionException))
@@ -75,7 +86,7 @@ public class VirtualNetTest extends TestCase {
         final PaxosNetworkNode server = nodes.get(0);
 
         slowPropose = false;
-        FutureTask<Boolean> client = new FutureTask<>(() -> server.getPaxosSrv().propose("Proposal"));
+        FutureTask<Boolean> client = new FutureTask<>(() -> server.getPaxosSrv().propose(0, "Proposal"));
         new Thread(client).start();
 
         System.out.println("Task started. Let's wait a bit...");
@@ -96,11 +107,11 @@ public class VirtualNetTest extends TestCase {
         }
 
         @Override
-        public boolean propose(Serializable data) throws IOException {
+        public boolean propose(long instanceId, Serializable data) throws IOException {
             if (slowPropose) {
                 doHeavyWork();
             }
-            return super.propose(data);
+            return super.propose(instanceId, data);
         }
 
         public AcceptorRPCHandle getAcceptor() {
@@ -116,27 +127,27 @@ public class VirtualNetTest extends TestCase {
             }
 
             @Override
-            public PrepareAnswer reqPrepare(Proposal.ID propId) throws IOException {
+            public PrepareAnswer reqPrepare(long instanceId, Proposal.ID propId) throws IOException {
                 if (getId() == slowAcceptorId) {
                     doHeavyWork();
                 }
-                return acceptor.reqPrepare(propId);
+                return acceptor.reqPrepare(instanceId, propId);
             }
 
             @Override
-            public boolean reqAccept(Proposal proposal) throws IOException {
-                return acceptor.reqAccept(proposal);
+            public boolean reqAccept(long instanceId, Proposal proposal) throws IOException {
+                return acceptor.reqAccept(instanceId, proposal);
             }
         }
 
         void doHeavyWork() {
             @SuppressWarnings("MismatchedQueryAndUpdateOfStringBuilder")
-            StringBuilder str = new StringBuilder("");
+            StringBuilder str = new StringBuilder();
             for (int i = 0; i < 100000000; ++i) {
                 if (i % 1000 == 0) {
-                    str = new StringBuilder("");
+                    str = new StringBuilder();
                 }
-                str.append(String.valueOf(i));
+                str.append(i);
             }
         }
     }

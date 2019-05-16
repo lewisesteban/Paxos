@@ -7,6 +7,6 @@ import java.io.IOException;
 
 public interface AcceptorRPCHandle {
 
-    PrepareAnswer reqPrepare(Proposal.ID propId) throws IOException;
-    boolean reqAccept(Proposal proposal) throws IOException;
+    PrepareAnswer reqPrepare(long instanceId, Proposal.ID propId) throws IOException;
+    boolean reqAccept(long instanceId, Proposal proposal) throws IOException;
 }

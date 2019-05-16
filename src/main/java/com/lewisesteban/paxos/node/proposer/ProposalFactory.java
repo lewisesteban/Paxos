@@ -1,18 +1,18 @@
 package com.lewisesteban.paxos.node.proposer;
 
 import java.io.Serializable;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ProposalFactory {
 
-    private AtomicLong proposalNumber = new AtomicLong(0);
+    private AtomicInteger proposalNumber = new AtomicInteger(0);
     private int myNodeId;
 
     ProposalFactory(int myNodeId) {
         this.myNodeId = myNodeId;
     }
 
-    void updateProposalNumber(long newVal) {
+    void updateProposalNumber(int newVal) {
         proposalNumber.set(newVal);
     }
 
