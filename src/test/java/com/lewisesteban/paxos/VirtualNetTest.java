@@ -32,6 +32,38 @@ public class VirtualNetTest extends TestCase {
         assert !node0.propose(0, "ONE");
     }
 
+    public void testSlowNetworkDown() throws IOException {
+        final int NB_TESTS = 10;
+        final int DIFF = 5;
+
+        Network network = new Network();
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(2, network);
+        PaxosServer node0 = nodes.get(0).getPaxosSrv();
+        assert node0.propose(0, "first proposal");
+
+        network.setWaitTimes(0, 1, 1, 0);
+        long start = System.currentTimeMillis();
+        for (int i = 0; i < NB_TESTS; i++) {
+            node0.propose(0, "fast network");
+        }
+        long time1 = System.currentTimeMillis() - start;
+
+        network.setWaitTimes(5, 6, 10000, 0);
+        start = System.currentTimeMillis();
+        for (int i = 0; i < NB_TESTS; i++) {
+            node0.propose(0, "slow network test");
+        }
+        long time2 = System.currentTimeMillis() - start;
+        assert (time2 - time1 > ((DIFF - 1) * NB_TESTS * 2)) && (time2 - time1 < 10000);
+
+        network.setWaitTimes(0, 1, DIFF * 2, 0.5f);
+        start = System.currentTimeMillis();
+        for (int i = 0; i < NB_TESTS; i++) {
+            node0.propose(0, "unusual wait test");
+        }
+        long time3 = System.currentTimeMillis() - start;
+        assert (time3 - time1 > ((DIFF - 1) * NB_TESTS * 2));
+    }
 
     public void testKillProposingServer() throws InterruptedException {
 

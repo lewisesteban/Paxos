@@ -14,13 +14,7 @@ public class Network {
 
     public boolean tryCall(int from, int to) {
         waitForAnswer();
-        if (nodes.get(from).isRunning() && nodes.get(to).isRunning() && canCommunicate(from, to)) {
-            System.out.println("Network call from " + from + " to " + to);
-            return true;
-        } else {
-            System.out.println("FAILED Network call from " + from + " to " + to);
-            return false;
-        }
+        return nodes.get(from).isRunning() && nodes.get(to).isRunning() && canCommunicate(from, to);
     }
 
     public void setWaitTimes(int waitTimeMin, int waitTimeUsualMax, int waitTimeUnusualMax, float unusualWaitRisk) {
