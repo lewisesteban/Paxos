@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Proposer implements PaxosProposer {
@@ -23,22 +24,40 @@ public class Proposer implements PaxosProposer {
 
     public boolean propose(long instanceId, Serializable proposalData) {
         Proposal proposal = propFac.make(proposalData);
-        AtomicInteger nbOk = new AtomicInteger(0);
-        Queue<Proposal> alreadyAcceptedProps = new ConcurrentLinkedQueue<>();
+
+        final AtomicInteger nbOk = new AtomicInteger(0);
+        final Queue<Proposal> alreadyAcceptedProps = new ConcurrentLinkedQueue<>();
+        final Semaphore anyThread = new Semaphore(memberList.getNbMembers());
         for (RemotePaxosNode node : memberList.getMembers()) {
-            try {
-                PrepareAnswer answer = node.getAcceptor().reqPrepare(instanceId, proposal.getId()); // TODO should be async
-                if (answer.isPrepareOK()) {
-                    nbOk.getAndIncrement();
-                    if (answer.getAlreadyAccepted() != null) {
-                        alreadyAcceptedProps.add(answer.getAlreadyAccepted());
+            Thread thread = new Thread(() -> {
+                try {
+                    PrepareAnswer answer = node.getAcceptor().reqPrepare(instanceId, proposal.getId());
+                    if (answer.isPrepareOK()) {
+                        nbOk.getAndIncrement();
+                        if (answer.getAlreadyAccepted() != null) {
+                            alreadyAcceptedProps.add(answer.getAlreadyAccepted());
+                        }
+                    } else {
+                        // Someone else is proposing: abandon proposal. May try again in another instance of Paxos.
                     }
-                } else {
-                    // Someone else is proposing: abandon proposal. May try again in another instance of Paxos.
+                } catch (IOException ignored) {
+                    // connection with server lost
+                } finally {
+                    anyThread.release();
                 }
-            } catch (IOException ignored) {
-                // Connection with server lost.
-            }
+            });
+            try {
+                anyThread.acquire();
+            } catch (InterruptedException ignored) { /* should not happen */ }
+            thread.start();
+        }
+
+        int runningThreads = memberList.getNbMembers();
+        while (nbOk.get() <= memberList.getNbMembers() / 2 && runningThreads > 0) {
+            try {
+                anyThread.acquire();
+                runningThreads--;
+            } catch (InterruptedException ignored) { }
         }
 
         if (nbOk.get() > memberList.getNbMembers() / 2) {
@@ -46,11 +65,10 @@ public class Proposer implements PaxosProposer {
             boolean accepted = accept(instanceId, proposal);
             return (accepted && !propChanged);
         }
-
         return false;
     }
 
-    private boolean updateMyProp(Queue<Proposal> alreadyAcceptedProps, Proposal myProp) {
+    private boolean updateMyProp(final Queue<Proposal> alreadyAcceptedProps, Proposal myProp) {
         if (!alreadyAcceptedProps.isEmpty()) {
             Proposal highestIdProp = null;
             for (Proposal prop : alreadyAcceptedProps) {
@@ -70,15 +88,32 @@ public class Proposer implements PaxosProposer {
     }
 
     private boolean accept(long instanceId, Proposal proposal) {
-        AtomicInteger nbOk = new AtomicInteger(0);
+        final AtomicInteger nbOk = new AtomicInteger(0);
+        final Semaphore anyThread = new Semaphore(memberList.getNbMembers());
         for (RemotePaxosNode node : memberList.getMembers()) {
-            try {
-                if (node.getAcceptor().reqAccept(instanceId, proposal)) {
-                    nbOk.incrementAndGet();
+            Thread thread = new Thread(() -> {
+                try {
+                    if (node.getAcceptor().reqAccept(instanceId, proposal)) {
+                        nbOk.incrementAndGet();
+                    }
+                } catch (IOException ignored) {
+                    // connection with server lost
+                } finally {
+                    anyThread.release();
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            });
+            try {
+                anyThread.acquire();
+            } catch (InterruptedException ignored) { /* should not happen */ }
+            thread.start();
+        }
+
+        int runningThreads = memberList.getNbMembers();
+        while (nbOk.get() <= memberList.getNbMembers() / 2 && runningThreads > 0) {
+            try {
+                anyThread.acquire();
+                runningThreads--;
+            } catch (InterruptedException ignored) { }
         }
         return nbOk.get() > memberList.getNbMembers() / 2;
     }

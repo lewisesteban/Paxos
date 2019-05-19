@@ -65,4 +65,32 @@ public class PaxosTest extends TestCase {
         }
     }
 
+    public void testParallelism() throws IOException {
+        Network networkA = new Network();
+        List<PaxosNetworkNode> nodesA = initSimpleNetwork(10, networkA);
+        networkA.setWaitTimes(30, 40, 40, 0);
+        long startTime = System.currentTimeMillis();
+        nodesA.get(0).getPaxosSrv().propose(0, "VAL");
+        long timeA = System.currentTimeMillis() - startTime;
+
+        Network networkB = new Network();
+        List<PaxosNetworkNode> nodesB = initSimpleNetwork(100, networkB);
+        networkB.setWaitTimes(30, 40, 40, 0);
+        startTime = System.currentTimeMillis();
+        nodesB.get(0).getPaxosSrv().propose(0, "VAL");
+        long timeB = System.currentTimeMillis() - startTime;
+
+        System.out.println(timeA + " " + timeB);
+        assert timeB < timeA * 2;
+    }
+
+    public void testNoWaitForSlowNode() throws IOException {
+        Network network = new Network();
+        network.setWaitTimes(2, 3, 1000, 0.1f);
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(100, new Network());
+        long startTime = System.currentTimeMillis();
+        assert nodes.get(0).getPaxosSrv().propose(0, "DATA");
+        assert(System.currentTimeMillis() - startTime < 1000);
+    }
+
 }
