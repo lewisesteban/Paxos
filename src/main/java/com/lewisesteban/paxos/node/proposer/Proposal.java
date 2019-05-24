@@ -20,10 +20,6 @@ public class Proposal implements Serializable {
         return data;
     }
 
-    void setData(Proposal other) {
-        data = other.data;
-    }
-
     public static class ID implements Serializable {
 
         private int nodeId;

@@ -1,5 +1,6 @@
 package com.lewisesteban.paxos.virtualnet.paxosnet;
 
+import com.lewisesteban.paxos.InstId;
 import com.lewisesteban.paxos.node.acceptor.PrepareAnswer;
 import com.lewisesteban.paxos.node.proposer.Proposal;
 import com.lewisesteban.paxos.rpc.AcceptorRPCHandle;
@@ -17,12 +18,12 @@ class NodeConAcceptor implements AcceptorRPCHandle {
         this.paxosHandle = paxosHandle;
     }
 
-    public PrepareAnswer reqPrepare(long instanceId, Proposal.ID propId) throws IOException {
+    public PrepareAnswer reqPrepare(InstId instanceId, Proposal.ID propId) throws IOException {
         parent.tryNetCall();
         return paxosHandle.reqPrepare(instanceId, propId);
     }
 
-    public boolean reqAccept(long instanceId, Proposal proposal) throws IOException {
+    public boolean reqAccept(InstId instanceId, Proposal proposal) throws IOException {
         parent.tryNetCall();
         return paxosHandle.reqAccept(instanceId, proposal);
     }

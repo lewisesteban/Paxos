@@ -1,5 +1,6 @@
 package com.lewisesteban.paxos.node.proposer;
 
+import com.lewisesteban.paxos.InstId;
 import com.lewisesteban.paxos.node.MembershipGetter;
 import com.lewisesteban.paxos.node.acceptor.PrepareAnswer;
 import com.lewisesteban.paxos.rpc.PaxosProposer;
@@ -22,9 +23,18 @@ public class Proposer implements PaxosProposer {
         this.propFac = new ProposalFactory(memberList.getMyNodeId());
     }
 
-    public boolean propose(long instanceId, Serializable proposalData) {
+    public boolean propose(InstId instanceId, Serializable proposalData) {
         Proposal proposal = propFac.make(proposalData);
+        Proposal prepared = prepare(instanceId, proposal);
+        if (prepared == null) {
+            return false;
+        }
+        boolean proposalChanged = !proposal.getData().equals(prepared.getData());
+        boolean success = accept(instanceId, prepared);
+        return success && !proposalChanged;
+    }
 
+    private Proposal prepare(InstId instanceId, Proposal proposal) {
         final AtomicInteger nbOk = new AtomicInteger(0);
         final Queue<Proposal> alreadyAcceptedProps = new ConcurrentLinkedQueue<>();
         final Semaphore anyThread = new Semaphore(memberList.getNbMembers());
@@ -38,7 +48,8 @@ public class Proposer implements PaxosProposer {
                             alreadyAcceptedProps.add(answer.getAlreadyAccepted());
                         }
                     } else {
-                        // Someone else is proposing: abandon proposal. May try again in another instance of Paxos.
+                        // Someone else is proposing: abandon proposal.
+                        anyThread.release(memberList.getNbMembers());
                     }
                 } catch (IOException ignored) {
                     // connection with server lost
@@ -61,14 +72,12 @@ public class Proposer implements PaxosProposer {
         }
 
         if (nbOk.get() > memberList.getNbMembers() / 2) {
-            boolean propChanged = updateMyProp(alreadyAcceptedProps, proposal);
-            boolean accepted = accept(instanceId, proposal);
-            return (accepted && !propChanged);
+            return getNewProp(alreadyAcceptedProps, proposal);
         }
-        return false;
+        return null;
     }
 
-    private boolean updateMyProp(final Queue<Proposal> alreadyAcceptedProps, Proposal myProp) {
+    private Proposal getNewProp(final Queue<Proposal> alreadyAcceptedProps, Proposal originalProp) {
         if (!alreadyAcceptedProps.isEmpty()) {
             Proposal highestIdProp = null;
             for (Proposal prop : alreadyAcceptedProps) {
@@ -76,18 +85,13 @@ public class Proposer implements PaxosProposer {
                     highestIdProp = prop;
                 }
             }
-            if (highestIdProp.getData().equals(myProp.getData())) {
-                return false;
-            } else {
-                myProp.setData(highestIdProp);
-                return true;
-            }
+            return new Proposal(highestIdProp.getData(), originalProp.getId());
         } else {
-            return false;
+            return originalProp;
         }
     }
 
-    private boolean accept(long instanceId, Proposal proposal) {
+    private boolean accept(InstId instanceId, Proposal proposal) {
         final AtomicInteger nbOk = new AtomicInteger(0);
         final Semaphore anyThread = new Semaphore(memberList.getNbMembers());
         for (RemotePaxosNode node : memberList.getMembers()) {

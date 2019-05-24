@@ -40,7 +40,7 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
         membership.stopNow();
     }
 
-    public boolean propose(long instanceId, Serializable proposalData) throws IOException {
+    public boolean propose(InstId instanceId, Serializable proposalData) throws IOException {
         return running && proposer.propose(instanceId, proposalData);
     }
 

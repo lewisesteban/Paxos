@@ -12,27 +12,30 @@ import static com.lewisesteban.paxos.NetworkFactory.initSimpleNetwork;
 
 public class PaxosTest extends TestCase {
 
+    private final InstId inst0 = new InstId(0, 0);
+    private final InstId inst1 = new InstId(0, 1);
+
     public void testTwoProposals() throws IOException {
         List<PaxosNetworkNode> nodes = initSimpleNetwork(2, new Network());
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
-        assert node0.propose(0, "ONE");
-        assert !node0.propose(0, "TWO");
+        assert node0.propose(inst0, "ONE");
+        assert !node0.propose(inst0, "TWO");
     }
 
     public void testSameProposals() throws IOException {
         List<PaxosNetworkNode> nodes = initSimpleNetwork(2, new Network());
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
-        assert node0.propose(0, "ONE");
-        assert node0.propose(0, "ONE");
+        assert node0.propose(inst0, "ONE");
+        assert node0.propose(inst0, "ONE");
     }
 
     public void testTwoInstances() throws IOException {
         List<PaxosNetworkNode> nodes = initSimpleNetwork(2, new Network());
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
-        assert node0.propose(0, "ONE");
-        assert !node0.propose(0, "TWO");
-        assert node0.propose(1, "TWO");
-        assert !node0.propose(1, "ONE");
+        assert node0.propose(inst0, "ONE");
+        assert !node0.propose(inst0, "TWO");
+        assert node0.propose(inst1, "TWO");
+        assert !node0.propose(inst1, "ONE");
     }
 
     public void testMajority() throws IOException {
@@ -56,8 +59,8 @@ public class PaxosTest extends TestCase {
         assert aRack0Node != null && aRack1Node != null;
 
         boolean rack0ShouldSucceed = rack0NodeNb > rack1NodeNb;
-        boolean rack0Proposal = aRack0Node.getPaxosSrv().propose(0, "DATA");
-        boolean rack1Proposal = aRack1Node.getPaxosSrv().propose(0, "DATA");
+        boolean rack0Proposal = aRack0Node.getPaxosSrv().propose(inst0, "DATA");
+        boolean rack1Proposal = aRack1Node.getPaxosSrv().propose(inst0, "DATA");
         if (rack0ShouldSucceed) {
             assert  rack0Proposal && !rack1Proposal;
         } else {
@@ -70,14 +73,14 @@ public class PaxosTest extends TestCase {
         List<PaxosNetworkNode> nodesA = initSimpleNetwork(10, networkA);
         networkA.setWaitTimes(30, 40, 40, 0);
         long startTime = System.currentTimeMillis();
-        nodesA.get(0).getPaxosSrv().propose(0, "VAL");
+        nodesA.get(0).getPaxosSrv().propose(inst0, "VAL");
         long timeA = System.currentTimeMillis() - startTime;
 
         Network networkB = new Network();
         List<PaxosNetworkNode> nodesB = initSimpleNetwork(100, networkB);
         networkB.setWaitTimes(30, 40, 40, 0);
         startTime = System.currentTimeMillis();
-        nodesB.get(0).getPaxosSrv().propose(0, "VAL");
+        nodesB.get(0).getPaxosSrv().propose(inst0, "VAL");
         long timeB = System.currentTimeMillis() - startTime;
 
         System.out.println(timeA + " " + timeB);
@@ -89,7 +92,7 @@ public class PaxosTest extends TestCase {
         network.setWaitTimes(2, 3, 1000, 0.1f);
         List<PaxosNetworkNode> nodes = initSimpleNetwork(100, new Network());
         long startTime = System.currentTimeMillis();
-        assert nodes.get(0).getPaxosSrv().propose(0, "DATA");
+        assert nodes.get(0).getPaxosSrv().propose(inst0, "DATA");
         assert(System.currentTimeMillis() - startTime < 1000);
     }
 
