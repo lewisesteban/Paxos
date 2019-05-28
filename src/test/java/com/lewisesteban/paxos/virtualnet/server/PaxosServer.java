@@ -1,7 +1,7 @@
 package com.lewisesteban.paxos.virtualnet.server;
 
-import com.lewisesteban.paxos.InstId;
 import com.lewisesteban.paxos.PaxosNode;
+import com.lewisesteban.paxos.node.proposer.Result;
 import com.lewisesteban.paxos.rpc.*;
 
 import java.io.IOException;
@@ -49,8 +49,13 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
     }
 
     @Override
-    public boolean propose(InstId instanceId, final Serializable proposalData) throws IOException {
-        return threadManager.pleaseDo(() -> paxos.propose(instanceId, proposalData));
+    public Result propose(final Serializable proposalData, int instanceId) throws IOException {
+        return threadManager.pleaseDo(() -> paxos.propose(proposalData, instanceId));
+    }
+
+    @Override
+    public Result proposeNew(final Serializable proposalData) throws IOException {
+        return threadManager.pleaseDo(() -> paxos.proposeNew(proposalData));
     }
 
     @Override

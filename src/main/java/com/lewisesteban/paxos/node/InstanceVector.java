@@ -1,21 +1,23 @@
 package com.lewisesteban.paxos.node;
 
-import com.lewisesteban.paxos.InstId;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
 public class InstanceVector<T> {
 
-    private Map<InstId, T> instances = new HashMap<>();
+    private Map<Integer, T> instances = new HashMap<>();
     private Callable<T> constructor;
+    private int highestInstance = 0;
 
     public InstanceVector(Callable<T> constructor) {
         this.constructor = constructor;
     }
 
-    public T get(InstId index) {
+    public synchronized T get(Integer index) {
+        if (index > highestInstance) {
+            highestInstance = index;
+        }
         if (instances.containsKey(index)) {
             return instances.get(index);
         } else {
@@ -30,7 +32,14 @@ public class InstanceVector<T> {
         }
     }
 
-    public void set(InstId index, T value) {
+    public synchronized void set(Integer index, T value) {
+        if (index > highestInstance) {
+            highestInstance = index;
+        }
         instances.put(index, value);
+    }
+
+    public int getHighestInstance() {
+        return highestInstance;
     }
 }

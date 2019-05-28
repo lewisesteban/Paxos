@@ -3,6 +3,7 @@ package com.lewisesteban.paxos;
 import com.lewisesteban.paxos.node.acceptor.Acceptor;
 import com.lewisesteban.paxos.node.listener.Listener;
 import com.lewisesteban.paxos.node.membership.Membership;
+import com.lewisesteban.paxos.node.proposer.Result;
 import com.lewisesteban.paxos.node.proposer.Proposer;
 import com.lewisesteban.paxos.rpc.*;
 
@@ -18,10 +19,10 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
     private Membership membership;
     private boolean running = false;
 
-    public PaxosNode(int myNodeId, List<RemotePaxosNode> members) {
+    public PaxosNode(int myNodeId, List<RemotePaxosNode> members, Executor executor) {
         membership = new Membership(myNodeId, members);
         acceptor = new Acceptor(membership);
-        listener = new Listener(membership);
+        listener = new Listener(membership, executor);
         proposer = new Proposer(membership);
     }
 
@@ -40,8 +41,20 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
         membership.stopNow();
     }
 
-    public boolean propose(InstId instanceId, Serializable proposalData) throws IOException {
-        return running && proposer.propose(instanceId, proposalData);
+    public Result proposeNew(Serializable proposalData) throws IOException {
+        if (!running) {
+            return new Result(false);
+        } else {
+            return proposer.proposeNew(proposalData);
+        }
+    }
+
+    public Result propose(Serializable proposalData, int inst) throws IOException {
+        if (!running) {
+            return new Result(false);
+        } else {
+            return proposer.propose(proposalData, inst);
+        }
     }
 
     public int getId() {

@@ -2,6 +2,8 @@ package com.lewisesteban.paxos.virtualnet.server;
 
 import com.lewisesteban.paxos.rpc.ListenerRPCHandle;
 
+import java.io.Serializable;
+
 public class PaxosSrvListener implements ListenerRPCHandle {
 
     private ListenerRPCHandle paxosListener;
@@ -10,5 +12,10 @@ public class PaxosSrvListener implements ListenerRPCHandle {
     PaxosSrvListener(ListenerRPCHandle paxosListener, PaxosServer.ThreadManager threadManager) {
         this.paxosListener = paxosListener;
         this.threadManager = threadManager;
+    }
+
+    @Override
+    public void informConsensus(int instanceId, Serializable data) {
+        paxosListener.informConsensus(instanceId, data);
     }
 }

@@ -1,6 +1,5 @@
 package com.lewisesteban.paxos.node.acceptor;
 
-import com.lewisesteban.paxos.InstId;
 import com.lewisesteban.paxos.node.InstanceVector;
 import com.lewisesteban.paxos.node.MembershipGetter;
 import com.lewisesteban.paxos.node.proposer.Proposal;
@@ -15,7 +14,7 @@ public class Acceptor implements AcceptorRPCHandle {
         this.memberList = memberList;
     }
 
-    public PrepareAnswer reqPrepare(InstId instanceNb, Proposal.ID propId) {
+    public PrepareAnswer reqPrepare(int instanceNb, Proposal.ID propId) {
         AcceptData thisInstance = instances.get(instanceNb);
         if (propId.isGreaterThan(thisInstance.lastSeenPropId)) {
             thisInstance.lastSeenPropId.set(propId);
@@ -25,7 +24,7 @@ public class Acceptor implements AcceptorRPCHandle {
         }
     }
 
-    public boolean reqAccept(InstId instanceNb, Proposal proposal) {
+    public boolean reqAccept(int instanceNb, Proposal proposal) {
         AcceptData thisInstance = instances.get(instanceNb);
         if (thisInstance.lastSeenPropId.isGreaterThan(proposal.getId())) {
             return false;
@@ -33,6 +32,11 @@ public class Acceptor implements AcceptorRPCHandle {
             thisInstance.lastAcceptedProp = proposal;
             return true;
         }
+    }
+
+    @Override
+    public int getLastInstance() {
+        return instances.getHighestInstance();
     }
 
     private class AcceptData {

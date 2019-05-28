@@ -11,9 +11,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class NetworkFactory {
+class NetworkFactory {
 
-    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network, PaxosFactory paxosFactory) {
+    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network, PaxosFactory paxosFactory, Executor executor) {
 
         List<List<RemotePaxosNode>> networkViews = new ArrayList<>();
         for (int i = 0; i < totalNbNodes; ++i) {
@@ -23,7 +23,7 @@ public class NetworkFactory {
         int nodeId = 0;
         List<PaxosNetworkNode> paxosNodes = new ArrayList<>();
         for (List<RemotePaxosNode> networkView : networkViews) {
-            PaxosNode paxos = paxosFactory.createNode(nodeId, networkView);
+            PaxosNode paxos = paxosFactory.createNode(nodeId, networkView, executor);
             PaxosServer srv = new PaxosServer(paxos);
             int rack = srv.getId() % nbRacks;
             paxosNodes.add(new PaxosNetworkNode(srv, rack));
@@ -45,19 +45,19 @@ public class NetworkFactory {
         return paxosNodes;
     }
 
-    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network, PaxosFactory paxosFactory) {
-        return initSimpleNetwork(totalNbNodes, 1, network, paxosFactory);
+    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network, PaxosFactory paxosFactory, Executor executor) {
+        return initSimpleNetwork(totalNbNodes, 1, network, paxosFactory, executor);
     }
 
-    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network) {
-        return initSimpleNetwork(totalNbNodes, nbRacks, network, PaxosNode::new);
+    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network, Executor executor) {
+        return initSimpleNetwork(totalNbNodes, nbRacks, network, PaxosNode::new, executor);
     }
 
-    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network) {
-        return initSimpleNetwork(totalNbNodes, network, PaxosNode::new);
+    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network, Executor executor) {
+        return initSimpleNetwork(totalNbNodes, network, PaxosNode::new, executor);
     }
 
     interface PaxosFactory {
-        PaxosNode createNode(int nodeId, List<RemotePaxosNode> networkView);
+        PaxosNode createNode(int nodeId, List<RemotePaxosNode> networkView, Executor executor);
     }
 }

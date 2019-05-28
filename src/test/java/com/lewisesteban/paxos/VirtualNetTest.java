@@ -2,6 +2,7 @@ package com.lewisesteban.paxos;
 
 import com.lewisesteban.paxos.node.acceptor.PrepareAnswer;
 import com.lewisesteban.paxos.node.proposer.Proposal;
+import com.lewisesteban.paxos.node.proposer.Result;
 import com.lewisesteban.paxos.rpc.AcceptorRPCHandle;
 import com.lewisesteban.paxos.rpc.RemotePaxosNode;
 import com.lewisesteban.paxos.virtualnet.Network;
@@ -13,7 +14,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.lewisesteban.paxos.NetworkFactory.initSimpleNetwork;
@@ -21,50 +23,49 @@ import static com.lewisesteban.paxos.virtualnet.server.PaxosServer.SRV_FAILURE_M
 
 public class VirtualNetTest extends TestCase {
 
+    private final Executor noExec = (i, d) -> {};
     private boolean slowPropose = false;
     private int slowAcceptorId = 0;
 
     public void testCutRackConnection() throws IOException {
         Network network = new Network();
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(2, 2, network);
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(2, 2, network, noExec);
         network.disconnectRack(1);
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
-        assert !node0.propose(new InstId(0, 0), "ONE");
+        assertFalse(node0.propose("ONE", 0).getSuccess());
     }
 
     public void testSlowNetworkDown() throws IOException {
         final int NB_TESTS = 10;
         final int DIFF = 5;
 
-        InstId instid = new InstId(0, 0);
-
         Network network = new Network();
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(2, network);
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(2, network, noExec);
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
-        assert node0.propose(instid, "first proposal");
+        assertTrue(node0.propose("first proposal", 0).getSuccess());
 
         network.setWaitTimes(0, 1, 1, 0);
         long start = System.currentTimeMillis();
         for (int i = 0; i < NB_TESTS; i++) {
-            node0.propose(instid, "fast network");
+            node0.propose("fast network", 0);
         }
         long time1 = System.currentTimeMillis() - start;
 
         network.setWaitTimes(5, 6, 10000, 0);
         start = System.currentTimeMillis();
         for (int i = 0; i < NB_TESTS; i++) {
-            node0.propose(instid, "slow network test");
+            node0.propose("slow network test", 0);
         }
         long time2 = System.currentTimeMillis() - start;
-        assert (time2 - time1 > ((DIFF - 1) * NB_TESTS * 2)) && (time2 - time1 < 10000);
+        assertTrue((time2 - time1 > ((DIFF - 1) * NB_TESTS * 2)) && (time2 - time1 < 10000));
 
         network.setWaitTimes(0, 1, DIFF * 2, 0.6f);
         start = System.currentTimeMillis();
         for (int i = 0; i < NB_TESTS; i++) {
-            node0.propose(instid, "unusual wait test");
+            node0.propose("unusual wait test", 0);
         }
         long time3 = System.currentTimeMillis() - start;
-        assert (time3 - time1 > ((DIFF - 1) * NB_TESTS));
+        assertTrue((time3 - time1 > ((DIFF - 1) * NB_TESTS)));
     }
 
     public void testKillProposingServer() throws InterruptedException {
@@ -74,7 +75,7 @@ public class VirtualNetTest extends TestCase {
         final AtomicInteger nbCorrectExceptions = new AtomicInteger(0);
 
         Network network = new Network();
-        List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(2, network, SlowPaxosNode::new);
+        List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(2, network, SlowPaxosNode::new, noExec);
         final PaxosNetworkNode server = nodes.get(0);
 
         slowPropose = true;
@@ -83,7 +84,7 @@ public class VirtualNetTest extends TestCase {
             final String proposalData = String.valueOf(i);
             clients.add(new Thread(() -> {
                 try {
-                    server.getPaxosSrv().propose(new InstId(0, 0), proposalData);
+                    server.getPaxosSrv().propose(proposalData, 0);
                     nbSuccesses.incrementAndGet();
                 } catch (IOException e) {
                     if (e.getMessage().equals(SRV_FAILURE_MSG) && !(e.getCause() instanceof ExecutionException))
@@ -96,7 +97,7 @@ public class VirtualNetTest extends TestCase {
             client.start();
         }
         System.out.println("Threads started. Let's wait a bit...");
-        Thread.sleep(100); // wait for the propose/accept tasks to start
+        Thread.sleep(100); // wait for the proposeNew/accept tasks to start
         System.out.println("Enough waiting. Kill the servers.");
 
         network.kill(0);
@@ -108,44 +109,44 @@ public class VirtualNetTest extends TestCase {
             }
         }
 
-        assert nbSuccesses.get() == 0;
-        assert nbCorrectExceptions.get() == NB_CLIENTS;
+        assertEquals(0, nbSuccesses.get());
+        assertEquals(NB_CLIENTS, nbCorrectExceptions.get());
     }
 
     public void testKillAcceptingServer() throws InterruptedException, ExecutionException {
 
         Network network = new Network();
-        List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(2, network, SlowPaxosNode::new);
+        List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(2, network, SlowPaxosNode::new, noExec);
         slowAcceptorId = 1;
         final PaxosNetworkNode server = nodes.get(0);
 
         slowPropose = false;
-        FutureTask<Boolean> client = new FutureTask<>(() -> server.getPaxosSrv().propose(new InstId(0, 0), "Proposal"));
+        FutureTask<Boolean> client = new FutureTask<>(() -> server.getPaxosSrv().propose("Proposal", 0).getSuccess());
         new Thread(client).start();
 
         System.out.println("Task started. Let's wait a bit...");
-        Thread.sleep(100); // wait for the propose/accept tasks to start
+        Thread.sleep(100); // wait for the proposeNew/accept tasks to start
         System.out.println("Enough waiting. Kill the servers.");
 
         network.kill(slowAcceptorId);
-        assert !client.get();
+        assertFalse(client.get());
     }
 
     private class SlowPaxosNode extends PaxosNode {
 
         private AcceptorRPCHandle acceptor;
 
-        SlowPaxosNode(int id, List<RemotePaxosNode> remotePaxosNodeList) {
-            super(id, remotePaxosNodeList);
+        SlowPaxosNode(int id, List<RemotePaxosNode> remotePaxosNodeList, Executor executor) {
+            super(id, remotePaxosNodeList, executor);
             acceptor = new SlowPaxosAcceptor(getAcceptor());
         }
 
         @Override
-        public boolean propose(InstId instanceId, Serializable data) throws IOException {
+        public Result propose(Serializable data, int inst) throws IOException {
             if (slowPropose) {
                 doHeavyWork();
             }
-            return super.propose(instanceId, data);
+            return super.propose(data, inst);
         }
 
         public AcceptorRPCHandle getAcceptor() {
@@ -161,7 +162,7 @@ public class VirtualNetTest extends TestCase {
             }
 
             @Override
-            public PrepareAnswer reqPrepare(InstId instanceId, Proposal.ID propId) throws IOException {
+            public PrepareAnswer reqPrepare(int instanceId, Proposal.ID propId) throws IOException {
                 if (getId() == slowAcceptorId) {
                     doHeavyWork();
                 }
@@ -169,8 +170,13 @@ public class VirtualNetTest extends TestCase {
             }
 
             @Override
-            public boolean reqAccept(InstId instanceId, Proposal proposal) throws IOException {
+            public boolean reqAccept(int instanceId, Proposal proposal) throws IOException {
                 return acceptor.reqAccept(instanceId, proposal);
+            }
+
+            @Override
+            public int getLastInstance() throws IOException {
+                return acceptor.getLastInstance();
             }
         }
 

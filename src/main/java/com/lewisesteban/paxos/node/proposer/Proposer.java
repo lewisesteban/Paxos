@@ -1,6 +1,5 @@
 package com.lewisesteban.paxos.node.proposer;
 
-import com.lewisesteban.paxos.InstId;
 import com.lewisesteban.paxos.node.MembershipGetter;
 import com.lewisesteban.paxos.node.acceptor.PrepareAnswer;
 import com.lewisesteban.paxos.rpc.PaxosProposer;
@@ -9,6 +8,7 @@ import com.lewisesteban.paxos.rpc.RemotePaxosNode;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Queue;
+import java.util.Random;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -17,24 +17,59 @@ public class Proposer implements PaxosProposer {
 
     private MembershipGetter memberList;
     private ProposalFactory propFac;
+    private LastInstId lastInstId = new LastInstId(0);
 
     public Proposer(MembershipGetter memberList) {
         this.memberList = memberList;
         this.propFac = new ProposalFactory(memberList.getMyNodeId());
     }
 
-    public boolean propose(InstId instanceId, Serializable proposalData) {
-        Proposal proposal = propFac.make(proposalData);
-        Proposal prepared = prepare(instanceId, proposal);
-        if (prepared == null) {
-            return false;
-        }
-        boolean proposalChanged = !proposal.getData().equals(prepared.getData());
-        boolean success = accept(instanceId, prepared);
-        return success && !proposalChanged;
+    public Result proposeNew(Serializable proposalData) {
+        return propose(proposalData, lastInstId.getAndIncrement(), true);
     }
 
-    private Proposal prepare(InstId instanceId, Proposal proposal) {
+    public Result propose(Serializable proposalData, int instanceId) {
+        return propose(proposalData, instanceId, false);
+    }
+
+    private Result propose(Serializable proposalData, int instanceId, boolean newInstance) {
+
+        Proposal originalProposal = propFac.make(proposalData);
+        Proposal prepared = prepare(instanceId, originalProposal);
+
+        if (newInstance && (prepared == null || !proposalData.equals(prepared.getData()))) {
+            updateLastInstId();
+            return propose(proposalData, lastInstId.getAndIncrement());
+        } else if (prepared == null) {
+            return new Result(false, instanceId);
+        }
+
+        boolean proposalChanged = !originalProposal.getData().equals(prepared.getData());
+        boolean success = accept(instanceId, prepared);
+        if (success) {
+            for (RemotePaxosNode node : memberList.getMembers()) {
+                node.getListener().informConsensus(instanceId, prepared.getData());
+            }
+            return new Result(!proposalChanged, instanceId);
+        } else {
+            return new Result(false, instanceId);
+        }
+    }
+
+    private void updateLastInstId() {
+        Random randGen = new Random();
+        int randInt = randGen.nextInt(memberList.getNbMembers());
+        while (randInt == memberList.getMyNodeId()) {
+            randInt = randGen.nextInt(memberList.getNbMembers());
+        }
+        RemotePaxosNode randNode = memberList.getMembers().get(randInt);
+        try {
+            int remoteLastInstId = randNode.getAcceptor().getLastInstance();
+            lastInstId.increaseTo(remoteLastInstId);
+        } catch (IOException ignored) { }
+    }
+
+    private Proposal prepare(int instanceId, Proposal proposal) {
         final AtomicInteger nbOk = new AtomicInteger(0);
         final Queue<Proposal> alreadyAcceptedProps = new ConcurrentLinkedQueue<>();
         final Semaphore anyThread = new Semaphore(memberList.getNbMembers());
@@ -91,7 +126,7 @@ public class Proposer implements PaxosProposer {
         }
     }
 
-    private boolean accept(InstId instanceId, Proposal proposal) {
+    private boolean accept(int instanceId, Proposal proposal) {
         final AtomicInteger nbOk = new AtomicInteger(0);
         final Semaphore anyThread = new Semaphore(memberList.getNbMembers());
         for (RemotePaxosNode node : memberList.getMembers()) {
