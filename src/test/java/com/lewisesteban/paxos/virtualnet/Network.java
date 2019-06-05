@@ -106,7 +106,11 @@ public class Network {
         if (rand.nextFloat() < unusualWaitRisk) {
             wait = rand.nextInt(waitTimeUnusualMax - waitTimeMin) + waitTimeMin;
         } else {
-            wait = rand.nextInt(waitTimeUsualMax - waitTimeMin) + waitTimeMin;
+            if (waitTimeUsualMax > waitTimeMin) {
+                wait = rand.nextInt(waitTimeUsualMax - waitTimeMin) + waitTimeMin;
+            } else {
+                wait = waitTimeMin;
+            }
         }
         try {
             Thread.sleep(wait);

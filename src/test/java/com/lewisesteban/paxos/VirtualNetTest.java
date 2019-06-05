@@ -18,18 +18,18 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.lewisesteban.paxos.NetworkFactory.executorsEmpty;
 import static com.lewisesteban.paxos.NetworkFactory.initSimpleNetwork;
 import static com.lewisesteban.paxos.virtualnet.server.PaxosServer.SRV_FAILURE_MSG;
 
 public class VirtualNetTest extends TestCase {
 
-    private final Executor noExec = (i, d) -> {};
     private boolean slowPropose = false;
     private int slowAcceptorId = 0;
 
     public void testCutRackConnection() throws IOException {
         Network network = new Network();
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(2, 2, network, noExec);
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(2, 2, network, executorsEmpty(2));
         network.disconnectRack(1);
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
         assertFalse(node0.propose("ONE", 0).getSuccess());
@@ -40,7 +40,7 @@ public class VirtualNetTest extends TestCase {
         final int DIFF = 5;
 
         Network network = new Network();
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(2, network, noExec);
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(2, network, executorsEmpty(2));
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
         assertTrue(node0.propose("first proposal", 0).getSuccess());
 
@@ -75,7 +75,7 @@ public class VirtualNetTest extends TestCase {
         final AtomicInteger nbCorrectExceptions = new AtomicInteger(0);
 
         Network network = new Network();
-        List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(2, network, SlowPaxosNode::new, noExec);
+        List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(2, network, SlowPaxosNode::new, executorsEmpty(2));
         final PaxosNetworkNode server = nodes.get(0);
 
         slowPropose = true;
@@ -116,7 +116,7 @@ public class VirtualNetTest extends TestCase {
     public void testKillAcceptingServer() throws InterruptedException, ExecutionException {
 
         Network network = new Network();
-        List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(2, network, SlowPaxosNode::new, noExec);
+        List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(2, network, SlowPaxosNode::new, executorsEmpty(2));
         slowAcceptorId = 1;
         final PaxosNetworkNode server = nodes.get(0);
 

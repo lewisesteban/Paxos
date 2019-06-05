@@ -7,13 +7,11 @@ import com.lewisesteban.paxos.virtualnet.paxosnet.NodeConnection;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 class NetworkFactory {
 
-    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network, PaxosFactory paxosFactory, Executor executor) {
+    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network, PaxosFactory paxosFactory, Iterable<Executor> executors) {
 
         List<List<RemotePaxosNode>> networkViews = new ArrayList<>();
         for (int i = 0; i < totalNbNodes; ++i) {
@@ -22,7 +20,9 @@ class NetworkFactory {
 
         int nodeId = 0;
         List<PaxosNetworkNode> paxosNodes = new ArrayList<>();
+        Iterator<Executor> executorIt = executors.iterator();
         for (List<RemotePaxosNode> networkView : networkViews) {
+            Executor executor = executorIt.next();
             PaxosNode paxos = paxosFactory.createNode(nodeId, networkView, executor);
             PaxosServer srv = new PaxosServer(paxos);
             int rack = srv.getId() % nbRacks;
@@ -45,16 +45,41 @@ class NetworkFactory {
         return paxosNodes;
     }
 
-    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network, PaxosFactory paxosFactory, Executor executor) {
+    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network, PaxosFactory paxosFactory, Iterable<Executor> executor) {
         return initSimpleNetwork(totalNbNodes, 1, network, paxosFactory, executor);
     }
 
-    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network, Executor executor) {
+    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network, Iterable<Executor> executor) {
         return initSimpleNetwork(totalNbNodes, nbRacks, network, PaxosNode::new, executor);
     }
 
-    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network, Executor executor) {
+    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network, Iterable<Executor> executor) {
         return initSimpleNetwork(totalNbNodes, network, PaxosNode::new, executor);
+    }
+
+    static Iterable<Executor> executorsSame(Executor executor, int nb) {
+        List<Executor> executors = new LinkedList<>();
+        for (int i = 0; i < nb; ++i) {
+            executors.add(executor);
+        }
+        return executors;
+    }
+
+    static Iterable<Executor> executorsEmpty(int nb) {
+        List<Executor> executors = new LinkedList<>();
+        for (int i = 0; i < nb; ++i) {
+            executors.add((instId, data) -> {});
+        }
+        return executors;
+    }
+
+    static Iterable<Executor> executorsSingle(Executor executor, int nb) {
+        List<Executor> executors = new LinkedList<>();
+        executors.add(executor);
+        for (int i = 0; i < nb - 1; ++i) {
+            executors.add((instId, data) -> {});
+        }
+        return executors;
     }
 
     interface PaxosFactory {
