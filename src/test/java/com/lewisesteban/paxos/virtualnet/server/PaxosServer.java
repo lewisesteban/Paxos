@@ -80,12 +80,14 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
 
     class ThreadManager {
 
+        private ExecutorService executor = Executors.newCachedThreadPool();
         private ConcurrentSkipListSet<FutureWithId> waitingTasks = new ConcurrentSkipListSet<>();
         private AtomicInteger lastGivenId = new AtomicInteger(0);
         private boolean isRunning = true;
 
         <T> T pleaseDo(Callable<T> task) throws IOException {
-            FutureTask<T> future = new FutureTask<>(task);
+            Future<T> future = executor.submit(task);
+            // note: if server shuts down right here, this task will not be interrupted
             FutureWithId storedTask = new FutureWithId(future, lastGivenId.getAndIncrement());
             try {
                 synchronized (this) {
@@ -93,7 +95,6 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
                         throw new RejectedExecutionException("Shutdown");
                     waitingTasks.add(storedTask);
                 }
-                new Thread(future).start();
                 return future.get();
             } catch (InterruptedException | RejectedExecutionException | CancellationException e) {
                 throw new IOException(SRV_FAILURE_MSG);
@@ -107,6 +108,7 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
         synchronized void start() {
             waitingTasks = new ConcurrentSkipListSet<>();
             lastGivenId = new AtomicInteger(0);
+            executor  = Executors.newCachedThreadPool();
             isRunning = true;
         }
 
@@ -117,6 +119,7 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
                     task.getFuture().get();
                 } catch (InterruptedException | ExecutionException ignored) { }
             }
+            executor.shutdown();
         }
 
         synchronized void shutDownNow() {
@@ -124,19 +127,20 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
             for (FutureWithId task : waitingTasks) {
                 task.getFuture().cancel(true);
             }
+            executor.shutdownNow();
         }
 
         private class FutureWithId implements Comparable<FutureWithId> {
 
-            private FutureTask futureTask;
+            private Future futureTask;
             private int id;
 
-            FutureWithId(FutureTask futureTask, int id) {
+            FutureWithId(Future futureTask, int id) {
                 this.futureTask = futureTask;
                 this.id = id;
             }
 
-            FutureTask getFuture() {
+            Future getFuture() {
                 return futureTask;
             }
 

@@ -9,8 +9,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Queue;
 import java.util.Random;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Proposer implements PaxosProposer {
@@ -18,6 +17,7 @@ public class Proposer implements PaxosProposer {
     private MembershipGetter memberList;
     private ProposalFactory propFac;
     private LastInstId lastInstId = new LastInstId(0);
+    private ExecutorService executor = Executors.newCachedThreadPool();
 
     public Proposer(MembershipGetter memberList) {
         this.memberList = memberList;
@@ -47,9 +47,7 @@ public class Proposer implements PaxosProposer {
         boolean proposalChanged = !originalProposal.getData().equals(prepared.getData());
         boolean success = accept(instanceId, prepared);
         if (success) {
-            for (RemotePaxosNode node : memberList.getMembers()) {
-                node.getListener().informConsensus(instanceId, prepared.getData());
-            }
+            scatter(instanceId, prepared);
             return new Result(!proposalChanged, instanceId);
         } else {
             return new Result(false, instanceId);
@@ -72,9 +70,9 @@ public class Proposer implements PaxosProposer {
     private Proposal prepare(int instanceId, Proposal proposal) {
         final AtomicInteger nbOk = new AtomicInteger(0);
         final Queue<Proposal> alreadyAcceptedProps = new ConcurrentLinkedQueue<>();
-        final Semaphore anyThread = new Semaphore(memberList.getNbMembers());
+        final Semaphore anyThread = new Semaphore(0);
         for (RemotePaxosNode node : memberList.getMembers()) {
-            Thread thread = new Thread(() -> {
+            executor.submit(() -> {
                 try {
                     PrepareAnswer answer = node.getAcceptor().reqPrepare(instanceId, proposal.getId());
                     if (answer.isPrepareOK()) {
@@ -92,10 +90,6 @@ public class Proposer implements PaxosProposer {
                     anyThread.release();
                 }
             });
-            try {
-                anyThread.acquire();
-            } catch (InterruptedException ignored) { /* should not happen */ }
-            thread.start();
         }
 
         int runningThreads = memberList.getNbMembers();
@@ -128,9 +122,9 @@ public class Proposer implements PaxosProposer {
 
     private boolean accept(int instanceId, Proposal proposal) {
         final AtomicInteger nbOk = new AtomicInteger(0);
-        final Semaphore anyThread = new Semaphore(memberList.getNbMembers());
+        final Semaphore anyThread = new Semaphore(0);
         for (RemotePaxosNode node : memberList.getMembers()) {
-            Thread thread = new Thread(() -> {
+            executor.submit(() -> {
                 try {
                     if (node.getAcceptor().reqAccept(instanceId, proposal)) {
                         nbOk.incrementAndGet();
@@ -141,10 +135,6 @@ public class Proposer implements PaxosProposer {
                     anyThread.release();
                 }
             });
-            try {
-                anyThread.acquire();
-            } catch (InterruptedException ignored) { /* should not happen */ }
-            thread.start();
         }
 
         int runningThreads = memberList.getNbMembers();
@@ -155,5 +145,25 @@ public class Proposer implements PaxosProposer {
             } catch (InterruptedException ignored) { }
         }
         return nbOk.get() > memberList.getNbMembers() / 2;
+    }
+
+    private void scatter(int instanceId, Proposal prepared) {
+        Future[] threads = new Future[memberList.getNbMembers()];
+        int threadIt = 0;
+        for (RemotePaxosNode node : memberList.getMembers()) {
+            threads[threadIt] = executor.submit(() -> {
+                try {
+                    node.getListener().informConsensus(instanceId, prepared.getData());
+                } catch (IOException e) {
+                    // TODO what to do about failures?
+                }
+            });
+            threadIt++;
+        }
+        for (Future thread : threads) {
+            try {
+                thread.get(); // should we wait for everyone?
+            } catch (ExecutionException | InterruptedException ignored) { }
+        }
     }
 }

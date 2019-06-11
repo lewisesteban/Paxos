@@ -9,15 +9,14 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 
-import static com.lewisesteban.paxos.NetworkFactory.executorsSingle;
-import static com.lewisesteban.paxos.NetworkFactory.initSimpleNetwork;
+import static com.lewisesteban.paxos.NetworkFactory.*;
 
 public class HeavyPaxosTest extends TestCase {
 
     public void testManyClientsNoFailure() throws Exception {
         final int NB_NODES = 7;
         final int NB_CLIENTS = 10;
-        final int NB_REQUESTS = 50;
+        final int NB_REQUESTS = 100;
 
         Client[] clients = new Client[NB_CLIENTS];
         Executor executor = (i, data) -> {

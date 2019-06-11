@@ -77,7 +77,7 @@ public class BasicPaxosTest extends TestCase {
         }
     }
 
-    public void testParallelism() throws IOException {
+    public void testSingleRequestParallelism() throws IOException {
         Network networkA = new Network();
         List<PaxosNetworkNode> nodesA = initSimpleNetwork(10, networkA, executorsEmpty(10));
         networkA.setWaitTimes(30, 40, 40, 0);
@@ -93,8 +93,59 @@ public class BasicPaxosTest extends TestCase {
         long timeB = System.currentTimeMillis() - startTime;
 
         System.out.println(timeA + " " + timeB);
-        assertTrue(timeB < timeA * 2);
+        assertTrue(timeB < (float)timeA * 2.5);
     }
+
+    public void testClientParallelism() throws Exception {
+        final int NB_NODES = 3;
+        final int NB_CLIENTS = 4;
+        final int NB_REQUESTS = 5;
+
+        Network network = new Network();
+        network.setWaitTimes(20, 20, 1, 0);
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(NB_NODES, network, executorsEmpty(NB_NODES));
+        PaxosServer dedicatedServer = nodes.get(0).getPaxosSrv();
+
+        Thread seqClient = new Thread(() -> {
+            for (int cmdId = 0; cmdId < NB_REQUESTS * NB_CLIENTS; cmdId++) {
+                try {
+                    dedicatedServer.proposeNew("data");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        long startTime = System.currentTimeMillis();
+        seqClient.start();
+        seqClient.join();
+        long sequentialTime = System.currentTimeMillis() - startTime;
+
+        Thread[] clients = new Thread[NB_CLIENTS];
+        for (int clientId = 0; clientId < NB_CLIENTS; ++clientId) {
+            clients[clientId] = new Thread(() -> {
+                for (int cmdId = 0; cmdId < NB_REQUESTS; cmdId++) {
+                    try {
+                        dedicatedServer.proposeNew("data");
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+        }
+        startTime = System.currentTimeMillis();
+        for (Thread client : clients) {
+            client.start();
+        }
+        for (Thread client : clients) {
+            client.join();
+        }
+        long parallelTime = System.currentTimeMillis() - startTime;
+
+        System.out.println("Sequential: " + sequentialTime);
+        System.out.println("Parallel: " + parallelTime);
+        assertTrue(parallelTime < (sequentialTime / (NB_CLIENTS - 1)));
+    }
+
 
     public void testNoWaitForSlowNode() throws IOException {
         Network network = new Network();
