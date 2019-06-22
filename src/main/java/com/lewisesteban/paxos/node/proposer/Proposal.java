@@ -42,5 +42,10 @@ public class Proposal implements Serializable {
         public static ID noProposal() {
             return new ID(-1, -1);
         }
+
+        @Override
+        public String toString() {
+            return "#" + nodePropNb + " #" + nodeId;
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.lewisesteban.paxos.node.proposer;
 
+import com.lewisesteban.paxos.Logger;
 import com.lewisesteban.paxos.node.MembershipGetter;
 import com.lewisesteban.paxos.node.acceptor.PrepareAnswer;
 import com.lewisesteban.paxos.rpc.PaxosProposer;
@@ -34,6 +35,8 @@ public class Proposer implements PaxosProposer {
 
     private Result propose(Serializable proposalData, int instanceId, boolean newInstance) {
 
+        Logger.println("#instance " + instanceId + " proposal: " + proposalData);
+
         Proposal originalProposal = propFac.make(proposalData);
         Proposal prepared = prepare(instanceId, originalProposal);
 
@@ -48,6 +51,9 @@ public class Proposer implements PaxosProposer {
         boolean success = accept(instanceId, prepared);
         if (success) {
             scatter(instanceId, prepared);
+            if (proposalChanged) {
+                Logger.println(">>> inst " + instanceId + " proposal changed from " + originalProposal.getData().toString() + " to " + prepared.getData().toString());
+            }
             return new Result(!proposalChanged, instanceId);
         } else {
             return new Result(false, instanceId);

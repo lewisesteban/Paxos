@@ -1,5 +1,6 @@
 package com.lewisesteban.paxos;
 
+import com.lewisesteban.paxos.node.proposer.Result;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
@@ -7,36 +8,35 @@ import junit.framework.TestCase;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Random;
 
-import static com.lewisesteban.paxos.NetworkFactory.*;
+import static com.lewisesteban.paxos.NetworkFactory.executorsSingle;
+import static com.lewisesteban.paxos.NetworkFactory.initSimpleNetwork;
 
 public class HeavyPaxosTest extends TestCase {
 
     public void testManyClientsNoFailure() throws Exception {
         final int NB_NODES = 7;
-        final int NB_CLIENTS = 10;
+        final int NB_CLIENTS = 100;
         final int NB_REQUESTS = 100;
 
         Client[] clients = new Client[NB_CLIENTS];
         Executor executor = (i, data) -> {
             Command cmd = (Command)data;
-            clients[cmd.clientId].receive(cmd.commandId);
+            clients[cmd.clientId].receive(cmd);
         };
         Network network = new Network();
         network.setWaitTimes(0, 0, 1, 0);
         List<PaxosNetworkNode> nodes = initSimpleNetwork(NB_NODES, network, executorsSingle(executor, NB_NODES));
-        PaxosServer dedicatedServer = nodes.get(0).getPaxosSrv();
 
         for (int clientId = 0; clientId < NB_CLIENTS; ++clientId) {
             final int thisClientsId = clientId;
-            clients[clientId] = new Client(clientId, new Thread(() -> {
+            clients[clientId] = new Client(clientId, nodes, new Thread(() -> {
                 for (int cmdId = 0; cmdId < NB_REQUESTS; cmdId++) {
-                    try {
-                        dedicatedServer.proposeNew(new Command(thisClientsId, cmdId));
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    clients[thisClientsId].propose(new Command(thisClientsId, cmdId));
                 }
             }));
         }
@@ -59,6 +59,11 @@ public class HeavyPaxosTest extends TestCase {
             this.clientId = clientId;
             this.commandId = commandId;
         }
+
+        @Override
+        public String toString() {
+            return "client " + clientId + " command " + commandId;
+        }
     }
 
     private class Client {
@@ -66,18 +71,49 @@ public class HeavyPaxosTest extends TestCase {
         private Thread thread;
         private int lastReceivedCommand = -1;
         private boolean error = false;
+        private List<PaxosNetworkNode> nodes;
+        private Random random = new Random();
+        private PaxosServer paxosServer = null;
+        private Map<Object, Integer> instances = new HashMap<>();
 
-        Client(int id, Thread thread) {
+        Client(int id, List<PaxosNetworkNode> nodes, Thread thread) {
             this.id = id;
             this.thread = thread;
+            this.nodes = nodes;
+            findPaxosServer();
         }
 
-        void receive(int data) {
-            if (data != expected()) {
-                error = true;
-                System.err.println("Client nb " + id + " got " + data + " instead of " + expected());
+        private void findPaxosServer() {
+            paxosServer = nodes.get(random.nextInt(nodes.size())).getPaxosSrv();
+        }
+
+        private void propose(Command data) {
+            boolean success = false;
+            Result res = null;
+            while (!success) {
+                try {
+                    res = paxosServer.proposeNew(data);
+                    success = (lastReceivedCommand == data.commandId);
+                    // Success should be based on whether the executor has received the result, and not on the success of the proposeNew method (there is a possible scenario in which another client completes a command initiated by this client).
+                    if (!success) {
+                        findPaxosServer();
+                        Logger.println("FAIL inst " + res.getInstanceId() + " command " + data);
+                    }
+                } catch (IOException e) {
+                    findPaxosServer();
+                }
             }
-            lastReceivedCommand = data;
+            instances.put(data, res.getInstanceId());
+        }
+
+        void receive(Command clientCommand) {
+            if (clientCommand.commandId != expected()) {
+                error = true;
+                System.err.println("Client nb " + id + " got " + clientCommand.commandId + " instead of " + expected() + "\tinstance=" + instances.get(clientCommand));
+            } else if (Logger.isOn()) {
+                Logger.println("++ Client nb " + id + " got " + clientCommand.commandId);
+            }
+            lastReceivedCommand = clientCommand.commandId;
         }
 
         int expected() {
