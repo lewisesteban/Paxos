@@ -8,7 +8,6 @@ import com.lewisesteban.paxos.node.proposer.Proposer;
 import com.lewisesteban.paxos.rpc.*;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.List;
 
 public class PaxosNode implements RemotePaxosNode, PaxosProposer {
@@ -41,19 +40,19 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
         membership.stopNow();
     }
 
-    public Result proposeNew(Serializable proposalData) throws IOException {
+    public Result proposeNew(Command command) throws IOException {
         if (!running) {
             return new Result(false);
         } else {
-            return proposer.proposeNew(proposalData);
+            return proposer.proposeNew(command);
         }
     }
 
-    public Result propose(Serializable proposalData, int inst) throws IOException {
+    public Result propose(Command command, int inst) throws IOException {
         if (!running) {
             return new Result(false);
         } else {
-            return proposer.propose(proposalData, inst);
+            return proposer.propose(command, inst);
         }
     }
 

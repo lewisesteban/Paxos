@@ -31,11 +31,11 @@ public class Acceptor implements AcceptorRPCHandle {
         AcceptDataInstance thisInstance = instances.get(instanceNb);
         synchronized (thisInstance) {
             if (thisInstance.getLastPreparedPropId().isGreaterThan(proposal.getId())) {
-                Logger.println("--o inst " + instanceNb + " srv " + memberList.getMyNodeId() + " REFUSE " + proposal.getData() + " last seen prop id = " + thisInstance.getLastPreparedPropId() + " this prop id = " + proposal.getId());
+                Logger.println("--o inst " + instanceNb + " srv " + memberList.getMyNodeId() + " REFUSE " + proposal.getCommand() + " last seen prop id = " + thisInstance.getLastPreparedPropId() + " this prop id = " + proposal.getId());
                 return false;
             } else {
                 thisInstance.setLastAcceptedProp(proposal);
-                Logger.println("--- inst " + instanceNb + " srv " + memberList.getMyNodeId() + " accept " + proposal.getData());
+                Logger.println("--- inst " + instanceNb + " srv " + memberList.getMyNodeId() + " accept " + proposal.getCommand());
                 return true;
             }
         }

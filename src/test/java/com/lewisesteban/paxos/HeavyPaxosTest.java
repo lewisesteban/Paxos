@@ -7,7 +7,6 @@ import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
 import junit.framework.TestCase;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +17,9 @@ import static com.lewisesteban.paxos.NetworkFactory.initSimpleNetwork;
 
 public class HeavyPaxosTest extends TestCase {
 
+    /**
+     * Should be executed with no dedicated proposer.
+     */
     public void testManyClientsNoFailure() throws Exception {
         final int NB_NODES = 7;
         final int NB_CLIENTS = 100;
@@ -25,8 +27,8 @@ public class HeavyPaxosTest extends TestCase {
 
         Client[] clients = new Client[NB_CLIENTS];
         Executor executor = (i, data) -> {
-            Command cmd = (Command)data;
-            clients[cmd.clientId].receive(cmd);
+            Command cmd = data;
+            clients[cmd.getClientId()].receive(cmd);
         };
         Network network = new Network();
         network.setWaitTimes(0, 0, 1, 0);
@@ -36,7 +38,7 @@ public class HeavyPaxosTest extends TestCase {
             final int thisClientsId = clientId;
             clients[clientId] = new Client(clientId, nodes, new Thread(() -> {
                 for (int cmdId = 0; cmdId < NB_REQUESTS; cmdId++) {
-                    clients[thisClientsId].propose(new Command(thisClientsId, cmdId));
+                    clients[thisClientsId].propose(new Command(thisClientsId, cmdId, null));
                 }
             }));
         }
@@ -51,25 +53,10 @@ public class HeavyPaxosTest extends TestCase {
         }
     }
 
-    private class Command implements Serializable {
-        int clientId;
-        int commandId;
-
-        Command(int clientId, int commandId) {
-            this.clientId = clientId;
-            this.commandId = commandId;
-        }
-
-        @Override
-        public String toString() {
-            return "client " + clientId + " command " + commandId;
-        }
-    }
-
     private class Client {
         private int id;
         private Thread thread;
-        private int lastReceivedCommand = -1;
+        private long lastReceivedCommand = -1;
         private boolean error = false;
         private List<PaxosNetworkNode> nodes;
         private Random random = new Random();
@@ -93,8 +80,7 @@ public class HeavyPaxosTest extends TestCase {
             while (!success) {
                 try {
                     res = paxosServer.proposeNew(data);
-                    success = (lastReceivedCommand == data.commandId);
-                    // Success should be based on whether the executor has received the result, and not on the success of the proposeNew method (there is a possible scenario in which another client completes a command initiated by this client).
+                    success = res.getSuccess();
                     if (!success) {
                         findPaxosServer();
                         Logger.println("FAIL inst " + res.getInstanceId() + " command " + data);
@@ -107,20 +93,20 @@ public class HeavyPaxosTest extends TestCase {
         }
 
         void receive(Command clientCommand) {
-            if (clientCommand.commandId != expected()) {
+            if (clientCommand.getCommandNb() != expected()) {
                 error = true;
-                System.err.println("Client nb " + id + " got " + clientCommand.commandId + " instead of " + expected() + "\tinstance=" + instances.get(clientCommand));
+                System.err.println("Client nb " + id + " got " + clientCommand.getCommandNb() + " instead of " + expected() + "\tinstance=" + instances.get(clientCommand));
             } else if (Logger.isOn()) {
-                Logger.println("++ Client nb " + id + " got " + clientCommand.commandId);
+                Logger.println("++ Client nb " + id + " got " + clientCommand.getCommandNb());
             }
-            lastReceivedCommand = clientCommand.commandId;
+            lastReceivedCommand = clientCommand.getCommandNb();
         }
 
-        int expected() {
+        long expected() {
             return lastReceivedCommand + 1;
         }
 
-        int lastReceived() {
+        long lastReceived() {
             return lastReceivedCommand;
         }
 

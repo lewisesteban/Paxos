@@ -1,9 +1,10 @@
 package com.lewisesteban.paxos.rpc;
 
+import com.lewisesteban.paxos.Command;
+
 import java.io.IOException;
-import java.io.Serializable;
 
 public interface ListenerRPCHandle {
 
-    void informConsensus(int instanceId, Serializable data) throws IOException;
+    void informConsensus(int instanceId, Command command) throws IOException;
 }

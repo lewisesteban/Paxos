@@ -1,5 +1,6 @@
 package com.lewisesteban.paxos.node.proposer;
 
+import com.lewisesteban.paxos.Command;
 import com.lewisesteban.paxos.Logger;
 import com.lewisesteban.paxos.node.MembershipGetter;
 import com.lewisesteban.paxos.node.acceptor.PrepareAnswer;
@@ -7,7 +8,6 @@ import com.lewisesteban.paxos.rpc.PaxosProposer;
 import com.lewisesteban.paxos.rpc.RemotePaxosNode;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.*;
@@ -25,34 +25,34 @@ public class Proposer implements PaxosProposer {
         this.propFac = new ProposalFactory(memberList.getMyNodeId());
     }
 
-    public Result proposeNew(Serializable proposalData) {
-        return propose(proposalData, lastInstId.getAndIncrement(), true);
+    public Result proposeNew(Command command) {
+        return propose(command, lastInstId.getAndIncrement(), true);
     }
 
-    public Result propose(Serializable proposalData, int instanceId) {
-        return propose(proposalData, instanceId, false);
+    public Result propose(Command command, int instanceId) {
+        return propose(command, instanceId, false);
     }
 
-    private Result propose(Serializable proposalData, int instanceId, boolean newInstance) {
+    private Result propose(Command command, int instanceId, boolean newInstance) {
 
-        Logger.println("#instance " + instanceId + " proposal: " + proposalData);
+        Logger.println("#instance " + instanceId + " proposal: " + command);
 
-        Proposal originalProposal = propFac.make(proposalData);
+        Proposal originalProposal = propFac.make(command);
         Proposal prepared = prepare(instanceId, originalProposal);
 
-        if (newInstance && (prepared == null || !proposalData.equals(prepared.getData()))) {
+        if (newInstance && (prepared == null || !command.equals(prepared.getCommand()))) {
             updateLastInstId();
-            return propose(proposalData, lastInstId.getAndIncrement());
+            return propose(command, lastInstId.getAndIncrement());
         } else if (prepared == null) {
             return new Result(false, instanceId);
         }
 
-        boolean proposalChanged = !originalProposal.getData().equals(prepared.getData());
+        boolean proposalChanged = !originalProposal.getCommand().equals(prepared.getCommand());
         boolean success = accept(instanceId, prepared);
         if (success) {
             scatter(instanceId, prepared);
             if (proposalChanged) {
-                Logger.println(">>> inst " + instanceId + " proposal changed from " + originalProposal.getData().toString() + " to " + prepared.getData().toString());
+                Logger.println(">>> inst " + instanceId + " proposal changed from " + originalProposal.getCommand().toString() + " to " + prepared.getCommand().toString());
             }
             return new Result(!proposalChanged, instanceId);
         } else {
@@ -120,7 +120,7 @@ public class Proposer implements PaxosProposer {
                     highestIdProp = prop;
                 }
             }
-            return new Proposal(highestIdProp.getData(), originalProp.getId());
+            return new Proposal(highestIdProp.getCommand(), originalProp.getId());
         } else {
             return originalProp;
         }
@@ -159,7 +159,7 @@ public class Proposer implements PaxosProposer {
         for (RemotePaxosNode node : memberList.getMembers()) {
             threads[threadIt] = executor.submit(() -> {
                 try {
-                    node.getListener().informConsensus(instanceId, prepared.getData());
+                    node.getListener().informConsensus(instanceId, prepared.getCommand());
                 } catch (IOException e) {
                     // TODO what to do about failures?
                 }

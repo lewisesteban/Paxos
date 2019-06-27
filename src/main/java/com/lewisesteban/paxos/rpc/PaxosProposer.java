@@ -1,12 +1,12 @@
 package com.lewisesteban.paxos.rpc;
 
+import com.lewisesteban.paxos.Command;
 import com.lewisesteban.paxos.node.proposer.Result;
 
 import java.io.IOException;
-import java.io.Serializable;
 
 public interface PaxosProposer {
 
-    Result proposeNew(Serializable proposalData) throws IOException;
-    Result propose(Serializable proposalData, int instanceId) throws IOException;
+    Result proposeNew(Command command) throws IOException;
+    Result propose(Command command, int instanceId) throws IOException;
 }

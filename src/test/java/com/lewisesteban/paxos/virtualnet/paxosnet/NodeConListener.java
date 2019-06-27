@@ -1,10 +1,10 @@
 package com.lewisesteban.paxos.virtualnet.paxosnet;
 
+import com.lewisesteban.paxos.Command;
 import com.lewisesteban.paxos.rpc.ListenerRPCHandle;
 import com.lewisesteban.paxos.virtualnet.VirtualConnection;
 
 import java.io.IOException;
-import java.io.Serializable;
 
 class NodeConListener implements ListenerRPCHandle {
 
@@ -17,7 +17,7 @@ class NodeConListener implements ListenerRPCHandle {
     }
 
     @Override
-    public void informConsensus(int instanceId, Serializable data) throws IOException {
-        paxosHandle.informConsensus(instanceId, data);
+    public void informConsensus(int instanceId, Command command) throws IOException {
+        paxosHandle.informConsensus(instanceId, command);
     }
 }
