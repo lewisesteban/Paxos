@@ -1,8 +1,8 @@
-package com.lewisesteban.paxos.node.membership;
+package com.lewisesteban.paxos.paxosnode.membership;
 
-import com.lewisesteban.paxos.node.MembershipGetter;
-import com.lewisesteban.paxos.rpc.MembershipRPCHandle;
-import com.lewisesteban.paxos.rpc.RemotePaxosNode;
+import com.lewisesteban.paxos.paxosnode.MembershipGetter;
+import com.lewisesteban.paxos.rpc.paxos.MembershipRPCHandle;
+import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
 
 import java.util.List;
 

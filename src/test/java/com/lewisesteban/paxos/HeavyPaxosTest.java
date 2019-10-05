@@ -1,6 +1,8 @@
 package com.lewisesteban.paxos;
 
-import com.lewisesteban.paxos.node.proposer.Result;
+import com.lewisesteban.paxos.paxosnode.Command;
+import com.lewisesteban.paxos.paxosnode.StateMachine;
+import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
@@ -26,19 +28,21 @@ public class HeavyPaxosTest extends TestCase {
         final int NB_REQUESTS = 100;
 
         Client[] clients = new Client[NB_CLIENTS];
-        Executor executor = (i, data) -> {
-            Command cmd = data;
-            clients[cmd.getClientId()].receive(cmd);
+        StateMachine stateMachine = (data) -> {
+            Command cmdData = (Command)data;
+            clients[cmdData.getClientId()].receive(cmdData);
+            return null;
         };
         Network network = new Network();
         network.setWaitTimes(0, 0, 1, 0);
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(NB_NODES, network, executorsSingle(executor, NB_NODES));
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(NB_NODES, network, executorsSingle(stateMachine, NB_NODES));
 
         for (int clientId = 0; clientId < NB_CLIENTS; ++clientId) {
             final int thisClientsId = clientId;
             clients[clientId] = new Client(clientId, nodes, new Thread(() -> {
                 for (int cmdId = 0; cmdId < NB_REQUESTS; cmdId++) {
-                    clients[thisClientsId].propose(new Command(thisClientsId, cmdId, null));
+                    Command cmdData = new Command(thisClientsId, cmdId, null);
+                    clients[thisClientsId].propose(new Command(thisClientsId, cmdId, cmdData));
                 }
             }));
         }

@@ -1,11 +1,11 @@
-package com.lewisesteban.paxos.node.proposer;
+package com.lewisesteban.paxos.paxosnode.proposer;
 
-import com.lewisesteban.paxos.Command;
+import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.Logger;
-import com.lewisesteban.paxos.node.MembershipGetter;
-import com.lewisesteban.paxos.node.acceptor.PrepareAnswer;
-import com.lewisesteban.paxos.rpc.PaxosProposer;
-import com.lewisesteban.paxos.rpc.RemotePaxosNode;
+import com.lewisesteban.paxos.paxosnode.MembershipGetter;
+import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
+import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
+import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
 
 import java.io.IOException;
 import java.util.Queue;

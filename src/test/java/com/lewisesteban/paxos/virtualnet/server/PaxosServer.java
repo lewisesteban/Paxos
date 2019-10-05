@@ -1,9 +1,9 @@
 package com.lewisesteban.paxos.virtualnet.server;
 
-import com.lewisesteban.paxos.Command;
-import com.lewisesteban.paxos.PaxosNode;
-import com.lewisesteban.paxos.node.proposer.Result;
-import com.lewisesteban.paxos.rpc.*;
+import com.lewisesteban.paxos.paxosnode.Command;
+import com.lewisesteban.paxos.paxosnode.PaxosNode;
+import com.lewisesteban.paxos.paxosnode.proposer.Result;
+import com.lewisesteban.paxos.rpc.paxos.*;
 
 import java.io.IOException;
 import java.util.concurrent.*;

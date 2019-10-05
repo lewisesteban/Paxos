@@ -1,4 +1,4 @@
-package com.lewisesteban.paxos.node;
+package com.lewisesteban.paxos.paxosnode;
 
 import java.util.HashMap;
 import java.util.Map;

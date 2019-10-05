@@ -1,6 +1,6 @@
 package com.lewisesteban.paxos.virtualnet.server;
 
-import com.lewisesteban.paxos.rpc.MembershipRPCHandle;
+import com.lewisesteban.paxos.rpc.paxos.MembershipRPCHandle;
 
 public class PaxosSrvMembership implements MembershipRPCHandle {
 

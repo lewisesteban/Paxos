@@ -1,10 +1,13 @@
 package com.lewisesteban.paxos;
 
-import com.lewisesteban.paxos.node.acceptor.PrepareAnswer;
-import com.lewisesteban.paxos.node.proposer.Proposal;
-import com.lewisesteban.paxos.node.proposer.Result;
-import com.lewisesteban.paxos.rpc.AcceptorRPCHandle;
-import com.lewisesteban.paxos.rpc.RemotePaxosNode;
+import com.lewisesteban.paxos.paxosnode.Command;
+import com.lewisesteban.paxos.paxosnode.PaxosNode;
+import com.lewisesteban.paxos.paxosnode.StateMachine;
+import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
+import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
+import com.lewisesteban.paxos.paxosnode.proposer.Result;
+import com.lewisesteban.paxos.rpc.paxos.AcceptorRPCHandle;
+import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
@@ -139,8 +142,8 @@ public class VirtualNetTest extends TestCase {
 
         private AcceptorRPCHandle acceptor;
 
-        SlowPaxosNode(int id, List<RemotePaxosNode> remotePaxosNodeList, Executor executor) {
-            super(id, remotePaxosNodeList, executor);
+        SlowPaxosNode(int id, List<RemotePaxosNode> remotePaxosNodeList, StateMachine stateMachine) {
+            super(id, remotePaxosNodeList, stateMachine);
             acceptor = new SlowPaxosAcceptor(getAcceptor());
         }
 

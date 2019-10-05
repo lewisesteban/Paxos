@@ -1,6 +1,6 @@
-package com.lewisesteban.paxos.node.acceptor;
+package com.lewisesteban.paxos.paxosnode.acceptor;
 
-import com.lewisesteban.paxos.node.proposer.Proposal;
+import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
 
 import java.io.Serializable;
 

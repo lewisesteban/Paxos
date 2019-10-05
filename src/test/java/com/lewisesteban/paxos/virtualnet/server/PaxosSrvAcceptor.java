@@ -1,8 +1,8 @@
 package com.lewisesteban.paxos.virtualnet.server;
 
-import com.lewisesteban.paxos.node.acceptor.PrepareAnswer;
-import com.lewisesteban.paxos.node.proposer.Proposal;
-import com.lewisesteban.paxos.rpc.AcceptorRPCHandle;
+import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
+import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
+import com.lewisesteban.paxos.rpc.paxos.AcceptorRPCHandle;
 
 import java.io.IOException;
 

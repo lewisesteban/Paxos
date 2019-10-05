@@ -1,4 +1,4 @@
-package com.lewisesteban.paxos.node.proposer;
+package com.lewisesteban.paxos.paxosnode.proposer;
 
 public class Result {
     private boolean success;

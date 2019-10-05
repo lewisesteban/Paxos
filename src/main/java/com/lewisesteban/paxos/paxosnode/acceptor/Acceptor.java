@@ -1,10 +1,10 @@
-package com.lewisesteban.paxos.node.acceptor;
+package com.lewisesteban.paxos.paxosnode.acceptor;
 
 import com.lewisesteban.paxos.Logger;
-import com.lewisesteban.paxos.node.InstanceVector;
-import com.lewisesteban.paxos.node.MembershipGetter;
-import com.lewisesteban.paxos.node.proposer.Proposal;
-import com.lewisesteban.paxos.rpc.AcceptorRPCHandle;
+import com.lewisesteban.paxos.paxosnode.InstanceVector;
+import com.lewisesteban.paxos.paxosnode.MembershipGetter;
+import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
+import com.lewisesteban.paxos.rpc.paxos.AcceptorRPCHandle;
 
 public class Acceptor implements AcceptorRPCHandle {
 

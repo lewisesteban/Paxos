@@ -1,4 +1,4 @@
-package com.lewisesteban.paxos;
+package com.lewisesteban.paxos.paxosnode;
 
 import java.io.Serializable;
 

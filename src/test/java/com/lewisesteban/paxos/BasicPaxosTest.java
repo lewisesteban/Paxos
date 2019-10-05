@@ -1,11 +1,14 @@
 package com.lewisesteban.paxos;
 
+import com.lewisesteban.paxos.paxosnode.Command;
+import com.lewisesteban.paxos.paxosnode.StateMachine;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
 import junit.framework.TestCase;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -22,15 +25,19 @@ public class BasicPaxosTest extends TestCase {
     public void testTwoProposals() throws IOException {
         final int NB_NODES = 2;
         final AtomicInteger receivedCorrectData = new AtomicInteger(0);
-        Executor executor = (i, command) -> {
-            if (command.getData().equals("ONE") && i == 0) {
-                receivedCorrectData.incrementAndGet();
-            } else {
-                receivedCorrectData.set(-NB_NODES);
-                System.err.println("INCORRECT: instance= " + i + " data=" + command.getData().toString());
+        StateMachine stateMachine = new StateMachine() {
+            boolean received = false;
+            @Override
+            public Serializable execute(Serializable data) {
+                if (!received && data.equals("ONE")) {
+                    receivedCorrectData.incrementAndGet();
+                } else {
+                    receivedCorrectData.set(-NB_NODES);
+                }
+                return null;
             }
         };
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(NB_NODES, new Network(), executorsSame(executor, NB_NODES));
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(NB_NODES, new Network(), executorsSame(stateMachine, NB_NODES));
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
         assertTrue(node0.propose(cmd1, 0).getSuccess());
         assertFalse(node0.propose(cmd2, 0).getSuccess());

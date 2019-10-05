@@ -1,7 +1,7 @@
 package com.lewisesteban.paxos.virtualnet.paxosnet;
 
-import com.lewisesteban.paxos.Command;
-import com.lewisesteban.paxos.rpc.ListenerRPCHandle;
+import com.lewisesteban.paxos.paxosnode.Command;
+import com.lewisesteban.paxos.rpc.paxos.ListenerRPCHandle;
 import com.lewisesteban.paxos.virtualnet.VirtualConnection;
 
 import java.io.IOException;

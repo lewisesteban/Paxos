@@ -1,7 +1,7 @@
-package com.lewisesteban.paxos.rpc;
+package com.lewisesteban.paxos.rpc.paxos;
 
-import com.lewisesteban.paxos.Command;
-import com.lewisesteban.paxos.node.proposer.Result;
+import com.lewisesteban.paxos.paxosnode.Command;
+import com.lewisesteban.paxos.paxosnode.proposer.Result;
 
 import java.io.IOException;
 

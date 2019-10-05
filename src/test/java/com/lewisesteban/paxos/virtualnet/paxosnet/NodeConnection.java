@@ -1,9 +1,9 @@
 package com.lewisesteban.paxos.virtualnet.paxosnet;
 
-import com.lewisesteban.paxos.rpc.AcceptorRPCHandle;
-import com.lewisesteban.paxos.rpc.ListenerRPCHandle;
-import com.lewisesteban.paxos.rpc.MembershipRPCHandle;
-import com.lewisesteban.paxos.rpc.RemotePaxosNode;
+import com.lewisesteban.paxos.rpc.paxos.AcceptorRPCHandle;
+import com.lewisesteban.paxos.rpc.paxos.ListenerRPCHandle;
+import com.lewisesteban.paxos.rpc.paxos.MembershipRPCHandle;
+import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.VirtualConnection;
 

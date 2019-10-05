@@ -1,4 +1,4 @@
-package com.lewisesteban.paxos.node.proposer;
+package com.lewisesteban.paxos.paxosnode.proposer;
 
 import java.util.concurrent.atomic.AtomicInteger;
 

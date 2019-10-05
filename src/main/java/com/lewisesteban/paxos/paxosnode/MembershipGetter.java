@@ -1,6 +1,6 @@
-package com.lewisesteban.paxos.node;
+package com.lewisesteban.paxos.paxosnode;
 
-import com.lewisesteban.paxos.rpc.RemotePaxosNode;
+import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
 
 import java.util.List;
 

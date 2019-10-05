@@ -1,6 +1,6 @@
 package com.lewisesteban.paxos.virtualnet.paxosnet;
 
-import com.lewisesteban.paxos.rpc.MembershipRPCHandle;
+import com.lewisesteban.paxos.rpc.paxos.MembershipRPCHandle;
 import com.lewisesteban.paxos.virtualnet.VirtualConnection;
 
 class NodeConMembership implements MembershipRPCHandle {

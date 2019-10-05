@@ -1,6 +1,6 @@
-package com.lewisesteban.paxos.node.proposer;
+package com.lewisesteban.paxos.paxosnode.proposer;
 
-import com.lewisesteban.paxos.Command;
+import com.lewisesteban.paxos.paxosnode.Command;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
