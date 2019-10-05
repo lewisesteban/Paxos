@@ -17,7 +17,7 @@ class NodeConListener implements ListenerRPCHandle {
     }
 
     @Override
-    public void informConsensus(int instanceId, Command command) throws IOException {
-        paxosHandle.informConsensus(instanceId, command);
+    public void execute(int instanceId, Command command) throws IOException {
+        paxosHandle.execute(instanceId, command);
     }
 }

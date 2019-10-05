@@ -9,4 +9,5 @@ public interface MembershipGetter {
     int getMyNodeId();
     List<RemotePaxosNode> getMembers();
     int getNbMembers();
+    RemotePaxosNode getMyNode();
 }

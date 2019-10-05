@@ -75,6 +75,14 @@ class NetworkFactory {
         return stateMachines;
     }
 
+    static Iterable<StateMachine> executorsAppendOK(int nb) {
+        List<StateMachine> stateMachines = new LinkedList<>();
+        for (int i = 0; i < nb; ++i) {
+            stateMachines.add((data) -> data.toString() + "OK");
+        }
+        return stateMachines;
+    }
+
     static Iterable<StateMachine> executorsSingle(StateMachine stateMachine, int nb) {
         List<StateMachine> stateMachines = new LinkedList<>();
         stateMachines.add(stateMachine);

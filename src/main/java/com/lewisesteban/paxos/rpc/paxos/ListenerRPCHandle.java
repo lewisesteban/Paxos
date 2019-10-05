@@ -6,5 +6,5 @@ import java.io.IOException;
 
 public interface ListenerRPCHandle {
 
-    void informConsensus(int instanceId, Command command) throws IOException;
+    void execute(int instanceId, Command command) throws IOException;
 }

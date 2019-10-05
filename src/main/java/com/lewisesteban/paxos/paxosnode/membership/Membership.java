@@ -11,6 +11,7 @@ public class Membership implements MembershipGetter, MembershipRPCHandle {
     private List<RemotePaxosNode> nodes;
     private int myNodeId;
     private int nbNodes;
+    private RemotePaxosNode myNode = null;
 
     public Membership(int myNodeId, List<RemotePaxosNode> nodes) {
         this.nodes = nodes;
@@ -39,5 +40,13 @@ public class Membership implements MembershipGetter, MembershipRPCHandle {
 
     public int getNbMembers() {
         return nbNodes;
+    }
+
+    @Override
+    public RemotePaxosNode getMyNode() {
+        if (myNode == null) {
+            myNode = nodes.get(myNodeId);
+        }
+        return myNode;
     }
 }

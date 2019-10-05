@@ -4,10 +4,12 @@ import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.Logger;
 import com.lewisesteban.paxos.paxosnode.MembershipGetter;
 import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
+import com.lewisesteban.paxos.paxosnode.listener.Listener;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.*;
@@ -19,10 +21,12 @@ public class Proposer implements PaxosProposer {
     private ProposalFactory propFac;
     private LastInstId lastInstId = new LastInstId(0);
     private ExecutorService executor = Executors.newCachedThreadPool();
+    private Listener listener;
 
-    public Proposer(MembershipGetter memberList) {
+    public Proposer(MembershipGetter memberList, Listener listener) {
         this.memberList = memberList;
         this.propFac = new ProposalFactory(memberList.getMyNodeId());
+        this.listener = listener;
     }
 
     public Result proposeNew(Command command) {
@@ -54,7 +58,11 @@ public class Proposer implements PaxosProposer {
             if (proposalChanged) {
                 Logger.println(">>> inst " + instanceId + " proposal changed from " + originalProposal.getCommand().toString() + " to " + prepared.getCommand().toString());
             }
-            return new Result(!proposalChanged, instanceId);
+            Serializable returnData = null;
+            if (!proposalChanged) {
+                returnData = listener.getReturnOf(instanceId, prepared.getCommand());
+            }
+            return new Result(!proposalChanged, instanceId, returnData);
         } else {
             return new Result(false, instanceId);
         }
@@ -159,7 +167,7 @@ public class Proposer implements PaxosProposer {
         for (RemotePaxosNode node : memberList.getMembers()) {
             threads[threadIt] = executor.submit(() -> {
                 try {
-                    node.getListener().informConsensus(instanceId, prepared.getCommand());
+                    node.getListener().execute(instanceId, prepared.getCommand());
                 } catch (IOException e) {
                     // TODO what to do about failures?
                 }

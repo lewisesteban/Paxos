@@ -22,7 +22,7 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
         membership = new Membership(myNodeId, members);
         acceptor = new Acceptor(membership);
         listener = new Listener(membership, stateMachine);
-        proposer = new Proposer(membership);
+        proposer = new Proposer(membership, listener);
     }
 
     public void start() {

@@ -16,9 +16,9 @@ public class PaxosSrvListener implements ListenerRPCHandle {
     }
 
     @Override
-    public void informConsensus(int instanceId, Command command) throws IOException {
+    public void execute(int instanceId, Command command) throws IOException {
         threadManager.pleaseDo(() -> {
-            paxosListener.informConsensus(instanceId, command);
+            paxosListener.execute(instanceId, command);
             return true;
         });
     }

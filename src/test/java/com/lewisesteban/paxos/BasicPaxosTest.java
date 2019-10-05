@@ -169,4 +169,13 @@ public class BasicPaxosTest extends TestCase {
         assertTrue(System.currentTimeMillis() - startTime < 1000);
     }
 
+    public void testReturnValue() {
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(3, new Network(), executorsAppendOK(3));
+        try {
+            Serializable result = nodes.get(0).getPaxosSrv().proposeNew(new Command(0, 0, "hi")).getReturnData();
+            assertEquals("hiOK", result);
+        } catch (IOException e) {
+            fail();
+        }
+    }
 }
