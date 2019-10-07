@@ -19,18 +19,16 @@ class NodeConAcceptor implements AcceptorRPCHandle {
 
     @Override
     public PrepareAnswer reqPrepare(int instanceId, Proposal.ID propId) throws IOException {
-        parent.tryNetCall();
-        return paxosHandle.reqPrepare(instanceId, propId);
+        return parent.tryNetCall(() -> paxosHandle.reqPrepare(instanceId, propId));
     }
 
     @Override
     public boolean reqAccept(int instanceId, Proposal proposal) throws IOException {
-        parent.tryNetCall();
-        return paxosHandle.reqAccept(instanceId, proposal);
+        return parent.tryNetCall(() -> paxosHandle.reqAccept(instanceId, proposal));
     }
 
     @Override
     public int getLastInstance() throws IOException {
-        return paxosHandle.getLastInstance();
+        return parent.tryNetCall(() -> paxosHandle.getLastInstance());
     }
 }

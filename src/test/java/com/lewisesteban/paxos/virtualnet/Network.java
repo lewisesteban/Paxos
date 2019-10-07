@@ -1,7 +1,10 @@
 package com.lewisesteban.paxos.virtualnet;
 
+import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.Callable;
 
+@SuppressWarnings({"BooleanMethodIsAlwaysInverted", "unused", "WeakerAccess"})
 public class Network {
 
     private Map<Integer, VirtualNetNode> nodes = new HashMap<>();
@@ -11,11 +14,6 @@ public class Network {
     private int waitTimeUsualMax = 30;
     private int waitTimeUnusualMax = 100;
     private float unusualWaitRisk = 0.1f;
-
-    public boolean tryCall(int from, int to) {
-        waitForAnswer();
-        return nodes.get(from).isRunning() && nodes.get(to).isRunning() && canCommunicate(from, to);
-    }
 
     public void setWaitTimes(int waitTimeMin, int waitTimeUsualMax, int waitTimeUnusualMax, float unusualWaitRisk) {
         this.waitTimeMin = waitTimeMin;
@@ -94,13 +92,49 @@ public class Network {
         isolatedRacks.remove(rack);
     }
 
-    private boolean canCommunicate(int node1, int node2) {
-        int rack1 = nodes.get(node1).getRack();
-        int rack2 = nodes.get(node2).getRack();
-        return ((rack1 == rack2) || (isRackConnected(rack1) && isRackConnected(rack2)));
+    public <RT> RT tryNetCall(Callable<RT> callable, int callerAddr, int targetAddr) throws IOException {
+        if (!canCommunicate(callerAddr, targetAddr))
+            throw new IOException();
+        waitNetworkDelay();
+        if (!canCommunicate(callerAddr, targetAddr))
+            throw new IOException();
+        try {
+            RT result = callable.call();
+            if (!canCommunicate(callerAddr, targetAddr))
+                throw new IOException();
+            waitNetworkDelay();
+            if (!canCommunicate(callerAddr, targetAddr))
+                throw new IOException();
+            return result;
+        } catch (Exception e) {
+            throw new IOException();
+        }
     }
 
-    private void waitForAnswer() {
+    public void tryNetCall(Runnable runnable, int callerAddr, int targetAddr) throws IOException {
+        if (!canCommunicate(callerAddr, targetAddr))
+            throw new IOException();
+        waitNetworkDelay();
+        if (!canCommunicate(callerAddr, targetAddr))
+            throw new IOException();
+        try {
+            runnable.run();
+        } catch (Exception e) {
+            throw new IOException();
+        }
+    }
+
+    private boolean canCommunicate(int nodeId1, int nodeId2) {
+        VirtualNetNode node1 = nodes.get(nodeId1);
+        VirtualNetNode node2 = nodes.get(nodeId2);
+        if (!node1.isRunning() || !node2.isRunning())
+            return false;
+        int rack1 = node1.getRack();
+        int rack2 = node2.getRack();
+        return (rack1 == rack2) || (isRackConnected(rack1) && isRackConnected(rack2));
+    }
+
+    private void waitNetworkDelay() {
         int wait;
         Random rand = new Random();
         if (rand.nextFloat() < unusualWaitRisk) {

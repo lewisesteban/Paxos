@@ -18,6 +18,9 @@ class NodeConListener implements ListenerRPCHandle {
 
     @Override
     public void execute(int instanceId, Command command) throws IOException {
-        paxosHandle.execute(instanceId, command);
+        parent.tryNetCall(() -> {
+            paxosHandle.execute(instanceId, command);
+            return true;
+        });
     }
 }

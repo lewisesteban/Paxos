@@ -8,6 +8,7 @@ import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.VirtualConnection;
 
 import java.io.IOException;
+import java.util.concurrent.Callable;
 
 public class NodeConnection implements RemotePaxosNode, VirtualConnection {
 
@@ -27,9 +28,9 @@ public class NodeConnection implements RemotePaxosNode, VirtualConnection {
         membership = new NodeConMembership(this, targetNode.getPaxosSrv().getMembership());
     }
 
-    public void tryNetCall() throws IOException {
-        if (!network.tryCall(callerAddr, targetNode.getAddress()))
-            throw new IOException();
+    @Override
+    public <RT> RT tryNetCall(Callable<RT> callable) throws IOException {
+        return network.tryNetCall(callable, callerAddr, targetNode.getAddress());
     }
 
     public int getId() {
