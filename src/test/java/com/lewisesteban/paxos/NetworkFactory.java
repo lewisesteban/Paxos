@@ -9,11 +9,16 @@ import com.lewisesteban.paxos.virtualnet.paxosnet.NodeConnection;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.Callable;
 
-class NetworkFactory {
+@SuppressWarnings({"WeakerAccess", "unused"})
+public class NetworkFactory {
 
-    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network, PaxosFactory paxosFactory, Iterable<StateMachine> executors) {
+    public static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network, PaxosFactory paxosFactory, Iterable<Callable<StateMachine>> stateMachineCreators) {
 
         List<List<RemotePaxosNode>> networkViews = new ArrayList<>();
         for (int i = 0; i < totalNbNodes; ++i) {
@@ -22,11 +27,12 @@ class NetworkFactory {
 
         int nodeId = 0;
         List<PaxosNetworkNode> paxosNodes = new ArrayList<>();
-        Iterator<StateMachine> executorIt = executors.iterator();
+        Iterator<Callable<StateMachine>> executorIt = stateMachineCreators.iterator();
         for (List<RemotePaxosNode> networkView : networkViews) {
-            StateMachine stateMachine = executorIt.next();
-            PaxosNode paxos = paxosFactory.createNode(nodeId, networkView, stateMachine);
-            PaxosServer srv = new PaxosServer(paxos);
+            final int thisNodeId = nodeId;
+            Callable<StateMachine> stateMachineCreator = executorIt.next();
+            Callable<PaxosNode> paxosNodeCreator = () -> paxosFactory.create(thisNodeId, networkView, stateMachineCreator.call());
+            PaxosServer srv = new PaxosServer(paxosNodeCreator);
             int rack = srv.getId() % nbRacks;
             paxosNodes.add(new PaxosNetworkNode(srv, rack));
             nodeId++;
@@ -47,52 +53,52 @@ class NetworkFactory {
         return paxosNodes;
     }
 
-    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network, PaxosFactory paxosFactory, Iterable<StateMachine> executor) {
-        return initSimpleNetwork(totalNbNodes, 1, network, paxosFactory, executor);
+    public static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network, PaxosFactory paxosFactory, Iterable<Callable<StateMachine>> stateMachineCreators) {
+        return initSimpleNetwork(totalNbNodes, 1, network, paxosFactory, stateMachineCreators);
     }
 
-    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network, Iterable<StateMachine> executor) {
-        return initSimpleNetwork(totalNbNodes, nbRacks, network, PaxosNode::new, executor);
+    public static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network, Iterable<Callable<StateMachine>> stateMachineCreators) {
+        return initSimpleNetwork(totalNbNodes, nbRacks, network, PaxosNode::new, stateMachineCreators);
     }
 
-    static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network, Iterable<StateMachine> executor) {
-        return initSimpleNetwork(totalNbNodes, network, PaxosNode::new, executor);
+    public static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network, Iterable<Callable<StateMachine>> stateMachineCreators) {
+        return initSimpleNetwork(totalNbNodes, network, PaxosNode::new, stateMachineCreators);
     }
 
-    static Iterable<StateMachine> executorsSame(StateMachine stateMachine, int nb) {
-        List<StateMachine> stateMachines = new LinkedList<>();
+    public static Iterable<Callable<StateMachine>> stateMachinesSame(Callable<StateMachine> stateMachineCreator, int nb) {
+        List<Callable<StateMachine>> stateMachines = new LinkedList<>();
         for (int i = 0; i < nb; ++i) {
-            stateMachines.add(stateMachine);
+            stateMachines.add(stateMachineCreator);
         }
         return stateMachines;
     }
 
-    static Iterable<StateMachine> executorsEmpty(int nb) {
-        List<StateMachine> stateMachines = new LinkedList<>();
+    public static Iterable<Callable<StateMachine>> stateMachinesEmpty(int nb) {
+        List<Callable<StateMachine>> stateMachines = new LinkedList<>();
         for (int i = 0; i < nb; ++i) {
-            stateMachines.add((data) -> null);
+            stateMachines.add(() -> (data) -> null);
         }
         return stateMachines;
     }
 
-    static Iterable<StateMachine> executorsAppendOK(int nb) {
-        List<StateMachine> stateMachines = new LinkedList<>();
+    public static Iterable<Callable<StateMachine>> stateMachinesAppendOK(int nb) {
+        List<Callable<StateMachine>> stateMachines = new LinkedList<>();
         for (int i = 0; i < nb; ++i) {
-            stateMachines.add((data) -> data.toString() + "OK");
+            stateMachines.add(() -> (data) -> data.toString() + "OK");
         }
         return stateMachines;
     }
 
-    static Iterable<StateMachine> executorsSingle(StateMachine stateMachine, int nb) {
-        List<StateMachine> stateMachines = new LinkedList<>();
-        stateMachines.add(stateMachine);
+    public static Iterable<Callable<StateMachine>> stateMachinesSingle(Callable<StateMachine> stateMachineCreator, int nb) {
+        List<Callable<StateMachine>> stateMachines = new LinkedList<>();
+        stateMachines.add(stateMachineCreator);
         for (int i = 0; i < nb - 1; ++i) {
-            stateMachines.add((data) -> null);
+            stateMachines.add(() -> (data) -> null);
         }
         return stateMachines;
     }
 
     interface PaxosFactory {
-        PaxosNode createNode(int nodeId, List<RemotePaxosNode> networkView, StateMachine stateMachine);
+        PaxosNode create(int nodeId, List<RemotePaxosNode> networkView, StateMachine stateMachine);
     }
 }

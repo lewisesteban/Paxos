@@ -10,7 +10,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * A virtual paxos server running an instance of PaxosNode.
+ * A virtual paxosNode server running an instance of PaxosNode.
  * When called from this class, code from the PaxosNode class is run on separate threads.
  * A server failure can be simulated by calling kill()
  */
@@ -18,49 +18,64 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
 
     public static final String SRV_FAILURE_MSG = "Server failed";
 
+    private Callable<PaxosNode> nodeCreator;
+
+    private PaxosNode paxosNode = null;
     private PaxosSrvAcceptor acceptor;
     private PaxosSrvListener listener;
     private PaxosSrvMembership membership;
 
-    private PaxosNode paxos;
-
     private final ThreadManager threadManager = new ThreadManager();
 
-    public PaxosServer(PaxosNode paxos) {
-        this.paxos = paxos;
-        acceptor = new PaxosSrvAcceptor(paxos.getAcceptor(), threadManager);
-        listener = new PaxosSrvListener(paxos.getListener(), threadManager);
-        membership = new PaxosSrvMembership(paxos.getMembership(), threadManager);
+    public PaxosServer(Callable<PaxosNode> nodeCreator) {
+        this.nodeCreator = nodeCreator;
+        createInstance();
+    }
+
+    private void createInstance() {
+        try {
+            paxosNode = nodeCreator.call();
+            acceptor = new PaxosSrvAcceptor(paxosNode.getAcceptor(), threadManager);
+            listener = new PaxosSrvListener(paxosNode.getListener(), threadManager);
+            membership = new PaxosSrvMembership(paxosNode.getMembership(), threadManager);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void start() {
-        threadManager.start();
-        paxos.start();
+        try {
+            threadManager.start();
+            createInstance();
+            paxosNode.start();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void stop() {
-        paxos.stop();
+        paxosNode.stop();
         threadManager.stop();
     }
 
     public void kill() {
         threadManager.shutDownNow();
-        paxos.stopNow();
+        paxosNode.stopNow();
     }
 
     @Override
     public Result propose(final Command command, int instanceId) throws IOException {
-        return threadManager.pleaseDo(() -> paxos.propose(command, instanceId));
+        return threadManager.pleaseDo(() -> paxosNode.propose(command, instanceId));
     }
 
     @Override
     public Result proposeNew(final Command command) throws IOException {
-        return threadManager.pleaseDo(() -> paxos.proposeNew(command));
+        return threadManager.pleaseDo(() -> paxosNode.proposeNew(command));
     }
 
     @Override
     public int getId() {
-        return paxos.getId();
+        return paxosNode.getId();
     }
 
     @Override

@@ -1,7 +1,7 @@
-package com.lewisesteban.paxos;
+package com.lewisesteban.paxos.paxosnode;
 
-import com.lewisesteban.paxos.paxosnode.Command;
-import com.lewisesteban.paxos.paxosnode.StateMachine;
+import com.lewisesteban.paxos.Logger;
+import com.lewisesteban.paxos.NetworkFactory;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
@@ -14,8 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import static com.lewisesteban.paxos.NetworkFactory.executorsSingle;
-import static com.lewisesteban.paxos.NetworkFactory.initSimpleNetwork;
+import static com.lewisesteban.paxos.NetworkFactory.stateMachinesSingle;
 
 public class HeavyPaxosTest extends TestCase {
 
@@ -35,7 +34,7 @@ public class HeavyPaxosTest extends TestCase {
         };
         Network network = new Network();
         network.setWaitTimes(0, 0, 1, 0);
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(NB_NODES, network, executorsSingle(stateMachine, NB_NODES));
+        List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(NB_NODES, network, stateMachinesSingle(() -> stateMachine, NB_NODES));
 
         for (int clientId = 0; clientId < NB_CLIENTS; ++clientId) {
             final int thisClientsId = clientId;

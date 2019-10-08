@@ -68,7 +68,12 @@ public class Proposer implements PaxosProposer {
         }
     }
 
+    /**
+     * This, in terms, should be replaced by a catching-up mechanism
+     */
     private void updateLastInstId() {
+        if (memberList.getNbMembers() <= 1)
+            return;
         Random randGen = new Random();
         int randInt = randGen.nextInt(memberList.getNbMembers());
         while (randInt == memberList.getMyNodeId()) {

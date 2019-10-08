@@ -14,14 +14,15 @@ import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
 import junit.framework.TestCase;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.lewisesteban.paxos.NetworkFactory.executorsEmpty;
-import static com.lewisesteban.paxos.NetworkFactory.initSimpleNetwork;
+import static com.lewisesteban.paxos.NetworkFactory.*;
 import static com.lewisesteban.paxos.virtualnet.server.PaxosServer.SRV_FAILURE_MSG;
 
 public class VirtualNetTest extends TestCase {
@@ -34,7 +35,7 @@ public class VirtualNetTest extends TestCase {
 
     public void testCutRackConnection() throws IOException {
         Network network = new Network();
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(2, 2, network, executorsEmpty(2));
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(2, 2, network, stateMachinesEmpty(2));
         network.disconnectRack(1);
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
         assertFalse(node0.propose(cmd1, 0).getSuccess());
@@ -45,7 +46,7 @@ public class VirtualNetTest extends TestCase {
         final int DIFF = 5;
 
         Network network = new Network();
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(2, network, executorsEmpty(2));
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(2, network, stateMachinesEmpty(2));
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
         assertTrue(node0.propose(cmd1, 0).getSuccess());
 
@@ -80,7 +81,7 @@ public class VirtualNetTest extends TestCase {
         final AtomicInteger nbCorrectExceptions = new AtomicInteger(0);
 
         Network network = new Network();
-        List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(2, network, SlowPaxosNode::new, executorsEmpty(2));
+        List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(2, network, SlowPaxosNode::new, stateMachinesEmpty(2));
         final PaxosNetworkNode server = nodes.get(0);
 
         slowPropose = true;
@@ -122,7 +123,7 @@ public class VirtualNetTest extends TestCase {
     public void testKillAcceptingServer() throws InterruptedException, ExecutionException {
 
         Network network = new Network();
-        List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(2, network, SlowPaxosNode::new, executorsEmpty(2));
+        List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(2, network, SlowPaxosNode::new, stateMachinesEmpty(2));
         slowAcceptorId = 1;
         final PaxosNetworkNode server = nodes.get(0);
 
@@ -136,6 +137,31 @@ public class VirtualNetTest extends TestCase {
 
         network.kill(slowAcceptorId);
         assertFalse(client.get());
+    }
+
+    public void testKillAndRestartSingleServer() {
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(1, new Network(), Collections.nCopies(1, () -> new StateMachine() {
+            int nbCommandsReceived = 0;
+            @Override
+            public Serializable execute(Serializable data) {
+                nbCommandsReceived++;
+                return nbCommandsReceived;
+            }
+        }));
+        try {
+            nodes.get(0).getPaxosSrv().proposeNew(new Command(0, 0, "hi"));
+            nodes.get(0).kill();
+            nodes.get(0).start();
+            nodes.get(0).getPaxosSrv().proposeNew(new Command(0, 0, "hi"));
+            Result result = nodes.get(0).getPaxosSrv().proposeNew(new Command(0, 1, "hi"));
+            assertEquals(2, result.getReturnData());
+        } catch (IOException e) {
+            fail();
+        }
+    }
+
+    public void testKillAndRestart() {
+        // similar to testKillAcceptingServer, but with restart
     }
 
     private class SlowPaxosNode extends PaxosNode {

@@ -1,7 +1,5 @@
-package com.lewisesteban.paxos;
+package com.lewisesteban.paxos.paxosnode;
 
-import com.lewisesteban.paxos.paxosnode.Command;
-import com.lewisesteban.paxos.paxosnode.StateMachine;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
@@ -37,7 +35,7 @@ public class BasicPaxosTest extends TestCase {
                 return null;
             }
         };
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(NB_NODES, new Network(), executorsSame(stateMachine, NB_NODES));
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(NB_NODES, new Network(), stateMachinesSame(() -> stateMachine, NB_NODES));
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
         assertTrue(node0.propose(cmd1, 0).getSuccess());
         assertFalse(node0.propose(cmd2, 0).getSuccess());
@@ -45,14 +43,14 @@ public class BasicPaxosTest extends TestCase {
     }
 
     public void testSameProposals() throws IOException {
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(2, new Network(), executorsEmpty(2));
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(2, new Network(), stateMachinesEmpty(2));
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
         assertTrue(node0.propose(cmd1, 0).getSuccess());
         assertTrue(node0.propose(cmd1, 0).getSuccess());
     }
 
     public void testTwoInstances() throws IOException {
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(2, new Network(), executorsEmpty(2));
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(2, new Network(), stateMachinesEmpty(2));
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
         assertTrue(node0.propose(cmd1, 0).getSuccess());
         assertFalse(node0.propose(cmd2, 0).getSuccess());
@@ -62,7 +60,7 @@ public class BasicPaxosTest extends TestCase {
 
     public void testMajority() throws IOException {
         Network network = new Network();
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(3, 2, network, executorsEmpty(3));
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(3, 2, network, stateMachinesEmpty(3));
         network.disconnectRack(1);
 
         int rack0NodeNb = 0;
@@ -92,14 +90,14 @@ public class BasicPaxosTest extends TestCase {
 
     public void testSingleRequestParallelism() throws IOException {
         Network networkA = new Network();
-        List<PaxosNetworkNode> nodesA = initSimpleNetwork(10, networkA, executorsEmpty(10));
+        List<PaxosNetworkNode> nodesA = initSimpleNetwork(10, networkA, stateMachinesEmpty(10));
         networkA.setWaitTimes(30, 40, 40, 0);
         long startTime = System.currentTimeMillis();
         nodesA.get(0).getPaxosSrv().proposeNew(cmd1);
         long timeA = System.currentTimeMillis() - startTime;
 
         Network networkB = new Network();
-        List<PaxosNetworkNode> nodesB = initSimpleNetwork(100, networkB, executorsEmpty(100));
+        List<PaxosNetworkNode> nodesB = initSimpleNetwork(100, networkB, stateMachinesEmpty(100));
         networkB.setWaitTimes(30, 40, 40, 0);
         startTime = System.currentTimeMillis();
         nodesB.get(0).getPaxosSrv().proposeNew(cmd2);
@@ -116,7 +114,7 @@ public class BasicPaxosTest extends TestCase {
 
         Network network = new Network();
         network.setWaitTimes(20, 20, 1, 0);
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(NB_NODES, network, executorsEmpty(NB_NODES));
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(NB_NODES, network, stateMachinesEmpty(NB_NODES));
         PaxosServer dedicatedServer = nodes.get(0).getPaxosSrv();
 
         Thread seqClient = new Thread(() -> {
@@ -163,14 +161,14 @@ public class BasicPaxosTest extends TestCase {
     public void testNoWaitForSlowNode() throws IOException {
         Network network = new Network();
         network.setWaitTimes(2, 3, 1000, 0.1f);
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(100, new Network(), executorsEmpty(100));
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(100, new Network(), stateMachinesEmpty(100));
         long startTime = System.currentTimeMillis();
         assertTrue(nodes.get(0).getPaxosSrv().proposeNew(cmd1).getSuccess());
         assertTrue(System.currentTimeMillis() - startTime < 1000);
     }
 
     public void testReturnValue() {
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(3, new Network(), executorsAppendOK(3));
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(3, new Network(), stateMachinesAppendOK(3));
         try {
             Serializable result = nodes.get(0).getPaxosSrv().proposeNew(new Command(0, 0, "hi")).getReturnData();
             assertEquals("hiOK", result);
