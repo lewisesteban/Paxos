@@ -40,8 +40,8 @@ public class PaxosNetworkNode implements VirtualNetNode {
     }
 
     public void kill() {
-        paxosSrv.kill();
         isRunning = false;
+        paxosSrv.kill();
     }
 
     public void start() {

@@ -1,5 +1,6 @@
 package com.lewisesteban.paxos.paxosnode.proposer;
 
+import com.lewisesteban.paxos.storage.StorageUnit;
 import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.Logger;
 import com.lewisesteban.paxos.paxosnode.MembershipGetter;
@@ -22,11 +23,13 @@ public class Proposer implements PaxosProposer {
     private LastInstId lastInstId = new LastInstId(0);
     private ExecutorService executor = Executors.newCachedThreadPool();
     private Listener listener;
+    private StorageUnit storage;
 
-    public Proposer(MembershipGetter memberList, Listener listener) {
+    public Proposer(MembershipGetter memberList, Listener listener, StorageUnit storage) {
         this.memberList = memberList;
         this.propFac = new ProposalFactory(memberList.getMyNodeId());
         this.listener = listener;
+        this.storage = storage;
     }
 
     public Result proposeNew(Command command) {

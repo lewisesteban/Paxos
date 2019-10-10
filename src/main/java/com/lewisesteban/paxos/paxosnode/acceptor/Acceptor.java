@@ -1,6 +1,7 @@
 package com.lewisesteban.paxos.paxosnode.acceptor;
 
 import com.lewisesteban.paxos.Logger;
+import com.lewisesteban.paxos.storage.StorageUnit;
 import com.lewisesteban.paxos.paxosnode.InstanceVector;
 import com.lewisesteban.paxos.paxosnode.MembershipGetter;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
@@ -10,9 +11,11 @@ public class Acceptor implements AcceptorRPCHandle {
 
     private InstanceVector<AcceptDataInstance> instances = new InstanceVector<>(AcceptDataInstance::new);
     private MembershipGetter memberList;
+    private StorageUnit storage;
 
-    public Acceptor(MembershipGetter memberList) {
+    public Acceptor(MembershipGetter memberList, StorageUnit storage) {
         this.memberList = memberList;
+        this.storage = storage;
     }
 
     public PrepareAnswer reqPrepare(int instanceNb, Proposal.ID propId) {

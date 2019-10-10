@@ -4,6 +4,7 @@ import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.PaxosNode;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.*;
+import com.lewisesteban.paxos.storage.InterruptibleTestStorage;
 
 import java.io.IOException;
 import java.util.concurrent.*;
@@ -24,6 +25,7 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
     private PaxosSrvAcceptor acceptor;
     private PaxosSrvListener listener;
     private PaxosSrvMembership membership;
+    private InterruptibleTestStorage storage;
 
     private final ThreadManager threadManager = new ThreadManager();
 
@@ -38,6 +40,7 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
             acceptor = new PaxosSrvAcceptor(paxosNode.getAcceptor(), threadManager);
             listener = new PaxosSrvListener(paxosNode.getListener(), threadManager);
             membership = new PaxosSrvMembership(paxosNode.getMembership(), threadManager);
+            storage = InterruptibleTestStorage.Container.get(paxosNode.getId());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -61,6 +64,7 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
     public void kill() {
         threadManager.shutDownNow();
         paxosNode.stopNow();
+        storage.interrupt();
     }
 
     @Override

@@ -8,6 +8,7 @@ import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.AcceptorRPCHandle;
 import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
+import com.lewisesteban.paxos.storage.StorageUnit;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
@@ -22,7 +23,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.lewisesteban.paxos.NetworkFactory.*;
+import static com.lewisesteban.paxos.NetworkFactory.initSimpleNetwork;
+import static com.lewisesteban.paxos.NetworkFactory.stateMachinesEmpty;
 import static com.lewisesteban.paxos.virtualnet.server.PaxosServer.SRV_FAILURE_MSG;
 
 public class VirtualNetTest extends TestCase {
@@ -168,8 +170,8 @@ public class VirtualNetTest extends TestCase {
 
         private AcceptorRPCHandle acceptor;
 
-        SlowPaxosNode(int id, List<RemotePaxosNode> remotePaxosNodeList, StateMachine stateMachine) {
-            super(id, remotePaxosNodeList, stateMachine);
+        SlowPaxosNode(int id, List<RemotePaxosNode> remotePaxosNodeList, StateMachine stateMachine, StorageUnit storage) {
+            super(id, remotePaxosNodeList, stateMachine, storage);
             acceptor = new SlowPaxosAcceptor(getAcceptor());
         }
 
