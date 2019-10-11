@@ -86,10 +86,14 @@ public class InterruptibleWholeFileAccessor implements FileAccessor {
             if (Thread.interrupted())
                 throw new IOException("interrupted");
             outputStream.write(b);
-            counter++;
-            if (counter == flushFreq) {
+            if (fastWriting) {
+                counter++;
+                if (counter == flushFreq) {
+                    outputStream.flush();
+                    counter = 0;
+                }
+            } else {
                 outputStream.flush();
-                counter = 0;
             }
         }
 
