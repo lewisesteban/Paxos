@@ -61,20 +61,35 @@ public class StorageTest extends TestCase {
     }
 
     public void testInterruptibleStorage() {
+        int size = 10000;
+        int nbTests = 20;
+
         long slow = 0;
-        for (int i = 0; i < 10; ++i)
-            slow += testInterruptibleStorage(false);
+        for (int i = 0; i < nbTests; ++i)
+            slow += testInterruptibleStorage(false, size);
         System.out.println("slow " + slow);
+
         long fast = 0;
-        for (int i = 0; i < 10; ++i)
-            fast += testInterruptibleStorage(true);
+        int allow = nbTests / 4;
+        int nbRoundRes = 0;
+        for (int i = 0; i < nbTests; ++i) {
+            long written = testInterruptibleStorage(true, size);
+            if (written % size == 0) {
+                nbRoundRes++;
+            }
+            if (nbRoundRes > allow)
+                fail();
+            fast += written;
+        }
         System.out.println("fast " + fast);
-        if (fast < 10 * slow)
+        System.out.println("nb of round results = " + nbRoundRes);
+
+        if (fast < 100 * slow)
             fail();
     }
 
-    private long testInterruptibleStorage(boolean fastWriting) {
-        byte[] writingContent = new byte[10000];
+    private long testInterruptibleStorage(boolean fastWriting, int size) {
+        byte[] writingContent = new byte[size];
         for (int i = 0; i < writingContent.length; i++) {
             writingContent[i] = 42;
         }
@@ -139,8 +154,6 @@ public class StorageTest extends TestCase {
             }
 
             long written = file.length();
-            if (written % writingContent.length == 0)
-                fail();
             outputStream.close();
             if (!file.delete())
                 fail();

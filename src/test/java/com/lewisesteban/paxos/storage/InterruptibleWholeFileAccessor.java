@@ -95,7 +95,7 @@ public class InterruptibleWholeFileAccessor implements FileAccessor {
                 while (i < arr.length) {
                     if (Thread.interrupted())
                         throw new IOException("interrupted");
-                    int flushFreq = 100 + new Random().nextInt(100);
+                    int flushFreq = 500 + new Random().nextInt(500);
                     int to = i + flushFreq;
                     if (to > arr.length)
                         to = arr.length;
