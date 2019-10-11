@@ -6,6 +6,10 @@ import java.util.Random;
 
 public class InterruptibleWholeFileAccessor implements FileAccessor {
 
+    @SuppressWarnings("WeakerAccess")
+    static final int FAST_WRITING_MIN = 500;
+    static final int FAST_WRITING_MAX = 1000;
+
     private File file;
     private InterruptibleOutputStream outputStream = null;
     private FileInputStream inputStream = null;
@@ -95,7 +99,7 @@ public class InterruptibleWholeFileAccessor implements FileAccessor {
                 while (i < arr.length) {
                     if (Thread.interrupted())
                         throw new IOException("interrupted");
-                    int flushFreq = 500 + new Random().nextInt(500);
+                    int flushFreq = FAST_WRITING_MIN + new Random().nextInt(FAST_WRITING_MAX - FAST_WRITING_MIN);
                     int to = i + flushFreq;
                     if (to > arr.length)
                         to = arr.length;

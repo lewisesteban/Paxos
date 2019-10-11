@@ -19,8 +19,22 @@ public class StorageTest extends TestCase {
 
     public void testBasicSingleFileStorage() {
         try {
-            StorageUnit storage1 = new SafeSingleFileStorage(fileName(1), WholeFileAccessor.creator());
-            StorageUnit storage2 = new SafeSingleFileStorage(fileName(2), WholeFileAccessor.creator());
+            new SafeSingleFileStorage(fileName(1), WholeFileAccessor.creator()).delete();
+        } catch (IOException ignored) { }
+        try {
+            new SafeSingleFileStorage(fileName(2), WholeFileAccessor.creator()).delete();
+        } catch (IOException ignored) { }
+        testBasicSingleFileStorage(WholeFileAccessor.creator());
+        System.out.println("normal file accessor OK");
+        testBasicSingleFileStorage(InterruptibleWholeFileAccessor.creator(true));
+        System.out.println("interruptible file accessor OK");
+    }
+
+    private void testBasicSingleFileStorage(FileAccessorCreator fileAccessorCreator) {
+        try {
+            // write data into two files
+            StorageUnit storage1 = new SafeSingleFileStorage(fileName(1), fileAccessorCreator);
+            StorageUnit storage2 = new SafeSingleFileStorage(fileName(2), fileAccessorCreator);
             storage1.write("a", "A");
             assertEquals("A", storage1.read("a"));
             assertNull(storage2.read("a"));
@@ -30,8 +44,9 @@ public class StorageTest extends TestCase {
             storage1.close();
             storage2.close();
 
-            storage1 = new SafeSingleFileStorage(fileName(1), WholeFileAccessor.creator());
-            storage2 = new SafeSingleFileStorage(fileName(2), WholeFileAccessor.creator());
+            // read the two files from disk
+            storage1 = new SafeSingleFileStorage(fileName(1), fileAccessorCreator);
+            storage2 = new SafeSingleFileStorage(fileName(2), fileAccessorCreator);
             assertNull(storage1.read("b"));
             assertEquals("A", storage1.read("a"));
             Iterator<Map.Entry<String, String>> it = storage2.startReadAll();
@@ -41,14 +56,27 @@ public class StorageTest extends TestCase {
             assertEquals("c", it.next().getKey());
             assertFalse(it.hasNext());
 
+            // change data
             storage2.write("b", "B2");
             assertEquals("B2", storage2.read("b"));
 
+            // check delete
             storage2.delete();
             storage2.close();
-            storage2 = new SafeSingleFileStorage(fileName(2), WholeFileAccessor.creator());
+            storage2 = new SafeSingleFileStorage(fileName(2), fileAccessorCreator);
             assertNull(storage2.read("b"));
 
+            // write a lot of data and then read from disk
+            for (int i = 0; i <= InterruptibleWholeFileAccessor.FAST_WRITING_MAX + 1; ++i) {
+                storage2.write("key" + i, "val" + i);
+            }
+            storage2.close();
+            storage2 = new SafeSingleFileStorage(fileName(2), fileAccessorCreator);
+            assertEquals("val0", storage2.read("key0"));
+            assertEquals("val" + InterruptibleWholeFileAccessor.FAST_WRITING_MAX, storage2.read("key" + InterruptibleWholeFileAccessor.FAST_WRITING_MAX));
+            assertEquals("val" + (InterruptibleWholeFileAccessor.FAST_WRITING_MAX + 1), storage2.read("key" + (InterruptibleWholeFileAccessor.FAST_WRITING_MAX + 1)));
+
+            // clean-up
             storage1.delete();
             storage1.close();
             storage2.delete();
