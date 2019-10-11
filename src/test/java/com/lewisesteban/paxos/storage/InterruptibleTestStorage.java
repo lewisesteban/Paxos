@@ -4,10 +4,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class InterruptibleTestStorage implements StorageUnit {
@@ -108,7 +105,7 @@ public class InterruptibleTestStorage implements StorageUnit {
             }).get();
         } catch (ExecutionException e) {
             throw new IOException(e);
-        } catch (InterruptedException ignored) { }
+        } catch (InterruptedException | RejectedExecutionException ignored) { }
         if (running && error.get() != null) {
             throw new IOException();
         }

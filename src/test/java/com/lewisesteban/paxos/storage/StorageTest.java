@@ -61,6 +61,19 @@ public class StorageTest extends TestCase {
     }
 
     public void testInterruptibleStorage() {
+        long slow = 0;
+        for (int i = 0; i < 10; ++i)
+            slow += testInterruptibleStorage(false);
+        System.out.println("slow " + slow);
+        long fast = 0;
+        for (int i = 0; i < 10; ++i)
+            fast += testInterruptibleStorage(true);
+        System.out.println("fast " + fast);
+        if (fast < 10 * slow)
+            fail();
+    }
+
+    private long testInterruptibleStorage(boolean fastWriting) {
         byte[] writingContent = new byte[10000];
         for (int i = 0; i < writingContent.length; i++) {
             writingContent[i] = 42;
@@ -68,7 +81,7 @@ public class StorageTest extends TestCase {
         final File file = new File(fileName(1));
         //noinspection ResultOfMethodCallIgnored
         file.delete();
-        FileAccessor fileAccessor = new InterruptibleWholeFileAccessor(fileName(1));
+        FileAccessor fileAccessor = new InterruptibleWholeFileAccessor(fileName(1), fastWriting);
         try {
             final OutputStream outputStream = fileAccessor.startWrite();
 
@@ -109,7 +122,7 @@ public class StorageTest extends TestCase {
 
             worker.start();
             try {
-                Thread.sleep(30);
+                Thread.sleep(50);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -125,17 +138,21 @@ public class StorageTest extends TestCase {
                 fail();
             }
 
-            System.out.println(file.length());
-            if (file.length() % writingContent.length == 0)
+            long written = file.length();
+            if (written % writingContent.length == 0)
                 fail();
             outputStream.close();
             if (!file.delete())
                 fail();
 
+            return written;
+
         } catch (IOException e) {
             e.printStackTrace();
             fail();
         }
+
+        return -1;
     }
 
     public void testFailSafeSingleFileStorage() throws InterruptedException {
@@ -148,9 +165,9 @@ public class StorageTest extends TestCase {
             fail();
         }
 
-        for (int testnb = 0; testnb < 50; testnb++) {
+        for (int testnb = 0; testnb < 100; testnb++) {
 
-            FileAccessorCreator fileAccessorCreator = InterruptibleWholeFileAccessor.creator();
+            FileAccessorCreator fileAccessorCreator = InterruptibleWholeFileAccessor.creator(false);
             StorageUnit storageUnit = new SafeSingleFileStorage(fileName(1), fileAccessorCreator);
             InterruptibleTestStorage interruptibleStorage = new InterruptibleTestStorage(1, storageUnit);
             try {
@@ -179,15 +196,14 @@ public class StorageTest extends TestCase {
                 }
             });
             thread.start();
-            Thread.sleep(30);
+            Thread.sleep(20);
             interruptibleStorage.interrupt();
-            thread.join();
-            if (failed.get())
-                fail();
             int writeCount1 = nbWrites.get();
             System.out.println(writeCount1);
-            Thread.sleep(30);
+            Thread.sleep(20);
             if (nbWrites.get() > writeCount1)
+                fail();
+            if (failed.get())
                 fail();
 
             InterruptibleTestStorage newInstance = new InterruptibleTestStorage(1, new SafeSingleFileStorage(fileName(1), WholeFileAccessor.creator()));

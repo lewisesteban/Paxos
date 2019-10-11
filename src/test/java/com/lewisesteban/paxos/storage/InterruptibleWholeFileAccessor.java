@@ -1,6 +1,7 @@
 package com.lewisesteban.paxos.storage;
 
 import java.io.*;
+import java.util.Arrays;
 import java.util.Random;
 
 public class InterruptibleWholeFileAccessor implements FileAccessor {
@@ -8,8 +9,10 @@ public class InterruptibleWholeFileAccessor implements FileAccessor {
     private File file;
     private InterruptibleOutputStream outputStream = null;
     private FileInputStream inputStream = null;
+    private boolean fastWriting;
 
-    InterruptibleWholeFileAccessor(String name) {
+    InterruptibleWholeFileAccessor(String name, boolean fastWriting) {
+        this.fastWriting = fastWriting;
         file = new File(name);
     }
 
@@ -66,7 +69,7 @@ public class InterruptibleWholeFileAccessor implements FileAccessor {
 
         FileOutputStream outputStream;
         String fileName;
-        int flushFreq = 200 + new Random().nextInt(100);
+        int flushFreq = 100 + new Random().nextInt(100);
         int counter = 0;
 
         InterruptibleOutputStream(String fileName) throws FileNotFoundException {
@@ -87,8 +90,24 @@ public class InterruptibleWholeFileAccessor implements FileAccessor {
         }
 
         public void write(byte[] arr) throws IOException {
-            for (byte b : arr) {
-                write(b);
+            if (fastWriting) {
+                int i = 0;
+                while (i < arr.length) {
+                    if (Thread.interrupted())
+                        throw new IOException("interrupted");
+                    int flushFreq = 100 + new Random().nextInt(100);
+                    int to = i + flushFreq;
+                    if (to > arr.length)
+                        to = arr.length;
+                    byte[] piece = Arrays.copyOfRange(arr, i, to);
+                    outputStream.write(piece);
+                    outputStream.flush();
+                    i += flushFreq;
+                }
+            } else {
+                for (byte b : arr) {
+                    write(b);
+                }
             }
         }
 
@@ -97,7 +116,7 @@ public class InterruptibleWholeFileAccessor implements FileAccessor {
         }
     }
 
-    static FileAccessorCreator creator() {
-        return InterruptibleWholeFileAccessor::new;
+    static FileAccessorCreator creator(boolean fastWriting) {
+        return filePath -> new InterruptibleWholeFileAccessor(filePath, fastWriting);
     }
 }
