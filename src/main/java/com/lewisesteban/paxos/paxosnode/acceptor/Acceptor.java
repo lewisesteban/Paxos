@@ -23,10 +23,8 @@ public class Acceptor implements AcceptorRPCHandle {
         synchronized (thisInstance) {
             if (propId.isGreaterThan(thisInstance.getLastPreparedPropId())) {
                 thisInstance.setLastPreparedPropId(propId);
-                //System.out.println("acceptor " + memberList.getMyNodeId() + " inst=" + instanceNb + " prepare OK propId=" + propId + " cmd=" + (thisInstance.getLastAcceptedProp() == null ? "none" : thisInstance.getLastAcceptedProp().getCommand()));
                 return new PrepareAnswer(true, thisInstance.getLastAcceptedProp());
             } else {
-                //System.out.println("acceptor " + memberList.getMyNodeId() + " inst=" + instanceNb + " prepare NOK propId=" + propId);
                 return new PrepareAnswer(false, null);
             }
         }
@@ -37,12 +35,10 @@ public class Acceptor implements AcceptorRPCHandle {
         synchronized (thisInstance) {
             if (thisInstance.getLastPreparedPropId().isGreaterThan(proposal.getId())) {
                 Logger.println("--o inst " + instanceNb + " srv " + memberList.getMyNodeId() + " REFUSE " + proposal.getCommand() + " last seen prop id = " + thisInstance.getLastPreparedPropId() + " this prop id = " + proposal.getId());
-                //System.out.println("acceptor " + memberList.getMyNodeId() + " inst=" + instanceNb + " accept NOK cmd=" + proposal.getCommand() + " propId=" + proposal.getId());
                 return false;
             } else {
                 thisInstance.setLastAcceptedProp(proposal);
                 Logger.println("--- inst " + instanceNb + " srv " + memberList.getMyNodeId() + " accept " + proposal.getCommand());
-                //System.out.println("acceptor " + memberList.getMyNodeId() + " inst=" + instanceNb + " accept OK cmd=" + proposal.getCommand() + " propId=" + proposal.getId());
                 return true;
             }
         }

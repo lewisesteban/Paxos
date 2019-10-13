@@ -50,7 +50,7 @@ public class HeavyPaxosTest extends TestCase {
             final int thisClientsId = clientId;
             clients[clientId] = new Thread(() -> {
                 PaxosProposer paxosServer = nodes.get(new Random().nextInt(nodes.size())).getPaxosSrv();
-                BasicPaxosClient paxosHandle = new BasicPaxosClient(paxosServer);
+                BasicPaxosClient paxosHandle = new BasicPaxosClient(paxosServer, "client" + thisClientsId);
                 for (int cmdId = 0; cmdId < NB_REQUESTS; cmdId++) {
                     TestCommand cmdData = new TestCommand(thisClientsId, cmdId);
                     try {
@@ -87,7 +87,7 @@ public class HeavyPaxosTest extends TestCase {
             final int thisClientsId = clientId;
             clients[clientId] = new Thread(() -> {
                 PaxosProposer paxosServer = nodes.get(new Random().nextInt(nodes.size())).getPaxosSrv();
-                BasicPaxosClient paxosHandle = new BasicPaxosClient(paxosServer);
+                BasicPaxosClient paxosHandle = new BasicPaxosClient(paxosServer, "client" + thisClientsId);
                 for (int cmdId = 0; cmdId < NB_REQUESTS; cmdId++) {
                     TestCommand cmdData = new TestCommand(thisClientsId, cmdId);
                     try {

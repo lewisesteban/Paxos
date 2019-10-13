@@ -8,7 +8,6 @@ import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
 import junit.framework.TestCase;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -19,8 +18,8 @@ import static com.lewisesteban.paxos.NetworkFactory.*;
  */
 public class BasicPaxosTest extends TestCase {
 
-    private static final Serializable cmd1 = "ONE";
-    private static final Serializable cmd2 = "TWO";
+    private static final Command cmd1 = new Command("ONE", "", 1);
+    private static final Command cmd2 = new Command("TWO", "", 2);
 
     public void testTwoProposals() throws IOException {
         final int NB_NODES = 2;
@@ -176,7 +175,7 @@ public class BasicPaxosTest extends TestCase {
         List<PaxosNetworkNode> nodes = initSimpleNetwork(3, new Network(), stateMachinesAppendOK(3));
         try {
             PaxosProposer proposer = nodes.get(0).getPaxosSrv();
-            java.io.Serializable result = proposer.propose("hi", proposer.getNewInstanceId()).getReturnData();
+            java.io.Serializable result = proposer.propose(new Command("hi", "", 1), proposer.getNewInstanceId()).getReturnData();
             assertEquals("hiOK", result);
         } catch (IOException e) {
             fail();

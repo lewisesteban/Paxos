@@ -1,5 +1,6 @@
 package com.lewisesteban.paxos.client;
 
+import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 
@@ -12,12 +13,15 @@ public class BasicPaxosClient {
     private PaxosProposer paxosNode;
     private int cumulativeWaitTime = 0;
     private Random random = new Random();
+    private Command.Factory commandFactory;
 
-    public BasicPaxosClient(PaxosProposer paxosNode) {
+    public BasicPaxosClient(PaxosProposer paxosNode, String clientId) {
         this.paxosNode = paxosNode;
+        this.commandFactory = new Command.Factory(clientId);
     }
 
-    public Serializable doCommand(Serializable command) throws IOException {
+    public Serializable doCommand(Serializable commandData) throws IOException {
+        Command command = commandFactory.make(commandData);
         Serializable commandReturn = null;
         boolean success = false;
         long instance = getNewInstanceId();

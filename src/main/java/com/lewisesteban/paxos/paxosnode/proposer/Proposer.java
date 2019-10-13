@@ -1,6 +1,7 @@
 package com.lewisesteban.paxos.paxosnode.proposer;
 
 import com.lewisesteban.paxos.Logger;
+import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.MembershipGetter;
 import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
 import com.lewisesteban.paxos.paxosnode.listener.Listener;
@@ -9,12 +10,10 @@ import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
 import com.lewisesteban.paxos.storage.StorageUnit;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.Queue;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-// TODO give cmd unique ID used when checking if a command has changed (after prepare)
 public class Proposer implements PaxosProposer {
 
     private MembershipGetter memberList;
@@ -34,7 +33,7 @@ public class Proposer implements PaxosProposer {
         return listener.getLastInstanceId() + 1;
     }
 
-    public Result propose(Serializable command, long instanceId) {
+    public Result propose(Command command, long instanceId) {
 
         Logger.println("#instance " + instanceId + " proposal: " + command);
 
@@ -46,19 +45,15 @@ public class Proposer implements PaxosProposer {
         }
 
         Proposal originalProposal = propFac.make(command);
-        //System.out.println("proposer " + memberList.getMyNodeId() + " inst=" + instanceId + " starting cmd=" + command.toString() + " proposalId=" + originalProposal.getId());
         Proposal prepared = prepare(instanceId, originalProposal);
         if (prepared == null) {
             return new Result(Result.CONSENSUS_FAILED, instanceId);
         }
 
         boolean proposalChanged = !originalProposal.getCommand().equals(prepared.getCommand());
-        //System.out.println("proposer " + memberList.getMyNodeId() + " inst=" + instanceId + " prepared changed = " + proposalChanged + " cmd=" + command.toString() + " proposalId=" + prepared.getId());
         boolean success = accept(instanceId, prepared);
-        //System.out.println("proposer " + memberList.getMyNodeId() + " inst=" + instanceId + " accept success = " + success);
         if (success) {
             scatter(instanceId, prepared);
-            //System.out.println("proposer " + memberList.getMyNodeId() + " inst=" + instanceId + " scattered");
             if (proposalChanged) {
                 Logger.println(">>> inst " + instanceId + " proposal changed from " + originalProposal.getCommand().toString() + " to " + prepared.getCommand().toString());
             }
@@ -66,11 +61,9 @@ public class Proposer implements PaxosProposer {
             if (!proposalChanged) {
                 returnData = listener.getReturnOf(instanceId, prepared.getCommand());
             }
-            //System.out.println("proposer " + memberList.getMyNodeId() + " inst=" + instanceId + " cmd=" + prepared.getCommand() + " final result : " + (proposalChanged ? "changed" : "success"));
             return new Result(proposalChanged ? Result.CONSENSUS_ON_ANOTHER_CMD : Result.CONSENSUS_ON_THIS_CMD,
                     instanceId, returnData);
         } else {
-            //System.out.println("proposer " + memberList.getMyNodeId() + " inst=" + instanceId + " cmd=" + prepared.getCommand() + " final result : failed");
             return new Result(Result.CONSENSUS_FAILED, instanceId);
         }
     }

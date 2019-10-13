@@ -1,5 +1,6 @@
 package com.lewisesteban.paxos.paxosnode.listener;
 
+import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.MembershipGetter;
 import com.lewisesteban.paxos.paxosnode.StateMachine;
 import com.lewisesteban.paxos.rpc.paxos.ListenerRPCHandle;
@@ -22,28 +23,25 @@ public class Listener implements ListenerRPCHandle {
     }
 
     @Override
-    public synchronized void execute(long instanceId, Serializable command) {
+    public synchronized void execute(long instanceId, Command command) {
         if (!executedCommands.containsKey(instanceId)) {
-            Serializable result = stateMachine.execute(command);
+            Serializable result = stateMachine.execute(command.getData());
             if (instanceId > lastInstanceId) {
                 lastInstanceId = instanceId;
             }
             executedCommands.put(instanceId, new ExecutedCommand(command, result));
-            //System.out.println("listener " + memberList.getMyNodeId() + " inst=" + instanceId + " executed " + command.toString());
-        } else {
-            //System.out.println("listener " + memberList.getMyNodeId() + " inst=" + instanceId + " not executed " + command.toString());
         }
+
     }
 
     /**
      * Returns the return value of a command that has been executed.
      * If that command hasn't been executed yet, it is executed and its return value is returned.
      */
-    public synchronized Serializable getReturnOf(long instanceId, Serializable command) {
+    public synchronized Serializable getReturnOf(long instanceId, Command command) {
         if (!executedCommands.containsKey(instanceId)) {
             execute(instanceId, command);
         }
-        //System.out.println("listener " + memberList.getMyNodeId() + " inst=" + instanceId + " get return of " + command.toString());
         return executedCommands.get(instanceId).result;
     }
 
@@ -64,15 +62,15 @@ public class Listener implements ListenerRPCHandle {
 
     public class ExecutedCommand {
 
-        ExecutedCommand(Serializable command, Serializable result) {
+        ExecutedCommand(Command command, Serializable result) {
             this.command = command;
             this.result = result;
         }
 
-        Serializable command;
+        Command command;
         Serializable result;
 
-        public Serializable getCommand() {
+        public Command getCommand() {
             return command;
         }
 

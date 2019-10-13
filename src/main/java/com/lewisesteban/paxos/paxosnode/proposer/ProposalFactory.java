@@ -1,6 +1,7 @@
 package com.lewisesteban.paxos.paxosnode.proposer;
 
-import java.io.Serializable;
+import com.lewisesteban.paxos.paxosnode.Command;
+
 import java.util.concurrent.atomic.AtomicInteger;
 
 class ProposalFactory {
@@ -16,7 +17,7 @@ class ProposalFactory {
         proposalNumber.set(newVal);
     }
 
-    Proposal make(Serializable command) {
+    Proposal make(Command command) {
         return new Proposal(command, new Proposal.ID(myNodeId, proposalNumber.incrementAndGet()));
     }
 }

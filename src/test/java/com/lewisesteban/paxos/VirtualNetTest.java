@@ -1,5 +1,6 @@
 package com.lewisesteban.paxos;
 
+import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.PaxosNode;
 import com.lewisesteban.paxos.paxosnode.StateMachine;
 import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
@@ -15,7 +16,6 @@ import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
 import junit.framework.TestCase;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -29,7 +29,7 @@ import static com.lewisesteban.paxos.virtualnet.server.PaxosServer.SRV_FAILURE_M
 
 public class VirtualNetTest extends TestCase {
 
-    private static final Serializable cmd1 = "ONE";
+    private static final Command cmd1 = new Command("ONE", "", 1);
 
     private boolean slowPropose = false;
     private int slowAcceptorId = 0;
@@ -49,19 +49,18 @@ public class VirtualNetTest extends TestCase {
         Network network = new Network();
         List<PaxosNetworkNode> nodes = initSimpleNetwork(2, network, stateMachinesEmpty(2));
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
-        assertEquals(node0.propose(cmd1, 0).getStatus(), Result.CONSENSUS_ON_THIS_CMD);
 
         network.setWaitTimes(0, 1, 1, 0);
         long start = System.currentTimeMillis();
         for (int i = 0; i < NB_TESTS; i++) {
-            node0.propose("fast network", 0);
+            node0.propose(Command.Factory.makeRandom("fast network"), i);
         }
         long time1 = System.currentTimeMillis() - start;
 
         network.setWaitTimes(5, 6, 10000, 0);
         start = System.currentTimeMillis();
         for (int i = 0; i < NB_TESTS; i++) {
-            node0.propose("slow network test", 0);
+            node0.propose(Command.Factory.makeRandom("slow network test"), NB_TESTS + i);
         }
         long time2 = System.currentTimeMillis() - start;
         assertTrue((time2 - time1 > ((DIFF - 1) * NB_TESTS * 2)) && (time2 - time1 < 10000));
@@ -69,7 +68,7 @@ public class VirtualNetTest extends TestCase {
         network.setWaitTimes(0, 1, DIFF * 2, 0.6f);
         start = System.currentTimeMillis();
         for (int i = 0; i < NB_TESTS; i++) {
-            node0.propose("unusual wait test", 0);
+            node0.propose(Command.Factory.makeRandom("unusual wait test"), (2 * NB_TESTS) + i);
         }
         long time3 = System.currentTimeMillis() - start;
         assertTrue((time3 - time1 > ((DIFF - 1) * NB_TESTS)));
@@ -91,7 +90,7 @@ public class VirtualNetTest extends TestCase {
             final String proposalData = String.valueOf(i);
             clients.add(new Thread(() -> {
                 try {
-                    server.getPaxosSrv().propose(proposalData, 0);
+                    server.getPaxosSrv().propose(new Command(proposalData, "", 1), 0);
                     nbSuccesses.incrementAndGet();
                 } catch (IOException e) {
                     if (e.getMessage().equals(SRV_FAILURE_MSG) && !(e.getCause() instanceof ExecutionException))
@@ -149,19 +148,20 @@ public class VirtualNetTest extends TestCase {
             }
         }));
         try {
+            Command cmd = new Command("hi", "", 1);
             PaxosProposer proposer = nodes.get(0).getPaxosSrv();
-            proposer.propose("hi", proposer.getNewInstanceId());
+            proposer.propose(cmd, proposer.getNewInstanceId());
             nodes.get(0).kill();
             nodes.get(0).start();
-            proposer.propose("hi", proposer.getNewInstanceId());
-            Result result = nodes.get(0).getPaxosSrv().propose("hi", proposer.getNewInstanceId());
+            proposer.propose(cmd, proposer.getNewInstanceId());
+            Result result = nodes.get(0).getPaxosSrv().propose(cmd, proposer.getNewInstanceId());
             assertEquals(2, result.getReturnData());
         } catch (IOException e) {
             fail();
         }
     }
 
-    public void testKillAndRestart() {
+    public void testKillAndRestart() { // TODO
         // similar to testKillAcceptingServer, but with restart
     }
 
@@ -175,7 +175,7 @@ public class VirtualNetTest extends TestCase {
         }
 
         @Override
-        public Result propose(java.io.Serializable command, long inst) throws IOException {
+        public Result propose(Command command, long inst) {
             if (slowPropose) {
                 doHeavyWork();
             }

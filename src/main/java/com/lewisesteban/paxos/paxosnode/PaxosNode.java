@@ -8,8 +8,6 @@ import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.*;
 import com.lewisesteban.paxos.storage.StorageUnit;
 
-import java.io.IOException;
-import java.io.Serializable;
 import java.util.List;
 
 public class PaxosNode implements RemotePaxosNode, PaxosProposer {
@@ -41,7 +39,7 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
         return proposer.getNewInstanceId();
     }
 
-    public Result propose(Serializable command, long inst) throws IOException {
+    public Result propose(Command command, long inst) {
         if (!running) {
             return new Result(Result.CONSENSUS_FAILED);
         } else {
