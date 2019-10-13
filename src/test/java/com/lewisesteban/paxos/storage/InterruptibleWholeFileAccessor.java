@@ -124,7 +124,7 @@ public class InterruptibleWholeFileAccessor implements FileAccessor {
         }
     }
 
-    static FileAccessorCreator creator(boolean fastWriting) {
+    public static FileAccessorCreator creator(boolean fastWriting) {
         return filePath -> new InterruptibleWholeFileAccessor(filePath, fastWriting);
     }
 }

@@ -1,26 +1,26 @@
 package com.lewisesteban.paxos.paxosnode.proposer;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
-public class LastInstId {
+class LastInstId {
 
-    private AtomicInteger id;
+    private AtomicLong id;
 
-    LastInstId(int id) {
-        this.id = new AtomicInteger(id);
+    LastInstId(long id) {
+        this.id = new AtomicLong(id);
     }
 
-    int get() {
+    long get() {
         return id.get();
     }
 
-    synchronized void increaseTo(int id) {
+    synchronized void increaseTo(long id) {
         if (this.id.get() < id) {
             this.id.set(id);
         }
     }
 
-    int getAndIncrement() {
+    long getAndIncrement() {
         return id.getAndIncrement();
     }
 }

@@ -1,5 +1,7 @@
 package com.lewisesteban.paxos.paxosnode;
 
+import com.lewisesteban.paxos.paxosnode.proposer.Result;
+import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
@@ -17,8 +19,8 @@ import static com.lewisesteban.paxos.NetworkFactory.*;
  */
 public class BasicPaxosTest extends TestCase {
 
-    private static final Command cmd1 = new Command(0, 1, "ONE");
-    private static final Command cmd2 = new Command(0, 2, "TWO");
+    private static final Serializable cmd1 = "ONE";
+    private static final Serializable cmd2 = "TWO";
 
     public void testTwoProposals() throws IOException {
         final int NB_NODES = 2;
@@ -26,7 +28,7 @@ public class BasicPaxosTest extends TestCase {
         StateMachine stateMachine = new StateMachine() {
             boolean received = false;
             @Override
-            public Serializable execute(Serializable data) {
+            public java.io.Serializable execute(java.io.Serializable data) {
                 if (!received && data.equals("ONE")) {
                     receivedCorrectData.incrementAndGet();
                 } else {
@@ -37,25 +39,25 @@ public class BasicPaxosTest extends TestCase {
         };
         List<PaxosNetworkNode> nodes = initSimpleNetwork(NB_NODES, new Network(), stateMachinesSame(() -> stateMachine, NB_NODES));
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
-        assertTrue(node0.propose(cmd1, 0).getSuccess());
-        assertFalse(node0.propose(cmd2, 0).getSuccess());
-        assertTrue(receivedCorrectData.get() >= NB_NODES);
+        assertEquals(node0.propose(cmd1, 0).getStatus(), Result.CONSENSUS_ON_THIS_CMD);
+        assertEquals(node0.propose(cmd2, 0).getStatus(), Result.CONSENSUS_ON_ANOTHER_CMD);
+        assertEquals(receivedCorrectData.get(), NB_NODES);
     }
 
     public void testSameProposals() throws IOException {
         List<PaxosNetworkNode> nodes = initSimpleNetwork(2, new Network(), stateMachinesEmpty(2));
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
-        assertTrue(node0.propose(cmd1, 0).getSuccess());
-        assertTrue(node0.propose(cmd1, 0).getSuccess());
+        assertEquals(node0.propose(cmd1, 0).getStatus(), Result.CONSENSUS_ON_THIS_CMD);
+        assertEquals(node0.propose(cmd1, 0).getStatus(), Result.CONSENSUS_ON_THIS_CMD);
     }
 
     public void testTwoInstances() throws IOException {
         List<PaxosNetworkNode> nodes = initSimpleNetwork(2, new Network(), stateMachinesEmpty(2));
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
-        assertTrue(node0.propose(cmd1, 0).getSuccess());
-        assertFalse(node0.propose(cmd2, 0).getSuccess());
-        assertTrue(node0.propose(cmd2, 1).getSuccess());
-        assertFalse(node0.propose(cmd1, 1).getSuccess());
+        assertEquals(node0.propose(cmd1, 0).getStatus(), Result.CONSENSUS_ON_THIS_CMD);
+        assertEquals(node0.propose(cmd2, 0).getStatus(), Result.CONSENSUS_ON_ANOTHER_CMD);
+        assertEquals(node0.propose(cmd2, 1).getStatus(), Result.CONSENSUS_ON_THIS_CMD);
+        assertEquals(node0.propose(cmd1, 1).getStatus(), Result.CONSENSUS_ON_ANOTHER_CMD);
     }
 
     public void testMajority() throws IOException {
@@ -79,12 +81,12 @@ public class BasicPaxosTest extends TestCase {
         assertTrue(aRack0Node != null && aRack1Node != null);
 
         boolean rack0ShouldSucceed = rack0NodeNb > rack1NodeNb;
-        boolean rack0Proposal = aRack0Node.getPaxosSrv().propose(cmd1, 0).getSuccess();
-        boolean rack1Proposal = aRack1Node.getPaxosSrv().propose(cmd2, 0).getSuccess();
+        byte rack0Proposal = aRack0Node.getPaxosSrv().propose(cmd1, 0).getStatus();
+        byte rack1Proposal = aRack1Node.getPaxosSrv().propose(cmd2, 0).getStatus();
         if (rack0ShouldSucceed) {
-            assertTrue(rack0Proposal && !rack1Proposal);
+            assertTrue(rack0Proposal == Result.CONSENSUS_ON_THIS_CMD && rack1Proposal == Result.CONSENSUS_FAILED);
         } else {
-            assertTrue(!rack0Proposal && rack1Proposal);
+            assertTrue(rack0Proposal == Result.CONSENSUS_FAILED && rack1Proposal == Result.CONSENSUS_ON_THIS_CMD);
         }
     }
 
@@ -93,14 +95,16 @@ public class BasicPaxosTest extends TestCase {
         List<PaxosNetworkNode> nodesA = initSimpleNetwork(10, networkA, stateMachinesEmpty(10));
         networkA.setWaitTimes(30, 40, 40, 0);
         long startTime = System.currentTimeMillis();
-        nodesA.get(0).getPaxosSrv().proposeNew(cmd1);
+        PaxosProposer proposer = nodesA.get(0).getPaxosSrv();
+        proposer.propose(cmd1, proposer.getNewInstanceId());
         long timeA = System.currentTimeMillis() - startTime;
 
         Network networkB = new Network();
         List<PaxosNetworkNode> nodesB = initSimpleNetwork(100, networkB, stateMachinesEmpty(100));
         networkB.setWaitTimes(30, 40, 40, 0);
         startTime = System.currentTimeMillis();
-        nodesB.get(0).getPaxosSrv().proposeNew(cmd2);
+        proposer = nodesB.get(0).getPaxosSrv();
+        proposer.propose(cmd2, proposer.getNewInstanceId());
         long timeB = System.currentTimeMillis() - startTime;
 
         System.out.println(timeA + " " + timeB);
@@ -120,7 +124,7 @@ public class BasicPaxosTest extends TestCase {
         Thread seqClient = new Thread(() -> {
             for (int cmdId = 0; cmdId < NB_REQUESTS * NB_CLIENTS; cmdId++) {
                 try {
-                    dedicatedServer.proposeNew(cmd1);
+                    dedicatedServer.propose(cmd1, dedicatedServer.getNewInstanceId());
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -136,7 +140,7 @@ public class BasicPaxosTest extends TestCase {
             clients[clientId] = new Thread(() -> {
                 for (int cmdId = 0; cmdId < NB_REQUESTS; cmdId++) {
                     try {
-                        dedicatedServer.proposeNew(cmd1);
+                        dedicatedServer.propose(cmd1, dedicatedServer.getNewInstanceId());
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -163,14 +167,16 @@ public class BasicPaxosTest extends TestCase {
         network.setWaitTimes(2, 3, 1000, 0.1f);
         List<PaxosNetworkNode> nodes = initSimpleNetwork(100, new Network(), stateMachinesEmpty(100));
         long startTime = System.currentTimeMillis();
-        assertTrue(nodes.get(0).getPaxosSrv().proposeNew(cmd1).getSuccess());
+        PaxosProposer proposer = nodes.get(0).getPaxosSrv();
+        assertEquals(proposer.propose(cmd1, proposer.getNewInstanceId()).getStatus(), Result.CONSENSUS_ON_THIS_CMD);
         assertTrue(System.currentTimeMillis() - startTime < 1000);
     }
 
     public void testReturnValue() {
         List<PaxosNetworkNode> nodes = initSimpleNetwork(3, new Network(), stateMachinesAppendOK(3));
         try {
-            Serializable result = nodes.get(0).getPaxosSrv().proposeNew(new Command(0, 0, "hi")).getReturnData();
+            PaxosProposer proposer = nodes.get(0).getPaxosSrv();
+            java.io.Serializable result = proposer.propose("hi", proposer.getNewInstanceId()).getReturnData();
             assertEquals("hiOK", result);
         } catch (IOException e) {
             fail();

@@ -17,17 +17,17 @@ public class PaxosSrvAcceptor implements AcceptorRPCHandle {
     }
 
     @Override
-    public PrepareAnswer reqPrepare(int instanceId, Proposal.ID propId) throws IOException {
+    public PrepareAnswer reqPrepare(long instanceId, Proposal.ID propId) throws IOException {
         return threadManager.pleaseDo(() -> paxosAcceptor.reqPrepare(instanceId, propId));
     }
 
     @Override
-    public boolean reqAccept(int instanceId, Proposal proposal) throws IOException {
+    public boolean reqAccept(long instanceId, Proposal proposal) throws IOException {
         return threadManager.pleaseDo(() -> paxosAcceptor.reqAccept(instanceId, proposal));
     }
 
     @Override
-    public int getLastInstance() throws IOException {
+    public long getLastInstance() throws IOException {
         return threadManager.pleaseDo(() -> paxosAcceptor.getLastInstance());
     }
 

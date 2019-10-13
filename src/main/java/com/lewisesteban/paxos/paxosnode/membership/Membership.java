@@ -26,10 +26,6 @@ public class Membership implements MembershipGetter, MembershipRPCHandle {
 
     }
 
-    public void stopNow() {
-
-    }
-
     public int getMyNodeId() {
         return myNodeId;
     }

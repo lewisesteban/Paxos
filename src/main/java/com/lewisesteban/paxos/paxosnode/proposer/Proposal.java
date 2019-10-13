@@ -1,15 +1,13 @@
 package com.lewisesteban.paxos.paxosnode.proposer;
 
-import com.lewisesteban.paxos.paxosnode.Command;
-
 import java.io.Serializable;
 
-public class Proposal implements Serializable {
+public class Proposal implements java.io.Serializable {
 
     private ID id;
-    private Command command;
+    private Serializable command;
 
-    public Proposal(Command command, ID id) {
+    public Proposal(Serializable command, ID id) {
         this.command = command;
         this.id = id;
     }
@@ -18,11 +16,11 @@ public class Proposal implements Serializable {
         return id;
     }
 
-    public Command getCommand() {
+    public Serializable getCommand() {
         return command;
     }
 
-    public static class ID implements Serializable {
+    public static class ID implements java.io.Serializable {
 
         private int nodeId;
         private int nodePropNb;

@@ -23,9 +23,9 @@ public class NodeConnection implements RemotePaxosNode, VirtualConnection {
         this.targetNode = targetPaxosNode;
         this.callerAddr = callerAddr;
         this.network = network;
-        acceptor = new NodeConAcceptor(this, targetNode.getPaxosSrv().getAcceptor());
-        listener = new NodeConListener(this, targetNode.getPaxosSrv().getListener());
-        membership = new NodeConMembership(this, targetNode.getPaxosSrv().getMembership());
+        acceptor = new NodeConAcceptor(this, targetNode.getPaxosSrv());
+        listener = new NodeConListener(this, targetNode.getPaxosSrv());
+        membership = new NodeConMembership(this, targetNode.getPaxosSrv());
     }
 
     @Override

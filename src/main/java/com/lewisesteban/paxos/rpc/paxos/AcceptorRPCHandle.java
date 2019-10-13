@@ -7,7 +7,7 @@ import java.io.IOException;
 
 public interface AcceptorRPCHandle {
 
-    PrepareAnswer reqPrepare(int instanceId, Proposal.ID propId) throws IOException;
-    boolean reqAccept(int instanceId, Proposal proposal) throws IOException;
-    int getLastInstance() throws IOException;
+    PrepareAnswer reqPrepare(long instanceId, Proposal.ID propId) throws IOException;
+    boolean reqAccept(long instanceId, Proposal proposal) throws IOException;
+    long getLastInstance() throws IOException;
 }

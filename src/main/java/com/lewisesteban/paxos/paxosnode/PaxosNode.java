@@ -1,14 +1,15 @@
 package com.lewisesteban.paxos.paxosnode;
 
-import com.lewisesteban.paxos.storage.StorageUnit;
 import com.lewisesteban.paxos.paxosnode.acceptor.Acceptor;
 import com.lewisesteban.paxos.paxosnode.listener.Listener;
 import com.lewisesteban.paxos.paxosnode.membership.Membership;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposer;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.*;
+import com.lewisesteban.paxos.storage.StorageUnit;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.List;
 
 public class PaxosNode implements RemotePaxosNode, PaxosProposer {
@@ -36,22 +37,13 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
         membership.stop();
     }
 
-    public void stopNow() {
-        running = false;
-        membership.stopNow();
+    public long getNewInstanceId() {
+        return proposer.getNewInstanceId();
     }
 
-    public Result proposeNew(Command command) throws IOException {
+    public Result propose(Serializable command, long inst) throws IOException {
         if (!running) {
-            return new Result(false);
-        } else {
-            return proposer.proposeNew(command);
-        }
-    }
-
-    public Result propose(Command command, int inst) throws IOException {
-        if (!running) {
-            return new Result(false);
+            return new Result(Result.CONSENSUS_FAILED);
         } else {
             return proposer.propose(command, inst);
         }

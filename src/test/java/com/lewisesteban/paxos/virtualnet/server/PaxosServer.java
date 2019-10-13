@@ -1,12 +1,12 @@
 package com.lewisesteban.paxos.virtualnet.server;
 
-import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.PaxosNode;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.*;
 import com.lewisesteban.paxos.storage.InterruptibleTestStorage;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -63,18 +63,18 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
 
     public void kill() {
         threadManager.shutDownNow();
-        paxosNode.stopNow();
+        paxosNode.stop();
         storage.interrupt();
     }
 
     @Override
-    public Result propose(final Command command, int instanceId) throws IOException {
+    public Result propose(final Serializable command, long instanceId) throws IOException {
         return threadManager.pleaseDo(() -> paxosNode.propose(command, instanceId));
     }
 
     @Override
-    public Result proposeNew(final Command command) throws IOException {
-        return threadManager.pleaseDo(() -> paxosNode.proposeNew(command));
+    public long getNewInstanceId() throws IOException {
+        return threadManager.pleaseDo(() -> paxosNode.getNewInstanceId());
     }
 
     @Override

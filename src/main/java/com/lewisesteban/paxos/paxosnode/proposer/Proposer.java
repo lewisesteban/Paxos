@@ -1,26 +1,24 @@
 package com.lewisesteban.paxos.paxosnode.proposer;
 
-import com.lewisesteban.paxos.storage.StorageUnit;
-import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.Logger;
 import com.lewisesteban.paxos.paxosnode.MembershipGetter;
 import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
 import com.lewisesteban.paxos.paxosnode.listener.Listener;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
+import com.lewisesteban.paxos.storage.StorageUnit;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Queue;
-import java.util.Random;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+// TODO give cmd unique ID used when checking if a command has changed (after prepare)
 public class Proposer implements PaxosProposer {
 
     private MembershipGetter memberList;
     private ProposalFactory propFac;
-    private LastInstId lastInstId = new LastInstId(0);
     private ExecutorService executor = Executors.newCachedThreadPool();
     private Listener listener;
     private StorageUnit storage;
@@ -32,64 +30,52 @@ public class Proposer implements PaxosProposer {
         this.storage = storage;
     }
 
-    public Result proposeNew(Command command) {
-        return propose(command, lastInstId.getAndIncrement(), true);
+    public long getNewInstanceId() {
+        return listener.getLastInstanceId() + 1;
     }
 
-    public Result propose(Command command, int instanceId) {
-        return propose(command, instanceId, false);
-    }
-
-    private Result propose(Command command, int instanceId, boolean newInstance) {
+    public Result propose(Serializable command, long instanceId) {
 
         Logger.println("#instance " + instanceId + " proposal: " + command);
 
-        Proposal originalProposal = propFac.make(command);
-        Proposal prepared = prepare(instanceId, originalProposal);
+        Listener.ExecutedCommand thisInstanceExecutedCmd = listener.tryGetExecutedCommand(instanceId);
+        if (thisInstanceExecutedCmd != null) {
+            boolean sameCmd = (thisInstanceExecutedCmd.getCommand().equals(command));
+            return new Result(sameCmd ? Result.CONSENSUS_ON_THIS_CMD : Result.CONSENSUS_ON_ANOTHER_CMD,
+                    instanceId, thisInstanceExecutedCmd.getResult());
+        }
 
-        if (newInstance && (prepared == null || !command.equals(prepared.getCommand()))) {
-            updateLastInstId();
-            return propose(command, lastInstId.getAndIncrement());
-        } else if (prepared == null) {
-            return new Result(false, instanceId);
+        Proposal originalProposal = propFac.make(command);
+        //System.out.println("proposer " + memberList.getMyNodeId() + " inst=" + instanceId + " starting cmd=" + command.toString() + " proposalId=" + originalProposal.getId());
+        Proposal prepared = prepare(instanceId, originalProposal);
+        if (prepared == null) {
+            return new Result(Result.CONSENSUS_FAILED, instanceId);
         }
 
         boolean proposalChanged = !originalProposal.getCommand().equals(prepared.getCommand());
+        //System.out.println("proposer " + memberList.getMyNodeId() + " inst=" + instanceId + " prepared changed = " + proposalChanged + " cmd=" + command.toString() + " proposalId=" + prepared.getId());
         boolean success = accept(instanceId, prepared);
+        //System.out.println("proposer " + memberList.getMyNodeId() + " inst=" + instanceId + " accept success = " + success);
         if (success) {
             scatter(instanceId, prepared);
+            //System.out.println("proposer " + memberList.getMyNodeId() + " inst=" + instanceId + " scattered");
             if (proposalChanged) {
                 Logger.println(">>> inst " + instanceId + " proposal changed from " + originalProposal.getCommand().toString() + " to " + prepared.getCommand().toString());
             }
-            Serializable returnData = null;
+            java.io.Serializable returnData = null;
             if (!proposalChanged) {
                 returnData = listener.getReturnOf(instanceId, prepared.getCommand());
             }
-            return new Result(!proposalChanged, instanceId, returnData);
+            //System.out.println("proposer " + memberList.getMyNodeId() + " inst=" + instanceId + " cmd=" + prepared.getCommand() + " final result : " + (proposalChanged ? "changed" : "success"));
+            return new Result(proposalChanged ? Result.CONSENSUS_ON_ANOTHER_CMD : Result.CONSENSUS_ON_THIS_CMD,
+                    instanceId, returnData);
         } else {
-            return new Result(false, instanceId);
+            //System.out.println("proposer " + memberList.getMyNodeId() + " inst=" + instanceId + " cmd=" + prepared.getCommand() + " final result : failed");
+            return new Result(Result.CONSENSUS_FAILED, instanceId);
         }
     }
 
-    /**
-     * This, in terms, should be replaced by a catching-up mechanism
-     */
-    private void updateLastInstId() {
-        if (memberList.getNbMembers() <= 1)
-            return;
-        Random randGen = new Random();
-        int randInt = randGen.nextInt(memberList.getNbMembers());
-        while (randInt == memberList.getMyNodeId()) {
-            randInt = randGen.nextInt(memberList.getNbMembers());
-        }
-        RemotePaxosNode randNode = memberList.getMembers().get(randInt);
-        try {
-            int remoteLastInstId = randNode.getAcceptor().getLastInstance();
-            lastInstId.increaseTo(remoteLastInstId);
-        } catch (IOException ignored) { }
-    }
-
-    private Proposal prepare(int instanceId, Proposal proposal) {
+    private Proposal prepare(long instanceId, Proposal proposal) {
         final AtomicInteger nbOk = new AtomicInteger(0);
         final Queue<Proposal> alreadyAcceptedProps = new ConcurrentLinkedQueue<>();
         final Semaphore anyThread = new Semaphore(0);
@@ -142,7 +128,7 @@ public class Proposer implements PaxosProposer {
         }
     }
 
-    private boolean accept(int instanceId, Proposal proposal) {
+    private boolean accept(long instanceId, Proposal proposal) {
         final AtomicInteger nbOk = new AtomicInteger(0);
         final Semaphore anyThread = new Semaphore(0);
         for (RemotePaxosNode node : memberList.getMembers()) {
@@ -169,7 +155,7 @@ public class Proposer implements PaxosProposer {
         return nbOk.get() > memberList.getNbMembers() / 2;
     }
 
-    private void scatter(int instanceId, Proposal prepared) {
+    private void scatter(long instanceId, Proposal prepared) {
         Future[] threads = new Future[memberList.getNbMembers()];
         int threadIt = 0;
         for (RemotePaxosNode node : memberList.getMembers()) {

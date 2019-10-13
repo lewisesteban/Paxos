@@ -1,9 +1,9 @@
 package com.lewisesteban.paxos.virtualnet.server;
 
-import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.rpc.paxos.ListenerRPCHandle;
 
 import java.io.IOException;
+import java.io.Serializable;
 
 public class PaxosSrvListener implements ListenerRPCHandle {
 
@@ -16,7 +16,7 @@ public class PaxosSrvListener implements ListenerRPCHandle {
     }
 
     @Override
-    public void execute(int instanceId, Command command) throws IOException {
+    public void execute(long instanceId, Serializable command) throws IOException {
         threadManager.pleaseDo(() -> {
             paxosListener.execute(instanceId, command);
             return true;

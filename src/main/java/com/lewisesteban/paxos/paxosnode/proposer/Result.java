@@ -4,30 +4,34 @@ import java.io.Serializable;
 
 @SuppressWarnings("WeakerAccess")
 public class Result {
-    private boolean success;
-    private int instanceId = -1;
+    public static final byte CONSENSUS_FAILED = 0;
+    public static final byte CONSENSUS_ON_ANOTHER_CMD = 1;
+    public static final byte CONSENSUS_ON_THIS_CMD = 2;
+
+    private byte status;
+    private long instanceId = -1;
     private Serializable returnData = null;
 
-    public Result(boolean success, int instanceId, Serializable returnData) {
-        this.success = success;
+    public Result(byte status, long instanceId, Serializable returnData) {
+        this.status = status;
         this.instanceId = instanceId;
         this.returnData = returnData;
     }
 
-    public Result(boolean success, int instanceId) {
-        this.success = success;
+    public Result(byte status, long instanceId) {
+        this.status = status;
         this.instanceId = instanceId;
     }
 
-    public Result(boolean success) {
-        this.success = success;
+    public Result(byte status) {
+        this.status = status;
     }
 
-    public boolean getSuccess() {
-        return success;
+    public byte getStatus() {
+        return status;
     }
 
-    public int getInstanceId() {
+    public long getInstanceId() {
         return instanceId;
     }
 

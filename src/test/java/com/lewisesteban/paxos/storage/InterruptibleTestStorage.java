@@ -33,7 +33,8 @@ public class InterruptibleTestStorage implements StorageUnit {
         running = false;
         executor.shutdownNow();
         try {
-            thread.join();
+            if (thread != null)
+                thread.join();
         } catch (InterruptedException ignored) { }
         try {
             baseStorage.close();
@@ -42,20 +43,7 @@ public class InterruptibleTestStorage implements StorageUnit {
     }
 
     public synchronized void delete() throws IOException {
-        AtomicReference<IOException> error = new AtomicReference<>(null);
-        try {
-            executor.submit(() -> {
-                try {
-                    baseStorage.delete();
-                } catch (IOException e) {
-                    error.set(e);
-                }
-            }).get();
-        } catch (ExecutionException e) {
-            throw new IOException(e);
-        } catch (InterruptedException ignored) { }
-        if (running && error.get() != null)
-            throw error.get();
+        baseStorage.delete();
     }
 
     @Override

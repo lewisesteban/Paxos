@@ -1,19 +1,19 @@
 package com.lewisesteban.paxos.paxosnode;
 
-import com.lewisesteban.paxos.Logger;
 import com.lewisesteban.paxos.NetworkFactory;
-import com.lewisesteban.paxos.paxosnode.proposer.Result;
+import com.lewisesteban.paxos.client.BasicPaxosClient;
+import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
-import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
 import junit.framework.TestCase;
 
 import java.io.IOException;
-import java.util.HashMap;
+import java.io.Serializable;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import static com.lewisesteban.paxos.NetworkFactory.stateMachinesSame;
 import static com.lewisesteban.paxos.NetworkFactory.stateMachinesSingle;
 
 public class HeavyPaxosTest extends TestCase {
@@ -21,104 +21,112 @@ public class HeavyPaxosTest extends TestCase {
     /**
      * Should be executed with no dedicated proposer.
      */
-    public void testManyClientsNoFailure() throws Exception {
+    public void testSingleStateMachineNoFailure() throws Exception {
         final int NB_NODES = 7;
-        final int NB_CLIENTS = 100;
-        final int NB_REQUESTS = 100;
+        final int NB_CLIENTS = 500;
+        final int NB_REQUESTS = 3;
 
-        Client[] clients = new Client[NB_CLIENTS];
-        StateMachine stateMachine = (data) -> {
-            Command cmdData = (Command)data;
-            clients[cmdData.getClientId()].receive(cmdData);
+        AtomicBoolean error = new AtomicBoolean(false);
+        int[] lastReceived = new int[NB_CLIENTS];
+        for (int i = 0; i < lastReceived.length; ++i)
+            lastReceived[i] = -1;
+        StateMachine stateMachine = data -> {
+            TestCommand cmdData = (TestCommand) data;
+            if (cmdData.cmdNb != lastReceived[cmdData.clientId] + 1) {
+                error.set(true);
+                System.err.println("client number " + cmdData.cmdNb + " got " + cmdData.cmdNb + " after " + lastReceived[cmdData.clientId]);
+            } else {
+                lastReceived[cmdData.clientId] = cmdData.cmdNb;
+            }
             return null;
         };
+
         Network network = new Network();
         network.setWaitTimes(0, 0, 1, 0);
         List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(NB_NODES, network, stateMachinesSingle(() -> stateMachine, NB_NODES));
 
+        Thread[] clients = new Thread[NB_CLIENTS];
         for (int clientId = 0; clientId < NB_CLIENTS; ++clientId) {
             final int thisClientsId = clientId;
-            clients[clientId] = new Client(clientId, nodes, new Thread(() -> {
+            clients[clientId] = new Thread(() -> {
+                PaxosProposer paxosServer = nodes.get(new Random().nextInt(nodes.size())).getPaxosSrv();
+                BasicPaxosClient paxosHandle = new BasicPaxosClient(paxosServer);
                 for (int cmdId = 0; cmdId < NB_REQUESTS; cmdId++) {
-                    Command cmdData = new Command(thisClientsId, cmdId, null);
-                    clients[thisClientsId].propose(new Command(thisClientsId, cmdId, cmdData));
+                    TestCommand cmdData = new TestCommand(thisClientsId, cmdId);
+                    try {
+                        paxosHandle.doCommand(cmdData);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
-            }));
+            });
         }
 
-        for (Client client : clients) {
-            client.getThread().start();
+        for (Thread client : clients) {
+            client.start();
         }
-        for (Client client : clients) {
-            client.getThread().join();
-            assertFalse(client.getError());
-            assertEquals(client.lastReceived(), NB_REQUESTS - 1);
+        for (Thread client : clients) {
+            client.join();
+            assertFalse(error.get());
         }
     }
 
-    private class Client {
-        private int id;
-        private Thread thread;
-        private long lastReceivedCommand = -1;
-        private boolean error = false;
-        private List<PaxosNetworkNode> nodes;
-        private Random random = new Random();
-        private PaxosServer paxosServer = null;
-        private Map<Object, Integer> instances = new HashMap<>();
+    public void testBasicClientsNoFailure() throws Exception {
+        final int NB_NODES = 7;
+        final int NB_CLIENTS = 500;
+        final int NB_REQUESTS = 3;
 
-        Client(int id, List<PaxosNetworkNode> nodes, Thread thread) {
-            this.id = id;
-            this.thread = thread;
-            this.nodes = nodes;
-            findPaxosServer();
-        }
+        StateMachine stateMachine = data -> data;
+        Network network = new Network();
+        network.setWaitTimes(0, 0, 1, 0);
+        List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(NB_NODES, network, stateMachinesSame(() -> stateMachine, NB_NODES));
 
-        private void findPaxosServer() {
-            paxosServer = nodes.get(random.nextInt(nodes.size())).getPaxosSrv();
-        }
-
-        private void propose(Command data) {
-            boolean success = false;
-            Result res = null;
-            while (!success) {
-                try {
-                    res = paxosServer.proposeNew(data);
-                    success = res.getSuccess();
-                    if (!success) {
-                        findPaxosServer();
-                        Logger.println("FAIL inst " + res.getInstanceId() + " command " + data);
+        AtomicBoolean error = new AtomicBoolean(false);
+        Thread[] clients = new Thread[NB_CLIENTS];
+        for (int clientId = 0; clientId < NB_CLIENTS; ++clientId) {
+            final int thisClientsId = clientId;
+            clients[clientId] = new Thread(() -> {
+                PaxosProposer paxosServer = nodes.get(new Random().nextInt(nodes.size())).getPaxosSrv();
+                BasicPaxosClient paxosHandle = new BasicPaxosClient(paxosServer);
+                for (int cmdId = 0; cmdId < NB_REQUESTS; cmdId++) {
+                    TestCommand cmdData = new TestCommand(thisClientsId, cmdId);
+                    try {
+                        Serializable res = paxosHandle.doCommand(cmdData);
+                        TestCommand resCmd = (TestCommand)res;
+                        if (resCmd.clientId != thisClientsId || resCmd.cmdNb != cmdId) {
+                            error.set(true);
+                            System.err.println("client " + thisClientsId + " received " + resCmd + " instead of " + cmdData);
+                        }
+                    } catch (IOException e) {
+                        error.set(true);
+                        e.printStackTrace();
                     }
-                } catch (IOException e) {
-                    findPaxosServer();
                 }
-            }
-            instances.put(data, res.getInstanceId());
+            });
         }
 
-        void receive(Command clientCommand) {
-            if (clientCommand.getCommandNb() != expected()) {
-                error = true;
-                System.err.println("Client nb " + id + " got " + clientCommand.getCommandNb() + " instead of " + expected() + "\tinstance=" + instances.get(clientCommand));
-            } else if (Logger.isOn()) {
-                Logger.println("++ Client nb " + id + " got " + clientCommand.getCommandNb());
-            }
-            lastReceivedCommand = clientCommand.getCommandNb();
+        for (Thread client : clients) {
+            client.start();
+        }
+        for (Thread client : clients) {
+            client.join();
+            assertFalse(error.get());
+        }
+    }
+
+    class TestCommand implements java.io.Serializable {
+
+        TestCommand(int clientId, int cmdNb) {
+            this.clientId = clientId;
+            this.cmdNb = cmdNb;
         }
 
-        long expected() {
-            return lastReceivedCommand + 1;
+        int clientId;
+        int cmdNb;
+        @Override
+        public String toString() {
+            return "client" + clientId + ";cmd" + cmdNb;
         }
 
-        long lastReceived() {
-            return lastReceivedCommand;
-        }
-
-        boolean getError() {
-            return error;
-        }
-
-        Thread getThread() {
-            return thread;
-        }
     }
 }

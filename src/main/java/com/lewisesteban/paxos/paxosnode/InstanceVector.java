@@ -6,15 +6,15 @@ import java.util.concurrent.Callable;
 
 public class InstanceVector<T> {
 
-    private Map<Integer, T> instances = new HashMap<>();
+    private Map<Long, T> instances = new HashMap<>();
     private Callable<T> constructor;
-    private int highestInstance = 0;
+    private long highestInstance = 0;
 
     public InstanceVector(Callable<T> constructor) {
         this.constructor = constructor;
     }
 
-    public synchronized T get(Integer index) {
+    public synchronized T get(Long index) {
         if (index > highestInstance) {
             highestInstance = index;
         }
@@ -32,14 +32,14 @@ public class InstanceVector<T> {
         }
     }
 
-    public synchronized void set(Integer index, T value) {
+    public synchronized void set(Long index, T value) {
         if (index > highestInstance) {
             highestInstance = index;
         }
         instances.put(index, value);
     }
 
-    public int getHighestInstance() {
+    public long getHighestInstance() {
         return highestInstance;
     }
 }
