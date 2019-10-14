@@ -27,7 +27,7 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
     private PaxosSrvMembership membership;
     private InterruptibleTestStorage storage;
 
-    private final ThreadManager threadManager = new ThreadManager();
+    private ThreadManager threadManager = new ThreadManager();
 
     public PaxosServer(Callable<PaxosNode> nodeCreator) {
         this.nodeCreator = nodeCreator;
@@ -48,8 +48,8 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
 
     public void start() {
         try {
-            threadManager.start();
             createInstance();
+            threadManager.start();
             paxosNode.start();
         } catch (Exception e) {
             e.printStackTrace();

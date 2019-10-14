@@ -1,5 +1,6 @@
 package com.lewisesteban.paxos;
 
+import com.lewisesteban.paxos.client.BasicPaxosClient;
 import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.PaxosNode;
 import com.lewisesteban.paxos.paxosnode.StateMachine;
@@ -16,15 +17,16 @@ import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
 import junit.framework.TestCase;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.lewisesteban.paxos.NetworkFactory.initSimpleNetwork;
-import static com.lewisesteban.paxos.NetworkFactory.stateMachinesEmpty;
+import static com.lewisesteban.paxos.NetworkFactory.*;
 import static com.lewisesteban.paxos.virtualnet.server.PaxosServer.SRV_FAILURE_MSG;
 
 public class VirtualNetTest extends TestCase {
@@ -132,8 +134,7 @@ public class VirtualNetTest extends TestCase {
 
         System.out.println("Task started. Let's wait a bit...");
         Thread.sleep(100); // wait for the proposeNew/accept tasks to start
-        System.out.println("Enough waiting. Kill the servers.");
-
+        System.out.println("Enough waiting. Kill the server.");
         network.kill(slowAcceptorId);
         assertEquals((byte) client.get(), Result.CONSENSUS_FAILED);
     }
@@ -161,8 +162,51 @@ public class VirtualNetTest extends TestCase {
         }
     }
 
-    public void testKillAndRestart() { // TODO
-        // similar to testKillAcceptingServer, but with restart
+    public void testKillAndRestartSlowAcceptor() throws InterruptedException {
+
+        Network network = new Network();
+        List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(2, network, SlowPaxosNode::new, stateMachinesAppendOK(2));
+        slowAcceptorId = 1;
+        final PaxosNetworkNode server = nodes.get(0);
+
+        AtomicBoolean success = new AtomicBoolean(false);
+        AtomicBoolean serverRestarted = new AtomicBoolean(false);
+        slowPropose = false;
+        BasicPaxosClient client = new BasicPaxosClient(server.getPaxosSrv(), "");
+        Thread thread = new Thread(() -> {
+            try {
+                Serializable res = client.doCommand("hi");
+                if (!serverRestarted.get()) {
+                    System.err.println("too early");
+                    success.set(false);
+                } else {
+                    if (res.equals("hiOK")) {
+                        success.set(true);
+                    } else {
+                        success.set(false);
+                        System.err.println("wrong res: " + res);
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+                success.set(false);
+            }
+        });
+        thread.start();
+
+        System.out.println("Task started. Let's wait a bit...");
+        Thread.sleep(100); // wait for the proposeNew/accept tasks to start
+        System.out.println("Enough waiting. Kill the server.");
+        network.kill(slowAcceptorId);
+        int killedSrvId = slowAcceptorId;
+
+        slowAcceptorId = -1; // now no acceptor will be slow
+        System.out.println("Now start again.");
+        serverRestarted.set(true);
+        network.start(killedSrvId);
+
+        thread.join();
+        assertTrue(success.get());
     }
 
     private class SlowPaxosNode extends PaxosNode {
@@ -171,7 +215,7 @@ public class VirtualNetTest extends TestCase {
 
         SlowPaxosNode(int id, List<RemotePaxosNode> remotePaxosNodeList, StateMachine stateMachine, StorageUnit storage) {
             super(id, remotePaxosNodeList, stateMachine, storage);
-            acceptor = new SlowPaxosAcceptor(getAcceptor());
+            acceptor = new SlowPaxosAcceptor(super.getAcceptor());
         }
 
         @Override

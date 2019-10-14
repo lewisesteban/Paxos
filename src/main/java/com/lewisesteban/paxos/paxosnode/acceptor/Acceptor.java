@@ -23,8 +23,10 @@ public class Acceptor implements AcceptorRPCHandle {
         synchronized (thisInstance) {
             if (propId.isGreaterThan(thisInstance.getLastPreparedPropId())) {
                 thisInstance.setLastPreparedPropId(propId);
+                Logger.println("--o inst " + instanceNb + " srv " + memberList.getMyNodeId() + " prepare OK " + propId);
                 return new PrepareAnswer(true, thisInstance.getLastAcceptedProp());
             } else {
+                Logger.println("--o inst " + instanceNb + " srv " + memberList.getMyNodeId() + " prepare NOK " + propId);
                 return new PrepareAnswer(false, null);
             }
         }

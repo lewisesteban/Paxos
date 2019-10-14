@@ -44,6 +44,11 @@ public class Command implements Serializable {
         }
     }
 
+    @Override
+    public String toString() {
+        return data.toString();
+    }
+
     public static class Factory {
 
         private String clientId;
