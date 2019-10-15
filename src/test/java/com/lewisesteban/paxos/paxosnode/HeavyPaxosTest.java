@@ -1,11 +1,11 @@
 package com.lewisesteban.paxos.paxosnode;
 
 import com.lewisesteban.paxos.NetworkFactory;
+import com.lewisesteban.paxos.PaxosTestCase;
 import com.lewisesteban.paxos.client.BasicPaxosClient;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
-import junit.framework.TestCase;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -16,14 +16,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static com.lewisesteban.paxos.NetworkFactory.stateMachinesSame;
 import static com.lewisesteban.paxos.NetworkFactory.stateMachinesSingle;
 
-public class HeavyPaxosTest extends TestCase {
+public class HeavyPaxosTest extends PaxosTestCase {
 
     /**
      * Should be executed with no dedicated proposer.
      */
     public void testSingleStateMachineNoFailure() throws Exception {
         final int NB_NODES = 7;
-        final int NB_CLIENTS = 500;
+        final int NB_CLIENTS = 500; // used to take less than 20 seconds
         final int NB_REQUESTS = 3;
 
         AtomicBoolean error = new AtomicBoolean(false);
@@ -73,7 +73,7 @@ public class HeavyPaxosTest extends TestCase {
 
     public void testBasicClientsNoFailure() throws Exception {
         final int NB_NODES = 7;
-        final int NB_CLIENTS = 500;
+        final int NB_CLIENTS = 500; // used to take less than 20 seconds
         final int NB_REQUESTS = 3;
 
         StateMachine stateMachine = data -> data;

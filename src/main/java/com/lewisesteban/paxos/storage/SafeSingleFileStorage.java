@@ -13,8 +13,12 @@ public class SafeSingleFileStorage implements StorageUnit {
     private FileManager fileManager;
     private TreeMap<String, String> content = null;
 
-    public SafeSingleFileStorage(String fileName, FileAccessorCreator fileAccessorCreator) {
-        fileManager = new FileManager(fileName, fileAccessorCreator);
+    public SafeSingleFileStorage(String fileName, String dir, FileAccessorCreator fileAccessorCreator) throws StorageException {
+        try {
+            fileManager = new FileManager(fileName, dir, fileAccessorCreator);
+        } catch (IOException e) {
+            throw new StorageException(e);
+        }
     }
 
     @Override
@@ -128,9 +132,9 @@ public class SafeSingleFileStorage implements StorageUnit {
         private FileAccessor mainFile;
         private FileAccessor tmpFile;
 
-        FileManager(String fileName, FileAccessorCreator fileAccessorCreator) {
-            mainFile = fileAccessorCreator.create(fileName);
-            tmpFile = fileAccessorCreator.create(fileName + "_tmp");
+        FileManager(String fileName, String dir, FileAccessorCreator fileAccessorCreator) throws IOException {
+            mainFile = fileAccessorCreator.create(fileName, dir);
+            tmpFile = fileAccessorCreator.create(fileName + "_tmp", dir);
         }
 
         OutputStream startWrite() throws IOException {
@@ -173,19 +177,15 @@ public class SafeSingleFileStorage implements StorageUnit {
             if (mainFile.exists()) {
                 mainFile.delete();
             }
-            Files.move(Paths.get(tmpFile.getFileName()), Paths.get(mainFile.getFileName()), StandardCopyOption.ATOMIC_MOVE);
+            Files.move(Paths.get(tmpFile.getFilePath()), Paths.get(mainFile.getFilePath()), StandardCopyOption.ATOMIC_MOVE);
         }
 
         void deleteAll() throws IOException {
-            File folder = new File(".");
-            File[] matchingFiles = folder.listFiles((dir, name) -> name.startsWith(mainFile.getFileName()));
-            if (matchingFiles != null) {
-                for (File file : matchingFiles) {
-                    if (!file.delete()) {
-                        throw new IOException("Could not delete " + file.getName());
-                    }
-                }
-            }
+            mainFile.delete();
+            try {
+                tmpFile.delete();
+            } catch (IOException ignored) { }
+
         }
 
         void close() throws IOException {

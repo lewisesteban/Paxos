@@ -34,7 +34,7 @@ public class NetworkFactory {
         for (List<RemotePaxosNode> networkView : networkViews) {
             final int thisNodeId = nodeId;
             final Callable<StateMachine> stateMachineCreator = executorIt.next();
-            final Callable<StorageUnit> storageCreator = () -> new InterruptibleTestStorage(thisNodeId, new SafeSingleFileStorage("paxosData" + thisNodeId, InterruptibleWholeFileAccessor.creator(true)));
+            final Callable<StorageUnit.Creator> storageCreator = interruptibleStorageCreator(thisNodeId);
             Callable<PaxosNode> paxosNodeCreator = () -> paxosFactory.create(thisNodeId, networkView, stateMachineCreator.call(), storageCreator.call());
             PaxosServer srv = new PaxosServer(paxosNodeCreator);
             int rack = srv.getId() % nbRacks;
@@ -55,6 +55,12 @@ public class NetworkFactory {
         }
         network.startAll();
         return paxosNodes;
+    }
+
+    private static Callable<StorageUnit.Creator> interruptibleStorageCreator(int nodeId) {
+        FileAccessorCreator fileAccessorCreator = InterruptibleWholeFileAccessor.creator(true);
+        StorageUnit.Creator encapsulatedStorageUnitCreator = (file, dir) -> new SafeSingleFileStorage(file, dir, InterruptibleWholeFileAccessor.creator(true));
+        return () -> InterruptibleTestStorage.creator(nodeId, encapsulatedStorageUnitCreator);
     }
 
     public static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network, PaxosFactory paxosFactory, Iterable<Callable<StateMachine>> stateMachineCreators) {
@@ -103,6 +109,6 @@ public class NetworkFactory {
     }
 
     interface PaxosFactory {
-        PaxosNode create(int nodeId, List<RemotePaxosNode> networkView, StateMachine stateMachine, StorageUnit storage) throws StorageException;
+        PaxosNode create(int nodeId, List<RemotePaxosNode> networkView, StateMachine stateMachine, StorageUnit.Creator storage) throws StorageException;
     }
 }

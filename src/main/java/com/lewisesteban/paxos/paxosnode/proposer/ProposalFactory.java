@@ -25,8 +25,10 @@ class ProposalFactory {
 
     Proposal make(Command command) throws StorageException {
         int commandsProposalNb = proposalNumber.getAndIncrement();
-        storage.put(STORAGE_KEY_PROPOSAL_NB, String.valueOf(proposalNumber.get()));
-        storage.flush();
+        synchronized (this) {
+            storage.put(STORAGE_KEY_PROPOSAL_NB, String.valueOf(proposalNumber.get()));
+            storage.flush();
+        }
         return new Proposal(command, new Proposal.ID(myNodeId, commandsProposalNb));
     }
 }

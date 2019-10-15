@@ -15,15 +15,24 @@ public class InterruptibleWholeFileAccessor implements FileAccessor {
     private FileInputStream inputStream = null;
     private boolean fastWriting;
 
-    InterruptibleWholeFileAccessor(String name, boolean fastWriting) {
+    InterruptibleWholeFileAccessor(String name, String dirName, boolean fastWriting) throws IOException {
         this.fastWriting = fastWriting;
-        file = new File(name);
+        if (dirName != null && !dirName.equals(".")) {
+            File dir = new File(dirName);
+            if (!dir.exists()) {
+                if (!dir.mkdir())
+                    throw new IOException("Failed to create directory");
+            }
+            file = new File(dir + File.separator + name);
+        } else {
+            file = new File(name);
+        }
     }
 
     @Override
     public OutputStream startWrite() throws IOException {
         endRead();
-        outputStream = new InterruptibleOutputStream(file.getName());
+        outputStream = new InterruptibleOutputStream(file.getPath());
         return outputStream;
     }
 
@@ -37,7 +46,7 @@ public class InterruptibleWholeFileAccessor implements FileAccessor {
     @Override
     public InputStream startRead() throws IOException {
         endWrite();
-        inputStream = new FileInputStream(file.getName());
+        inputStream = new FileInputStream(file.getPath());
         return inputStream;
     }
 
@@ -51,7 +60,7 @@ public class InterruptibleWholeFileAccessor implements FileAccessor {
     @Override
     public void delete() throws IOException {
         if (!file.delete())
-            throw new IOException("Could not delete " + file.getName());
+            throw new IOException("Could not delete " + file.getPath());
     }
 
     @Override
@@ -65,8 +74,8 @@ public class InterruptibleWholeFileAccessor implements FileAccessor {
     }
 
     @Override
-    public String getFileName() {
-        return file.getName();
+    public String getFilePath() {
+        return file.getPath();
     }
 
     class InterruptibleOutputStream extends OutputStream {
@@ -125,6 +134,6 @@ public class InterruptibleWholeFileAccessor implements FileAccessor {
     }
 
     public static FileAccessorCreator creator(boolean fastWriting) {
-        return filePath -> new InterruptibleWholeFileAccessor(filePath, fastWriting);
+        return (fileName, dir) -> new InterruptibleWholeFileAccessor(fileName, dir, fastWriting);
     }
 }

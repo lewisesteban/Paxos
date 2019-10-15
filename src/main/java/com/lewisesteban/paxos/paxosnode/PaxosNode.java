@@ -19,11 +19,11 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
     private Membership membership;
     private boolean running = false;
 
-    public PaxosNode(int myNodeId, List<RemotePaxosNode> members, StateMachine stateMachine, StorageUnit storage) throws StorageException {
+    public PaxosNode(int myNodeId, List<RemotePaxosNode> members, StateMachine stateMachine, StorageUnit.Creator storage) throws StorageException {
         membership = new Membership(myNodeId, members);
         acceptor = new Acceptor(membership, storage);
         listener = new Listener(membership, stateMachine);
-        proposer = new Proposer(membership, listener, storage);
+        proposer = new Proposer(membership, listener, storage.make("proposer" + membership.getMyNodeId(), null));
     }
 
     public void start() {

@@ -19,22 +19,30 @@ public class StorageTest extends TestCase {
 
     public void testBasicSingleFileStorage() {
         try {
-            new SafeSingleFileStorage(fileName(1), WholeFileAccessor.creator()).delete();
+            new SafeSingleFileStorage(fileName(1), null, WholeFileAccessor.creator()).delete();
         } catch (IOException ignored) { }
         try {
-            new SafeSingleFileStorage(fileName(2), WholeFileAccessor.creator()).delete();
+            new SafeSingleFileStorage(fileName(2),null, WholeFileAccessor.creator()).delete();
         } catch (IOException ignored) { }
-        testBasicSingleFileStorage(WholeFileAccessor.creator());
+        try {
+            new SafeSingleFileStorage(fileName(1), "test", WholeFileAccessor.creator()).delete();
+        } catch (IOException ignored) { }
+        try {
+            new SafeSingleFileStorage(fileName(2),"test", WholeFileAccessor.creator()).delete();
+        } catch (IOException ignored) { }
+        testBasicSingleFileStorage(WholeFileAccessor.creator(), null);
+        testBasicSingleFileStorage(WholeFileAccessor.creator(), "test");
         System.out.println("normal file accessor OK");
-        testBasicSingleFileStorage(InterruptibleWholeFileAccessor.creator(true));
+        testBasicSingleFileStorage(InterruptibleWholeFileAccessor.creator(true), null);
+        testBasicSingleFileStorage(InterruptibleWholeFileAccessor.creator(true), "test");
         System.out.println("interruptible file accessor OK");
     }
 
-    private void testBasicSingleFileStorage(FileAccessorCreator fileAccessorCreator) {
+    private void testBasicSingleFileStorage(FileAccessorCreator fileAccessorCreator, String dir) {
         try {
             // write data into two files
-            StorageUnit storage1 = new SafeSingleFileStorage(fileName(1), fileAccessorCreator);
-            StorageUnit storage2 = new SafeSingleFileStorage(fileName(2), fileAccessorCreator);
+            StorageUnit storage1 = new SafeSingleFileStorage(fileName(1), dir, fileAccessorCreator);
+            StorageUnit storage2 = new SafeSingleFileStorage(fileName(2), dir, fileAccessorCreator);
             storage1.put("a", "A");
             storage1.flush();
             assertEquals("A", storage1.read("a"));
@@ -47,8 +55,8 @@ public class StorageTest extends TestCase {
             storage2.close();
 
             // read the two files from disk
-            storage1 = new SafeSingleFileStorage(fileName(1), fileAccessorCreator);
-            storage2 = new SafeSingleFileStorage(fileName(2), fileAccessorCreator);
+            storage1 = new SafeSingleFileStorage(fileName(1), dir, fileAccessorCreator);
+            storage2 = new SafeSingleFileStorage(fileName(2), dir, fileAccessorCreator);
             assertNull(storage1.read("b"));
             assertEquals("A", storage1.read("a"));
             Iterator<Map.Entry<String, String>> it = storage2.startReadAll();
@@ -66,7 +74,7 @@ public class StorageTest extends TestCase {
             // check delete
             storage2.delete();
             storage2.close();
-            storage2 = new SafeSingleFileStorage(fileName(2), fileAccessorCreator);
+            storage2 = new SafeSingleFileStorage(fileName(2), dir, fileAccessorCreator);
             assertNull(storage2.read("b"));
 
             // write a lot of data and then read from disk
@@ -75,7 +83,7 @@ public class StorageTest extends TestCase {
             }
             storage2.flush();
             storage2.close();
-            storage2 = new SafeSingleFileStorage(fileName(2), fileAccessorCreator);
+            storage2 = new SafeSingleFileStorage(fileName(2), dir, fileAccessorCreator);
             assertEquals("val0", storage2.read("key0"));
             assertEquals("val" + InterruptibleWholeFileAccessor.FAST_WRITING_MAX, storage2.read("key" + InterruptibleWholeFileAccessor.FAST_WRITING_MAX));
             assertEquals("val" + (InterruptibleWholeFileAccessor.FAST_WRITING_MAX + 1), storage2.read("key" + (InterruptibleWholeFileAccessor.FAST_WRITING_MAX + 1)));
@@ -92,7 +100,7 @@ public class StorageTest extends TestCase {
         }
     }
 
-    public void testInterruptibleStorage() {
+    public void testInterruptibleStorage() throws IOException {
         int size = 10000;
         int nbTests = 20;
 
@@ -120,7 +128,7 @@ public class StorageTest extends TestCase {
             fail();
     }
 
-    private long testInterruptibleStorage(boolean fastWriting, int size) {
+    private long testInterruptibleStorage(boolean fastWriting, int size) throws IOException {
         byte[] writingContent = new byte[size];
         for (int i = 0; i < writingContent.length; i++) {
             writingContent[i] = 42;
@@ -128,7 +136,7 @@ public class StorageTest extends TestCase {
         final File file = new File(fileName(1));
         //noinspection ResultOfMethodCallIgnored
         file.delete();
-        FileAccessor fileAccessor = new InterruptibleWholeFileAccessor(fileName(1), fastWriting);
+        FileAccessor fileAccessor = new InterruptibleWholeFileAccessor(fileName(1), null, fastWriting);
         try {
             final OutputStream outputStream = fileAccessor.startWrite();
 
@@ -207,20 +215,17 @@ public class StorageTest extends TestCase {
         return -1;
     }
 
-    public void testFailSafeSingleFileStorage() throws InterruptedException {
-        SafeSingleFileStorage fileDeleter = new SafeSingleFileStorage(fileName(1), WholeFileAccessor.creator());
+    public void testFailSafeSingleFileStorage() throws InterruptedException, StorageException {
+        SafeSingleFileStorage fileDeleter = new SafeSingleFileStorage(fileName(1), null, WholeFileAccessor.creator());
         try {
             fileDeleter.delete();
             fileDeleter.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-            fail();
-        }
+        } catch (IOException ignored) { }
 
         for (int testnb = 0; testnb < 100; testnb++) {
 
             FileAccessorCreator fileAccessorCreator = InterruptibleWholeFileAccessor.creator(false);
-            StorageUnit storageUnit = new SafeSingleFileStorage(fileName(1), fileAccessorCreator);
+            StorageUnit storageUnit = new SafeSingleFileStorage(fileName(1), null,fileAccessorCreator);
             InterruptibleTestStorage interruptibleStorage = new InterruptibleTestStorage(1, storageUnit);
             try {
                 assertNull(interruptibleStorage.read("test"));
@@ -260,7 +265,7 @@ public class StorageTest extends TestCase {
             if (failed.get())
                 fail();
 
-            InterruptibleTestStorage newInstance = new InterruptibleTestStorage(1, new SafeSingleFileStorage(fileName(1), WholeFileAccessor.creator()));
+            InterruptibleTestStorage newInstance = new InterruptibleTestStorage(1, new SafeSingleFileStorage(fileName(1), null,WholeFileAccessor.creator()));
             try {
                 assertEquals("val", newInstance.read("test"));
                 newInstance.delete();

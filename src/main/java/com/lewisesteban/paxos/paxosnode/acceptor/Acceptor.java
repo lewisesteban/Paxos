@@ -1,28 +1,31 @@
 package com.lewisesteban.paxos.paxosnode.acceptor;
 
 import com.lewisesteban.paxos.Logger;
-import com.lewisesteban.paxos.storage.StorageUnit;
-import com.lewisesteban.paxos.paxosnode.InstanceVector;
 import com.lewisesteban.paxos.paxosnode.MembershipGetter;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
 import com.lewisesteban.paxos.rpc.paxos.AcceptorRPCHandle;
+import com.lewisesteban.paxos.storage.StorageException;
+import com.lewisesteban.paxos.storage.StorageUnit;
 
 public class Acceptor implements AcceptorRPCHandle {
 
-    private InstanceVector<AcceptDataInstance> instances = new InstanceVector<>(AcceptDataInstance::new);
+    private InstanceContainer<AcceptDataInstance> instances;
     private MembershipGetter memberList;
-    private StorageUnit storage;
+    private StorageUnit.Creator storageUnitCreator;
 
-    public Acceptor(MembershipGetter memberList, StorageUnit storage) {
+    public Acceptor(MembershipGetter memberList, StorageUnit.Creator storageUnitCreator) throws StorageException {
         this.memberList = memberList;
-        this.storage = storage;
+        this.storageUnitCreator = storageUnitCreator;
+        this.instances = new InstanceContainer<>(AcceptDataInstance::new,
+                AcceptDataInstance.readStorage(memberList.getMyNodeId(), storageUnitCreator));
     }
 
-    public PrepareAnswer reqPrepare(long instanceNb, Proposal.ID propId) {
+    public PrepareAnswer reqPrepare(long instanceNb, Proposal.ID propId) throws StorageException {
         AcceptDataInstance thisInstance = instances.get(instanceNb);
         synchronized (thisInstance) {
             if (propId.isGreaterThan(thisInstance.getLastPreparedPropId())) {
                 thisInstance.setLastPreparedPropId(propId);
+                thisInstance.saveToStorage(memberList.getMyNodeId(), instanceNb, storageUnitCreator);
                 Logger.println("--o inst " + instanceNb + " srv " + memberList.getMyNodeId() + " prepare OK " + propId);
                 return new PrepareAnswer(true, thisInstance.getLastAcceptedProp());
             } else {
@@ -32,7 +35,7 @@ public class Acceptor implements AcceptorRPCHandle {
         }
     }
 
-    public boolean reqAccept(long instanceNb, Proposal proposal) {
+    public boolean reqAccept(long instanceNb, Proposal proposal) throws StorageException {
         AcceptDataInstance thisInstance = instances.get(instanceNb);
         synchronized (thisInstance) {
             if (thisInstance.getLastPreparedPropId().isGreaterThan(proposal.getId())) {
@@ -40,6 +43,7 @@ public class Acceptor implements AcceptorRPCHandle {
                 return false;
             } else {
                 thisInstance.setLastAcceptedProp(proposal);
+                thisInstance.saveToStorage(memberList.getMyNodeId(), instanceNb, storageUnitCreator);
                 Logger.println("--- inst " + instanceNb + " srv " + memberList.getMyNodeId() + " accept " + proposal.getCommand());
                 return true;
             }

@@ -13,5 +13,5 @@ public interface FileAccessor {
     void delete() throws IOException;
     boolean exists();
     long length() throws IOException;
-    String getFileName();
+    String getFilePath();
 }

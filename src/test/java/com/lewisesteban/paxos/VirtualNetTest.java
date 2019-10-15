@@ -15,7 +15,6 @@ import com.lewisesteban.paxos.storage.StorageUnit;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
-import junit.framework.TestCase;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -30,7 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static com.lewisesteban.paxos.NetworkFactory.*;
 import static com.lewisesteban.paxos.virtualnet.server.PaxosServer.SRV_FAILURE_MSG;
 
-public class VirtualNetTest extends TestCase {
+public class VirtualNetTest extends PaxosTestCase {
 
     private static final Command cmd1 = new Command("ONE", "", 1);
 
@@ -214,7 +213,7 @@ public class VirtualNetTest extends TestCase {
 
         private AcceptorRPCHandle acceptor;
 
-        SlowPaxosNode(int id, List<RemotePaxosNode> remotePaxosNodeList, StateMachine stateMachine, StorageUnit storage) throws StorageException {
+        SlowPaxosNode(int id, List<RemotePaxosNode> remotePaxosNodeList, StateMachine stateMachine, StorageUnit.Creator storage) throws StorageException {
             super(id, remotePaxosNodeList, stateMachine, storage);
             acceptor = new SlowPaxosAcceptor(super.getAcceptor());
         }

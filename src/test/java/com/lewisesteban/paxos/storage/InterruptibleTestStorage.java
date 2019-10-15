@@ -14,7 +14,7 @@ public class InterruptibleTestStorage implements StorageUnit {
     private ExecutorService executor;
     private Thread thread;
 
-    public InterruptibleTestStorage(int nodeId, StorageUnit baseStorage) {
+    InterruptibleTestStorage(int nodeId, StorageUnit baseStorage) {
         this.baseStorage = baseStorage;
         start();
         Container.add(nodeId, this);
@@ -121,8 +121,12 @@ public class InterruptibleTestStorage implements StorageUnit {
     }
 
     @Override
-    public synchronized void close() throws IOException {
+    public synchronized void close() throws StorageException {
         baseStorage.close();
+    }
+
+    public static StorageUnit.Creator creator(int nodeId, StorageUnit.Creator baseStorage) {
+        return (file, dir) -> new InterruptibleTestStorage(nodeId, baseStorage.make(file, dir));
     }
 
     public static class Container {
@@ -140,9 +144,7 @@ public class InterruptibleTestStorage implements StorageUnit {
             for (InterruptibleTestStorage storage : map.values()) {
                 try {
                     storage.delete();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                } catch (IOException ignored) { }
             }
             map.clear();
         }

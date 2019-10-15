@@ -1,11 +1,11 @@
 package com.lewisesteban.paxos.paxosnode;
 
+import com.lewisesteban.paxos.PaxosTestCase;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
-import junit.framework.TestCase;
 
 import java.io.IOException;
 import java.util.List;
@@ -16,7 +16,7 @@ import static com.lewisesteban.paxos.NetworkFactory.*;
 /**
  * Should be executed with no dedicated proposer.
  */
-public class BasicPaxosTest extends TestCase {
+public class BasicPaxosTest extends PaxosTestCase {
 
     private static final Command cmd1 = new Command("ONE", "", 1);
     private static final Command cmd2 = new Command("TWO", "", 2);
@@ -180,5 +180,18 @@ public class BasicPaxosTest extends TestCase {
         } catch (IOException e) {
             fail();
         }
+    }
+
+    public void testAcceptorStorage() throws IOException {
+        Network network = new Network();
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(2, network, stateMachinesEmpty(2));
+        PaxosServer node0 = nodes.get(0).getPaxosSrv();
+        long inst = node0.getNewInstanceId();
+        Result res1 = node0.propose(new Command("hello", "", 1), inst);
+        assertEquals(Result.CONSENSUS_ON_THIS_CMD, res1.getStatus());
+        network.killAll();
+        network.startAll();
+        Result res2 = node0.propose(new Command("hello", "", 2), inst);
+        assertEquals(Result.CONSENSUS_ON_ANOTHER_CMD, res2.getStatus());
     }
 }

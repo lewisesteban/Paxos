@@ -1,17 +1,20 @@
-package com.lewisesteban.paxos.paxosnode;
+package com.lewisesteban.paxos.paxosnode.acceptor;
 
-import java.util.HashMap;
+import java.io.Serializable;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.Callable;
 
-public class InstanceVector<T> {
+public class InstanceContainer<T extends Serializable> {
 
-    private Map<Long, T> instances = new HashMap<>();
+    private Map<Long, T> instances = new TreeMap<>();
     private Callable<T> constructor;
     private long highestInstance = 0;
 
-    public InstanceVector(Callable<T> constructor) {
+    InstanceContainer(Callable<T> constructor, Map<Long, T> source) {
         this.constructor = constructor;
+        if (source != null)
+            instances = source;
     }
 
     public synchronized T get(Long index) {
@@ -39,7 +42,7 @@ public class InstanceVector<T> {
         instances.put(index, value);
     }
 
-    public long getHighestInstance() {
+    long getHighestInstance() {
         return highestInstance;
     }
 }

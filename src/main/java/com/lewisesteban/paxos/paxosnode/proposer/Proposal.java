@@ -25,9 +25,17 @@ public class Proposal implements java.io.Serializable {
         private int nodeId;
         private int nodePropNb;
 
-        ID(int nodeId, int nodeReqNb) {
+        public ID(int nodeId, int nodeReqNb) {
             this.nodeId = nodeId;
             this.nodePropNb = nodeReqNb;
+        }
+
+        public int getNodeId() {
+            return nodeId;
+        }
+
+        public int getNodePropNb() {
+            return nodePropNb;
         }
 
         public boolean isGreaterThan(ID other) {
@@ -41,11 +49,6 @@ public class Proposal implements java.io.Serializable {
 
         public static ID noProposal() {
             return new ID(-1, -1);
-        }
-
-        @Override
-        public String toString() {
-            return "#" + nodePropNb + " #" + nodeId;
         }
     }
 }
