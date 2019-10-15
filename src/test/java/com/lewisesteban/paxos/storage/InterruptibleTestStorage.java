@@ -42,60 +42,81 @@ public class InterruptibleTestStorage implements StorageUnit {
         System.gc();
     }
 
-    public synchronized void delete() throws IOException {
+    public synchronized void delete() throws StorageException {
         baseStorage.delete();
     }
 
     @Override
-    public synchronized Iterator<Map.Entry<String, String>> startReadAll() throws IOException {
+    public synchronized Iterator<Map.Entry<String, String>> startReadAll() throws StorageException {
         if (!running)
-            throw new IOException("interrupted");
+            throw new StorageException("interrupted");
         try {
             return executor.submit(() -> baseStorage.startReadAll()).get();
         } catch (ExecutionException e) {
             if (running)
-                throw new IOException(e);
+                throw new StorageException(e);
             else
                 return null;
-        } catch (InterruptedException e) {
+        } catch (InterruptedException | RejectedExecutionException e) {
             return null;
         }
     }
 
     @Override
-    public synchronized String read(String key) throws IOException {
+    public synchronized String read(String key) throws StorageException {
         if (!running)
-            throw new IOException("interrupted");
+            throw new StorageException("interrupted");
         try {
             return executor.submit(() -> baseStorage.read(key)).get();
         } catch (ExecutionException e) {
             if (running)
-                throw new IOException(e);
+                throw new StorageException(e);
             else
                 return null;
-        } catch (InterruptedException e) {
+        } catch (InterruptedException | RejectedExecutionException e) {
             return null;
         }
     }
 
     @Override
-    public synchronized void write(String key, String value) throws IOException {
+    public synchronized void put(String key, String value) throws StorageException {
         if (!running)
-            throw new IOException("interrupted");
+            throw new StorageException("interrupted");
         AtomicReference<IOException> error = new AtomicReference<>(null);
         try {
             executor.submit(() -> {
                 try {
-                    baseStorage.write(key, value);
+                    baseStorage.put(key, value);
                 } catch (IOException e) {
                     error.set(e);
                 }
             }).get();
         } catch (ExecutionException e) {
-            throw new IOException(e);
+            throw new StorageException(e);
         } catch (InterruptedException | RejectedExecutionException ignored) { }
         if (running && error.get() != null) {
-            throw new IOException();
+            throw new StorageException(error.get());
+        }
+    }
+
+    @Override
+    public synchronized void flush() throws StorageException {
+        if (!running)
+            throw new StorageException("interrupted");
+        AtomicReference<IOException> error = new AtomicReference<>(null);
+        try {
+            executor.submit(() -> {
+                try {
+                    baseStorage.flush();
+                } catch (IOException e) {
+                    error.set(e);
+                }
+            }).get();
+        } catch (ExecutionException e) {
+            throw new StorageException(e);
+        } catch (InterruptedException | RejectedExecutionException ignored) { }
+        if (running && error.get() != null) {
+            throw new StorageException(error.get());
         }
     }
 

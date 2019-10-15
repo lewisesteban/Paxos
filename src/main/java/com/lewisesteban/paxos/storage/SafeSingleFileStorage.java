@@ -18,37 +18,65 @@ public class SafeSingleFileStorage implements StorageUnit {
     }
 
     @Override
-    public synchronized Iterator<Map.Entry<String, String>> startReadAll() throws IOException {
+    public synchronized Iterator<Map.Entry<String, String>> startReadAll() throws StorageException {
         if (content == null) {
-            readAllContent();
+            try {
+                readAllContent();
+            } catch (IOException e) {
+                throw new StorageException(e);
+            }
         }
         return content.entrySet().iterator();
     }
 
     @Override
-    public synchronized String read(String key) throws IOException {
+    public synchronized String read(String key) throws StorageException {
         if (content == null) {
-            readAllContent();
+            try {
+                readAllContent();
+            } catch (IOException e) {
+                throw new StorageException(e);
+            }
         }
         return content.getOrDefault(key, null);
     }
 
     @Override
-    public synchronized void write(String key, String value) throws IOException {
+    public synchronized void put(String key, String value) throws StorageException {
         if (content == null) {
-            readAllContent();
+            try {
+                readAllContent();
+            } catch (IOException e) {
+                throw new StorageException(e);
+            }
         }
         content.put(key, value);
-        OutputStream writer = fileManager.startWrite();
-        ObjectOutputStream oos = new ObjectOutputStream(writer);
-        oos.writeObject(content);
-        oos.flush();
-        fileManager.endWrite();
     }
 
     @Override
-    public synchronized void delete() throws IOException {
-        fileManager.deleteAll();
+    public void flush() throws StorageException {
+        try {
+            OutputStream writer = fileManager.startWrite();
+            try {
+                ObjectOutputStream oos = new ObjectOutputStream(writer);
+                oos.writeObject(content);
+                oos.flush();
+            } catch (IOException e) {
+                throw new StorageException(e);
+            }
+            fileManager.endWrite();
+        } catch (IOException e) {
+            throw new StorageException(e);
+        }
+    }
+
+    @Override
+    public synchronized void delete() throws StorageException {
+        try {
+            fileManager.deleteAll();
+        } catch (IOException e) {
+            throw new StorageException(e);
+        }
     }
 
     private void readAllContent() throws IOException {
@@ -80,13 +108,17 @@ public class SafeSingleFileStorage implements StorageUnit {
             }
 
         } catch (ClassNotFoundException classNotFoundException) {
-            throw new IOException(classNotFoundException);
+            throw new StorageException(classNotFoundException);
         }
     }
 
     @Override
-    public synchronized void close() throws IOException {
-        fileManager.close();
+    public synchronized void close() throws StorageException {
+        try {
+            fileManager.close();
+        } catch (IOException e) {
+            throw new StorageException(e);
+        }
     }
 
     /**

@@ -35,11 +35,13 @@ public class StorageTest extends TestCase {
             // write data into two files
             StorageUnit storage1 = new SafeSingleFileStorage(fileName(1), fileAccessorCreator);
             StorageUnit storage2 = new SafeSingleFileStorage(fileName(2), fileAccessorCreator);
-            storage1.write("a", "A");
+            storage1.put("a", "A");
+            storage1.flush();
             assertEquals("A", storage1.read("a"));
             assertNull(storage2.read("a"));
-            storage2.write("b", "B");
-            storage2.write("c", "c");
+            storage2.put("b", "B");
+            storage2.put("c", "c");
+            storage2.flush();
 
             storage1.close();
             storage2.close();
@@ -57,7 +59,8 @@ public class StorageTest extends TestCase {
             assertFalse(it.hasNext());
 
             // change data
-            storage2.write("b", "B2");
+            storage2.put("b", "B2");
+            storage2.flush();
             assertEquals("B2", storage2.read("b"));
 
             // check delete
@@ -68,8 +71,9 @@ public class StorageTest extends TestCase {
 
             // write a lot of data and then read from disk
             for (int i = 0; i <= InterruptibleWholeFileAccessor.FAST_WRITING_MAX + 1; ++i) {
-                storage2.write("key" + i, "val" + i);
+                storage2.put("key" + i, "val" + i);
             }
+            storage2.flush();
             storage2.close();
             storage2 = new SafeSingleFileStorage(fileName(2), fileAccessorCreator);
             assertEquals("val0", storage2.read("key0"));
@@ -140,11 +144,18 @@ public class StorageTest extends TestCase {
                 }
 
                 @Override
-                public void write(String key, String value) throws IOException {
-                    for (int time = 0; time < 10000; ++time) {
-                        outputStream.write(writingContent);
+                public void put(String key, String value) throws StorageException {
+                    try {
+                        for (int time = 0; time < 10000; ++time) {
+                            outputStream.write(writingContent);
+                        }
+                    } catch (IOException e) {
+                        throw new StorageException(e);
                     }
                 }
+
+                @Override
+                public void flush() { }
 
                 @Override
                 public void delete() { }
@@ -156,7 +167,7 @@ public class StorageTest extends TestCase {
             AtomicReference<IOException> error = new AtomicReference<>(null);
             Thread worker = new Thread(() -> {
                 try {
-                    testStorage.write(null, null);
+                    testStorage.put(null, null);
                 } catch (IOException e) {
                     if (e.getMessage() == null || !e.getMessage().equals("interrupted"))
                         error.set(e);
@@ -213,7 +224,8 @@ public class StorageTest extends TestCase {
             InterruptibleTestStorage interruptibleStorage = new InterruptibleTestStorage(1, storageUnit);
             try {
                 assertNull(interruptibleStorage.read("test"));
-                interruptibleStorage.write("test", "val");
+                interruptibleStorage.put("test", "val");
+                interruptibleStorage.flush();
             } catch (IOException e) {
                 e.printStackTrace();
                 fail();
@@ -224,7 +236,8 @@ public class StorageTest extends TestCase {
                 for (int i = 0; i < 1000000; ++i) {
                     try {
                         nbWrites.incrementAndGet();
-                        interruptibleStorage.write(Integer.toString(i), "a");
+                        interruptibleStorage.put(Integer.toString(i), "a");
+                        interruptibleStorage.flush();
                         interruptibleStorage.read(Integer.toString(i));
                     } catch (IOException e) {
                         if (!((e.getCause() != null && e.getCause().getMessage().equals("java.lang.ThreadDeath"))

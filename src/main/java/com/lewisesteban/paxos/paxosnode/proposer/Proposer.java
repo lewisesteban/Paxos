@@ -7,6 +7,7 @@ import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
 import com.lewisesteban.paxos.paxosnode.listener.Listener;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
+import com.lewisesteban.paxos.storage.StorageException;
 import com.lewisesteban.paxos.storage.StorageUnit;
 
 import java.io.IOException;
@@ -20,20 +21,18 @@ public class Proposer implements PaxosProposer {
     private ProposalFactory propFac;
     private ExecutorService executor = Executors.newCachedThreadPool();
     private Listener listener;
-    private StorageUnit storage;
 
-    public Proposer(MembershipGetter memberList, Listener listener, StorageUnit storage) {
+    public Proposer(MembershipGetter memberList, Listener listener, StorageUnit storage) throws StorageException {
         this.memberList = memberList;
-        this.propFac = new ProposalFactory(memberList.getMyNodeId());
+        this.propFac = new ProposalFactory(memberList.getMyNodeId(), storage);
         this.listener = listener;
-        this.storage = storage;
     }
 
     public long getNewInstanceId() {
         return listener.getLastInstanceId() + 1;
     }
 
-    public Result propose(Command command, long instanceId) {
+    public Result propose(Command command, long instanceId) throws StorageException {
 
         Logger.println("#instance " + instanceId + " proposal: " + command);
 

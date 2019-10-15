@@ -6,6 +6,7 @@ import com.lewisesteban.paxos.paxosnode.membership.Membership;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposer;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.*;
+import com.lewisesteban.paxos.storage.StorageException;
 import com.lewisesteban.paxos.storage.StorageUnit;
 
 import java.util.List;
@@ -18,7 +19,7 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
     private Membership membership;
     private boolean running = false;
 
-    public PaxosNode(int myNodeId, List<RemotePaxosNode> members, StateMachine stateMachine, StorageUnit storage) {
+    public PaxosNode(int myNodeId, List<RemotePaxosNode> members, StateMachine stateMachine, StorageUnit storage) throws StorageException {
         membership = new Membership(myNodeId, members);
         acceptor = new Acceptor(membership, storage);
         listener = new Listener(membership, stateMachine);
@@ -39,7 +40,7 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
         return proposer.getNewInstanceId();
     }
 
-    public Result propose(Command command, long inst) {
+    public Result propose(Command command, long inst) throws StorageException {
         if (!running) {
             return new Result(Result.CONSENSUS_FAILED);
         } else {

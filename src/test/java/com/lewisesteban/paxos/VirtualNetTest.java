@@ -10,6 +10,7 @@ import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.AcceptorRPCHandle;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
+import com.lewisesteban.paxos.storage.StorageException;
 import com.lewisesteban.paxos.storage.StorageUnit;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
@@ -213,13 +214,13 @@ public class VirtualNetTest extends TestCase {
 
         private AcceptorRPCHandle acceptor;
 
-        SlowPaxosNode(int id, List<RemotePaxosNode> remotePaxosNodeList, StateMachine stateMachine, StorageUnit storage) {
+        SlowPaxosNode(int id, List<RemotePaxosNode> remotePaxosNodeList, StateMachine stateMachine, StorageUnit storage) throws StorageException {
             super(id, remotePaxosNodeList, stateMachine, storage);
             acceptor = new SlowPaxosAcceptor(super.getAcceptor());
         }
 
         @Override
-        public Result propose(Command command, long inst) {
+        public Result propose(Command command, long inst) throws StorageException {
             if (slowPropose) {
                 doHeavyWork();
             }

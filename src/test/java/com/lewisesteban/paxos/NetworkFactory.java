@@ -103,6 +103,6 @@ public class NetworkFactory {
     }
 
     interface PaxosFactory {
-        PaxosNode create(int nodeId, List<RemotePaxosNode> networkView, StateMachine stateMachine, StorageUnit storage);
+        PaxosNode create(int nodeId, List<RemotePaxosNode> networkView, StateMachine stateMachine, StorageUnit storage) throws StorageException;
     }
 }
