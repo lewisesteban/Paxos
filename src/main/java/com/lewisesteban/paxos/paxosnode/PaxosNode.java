@@ -6,6 +6,7 @@ import com.lewisesteban.paxos.paxosnode.membership.Membership;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposer;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.*;
+import com.lewisesteban.paxos.storage.FileAccessorCreator;
 import com.lewisesteban.paxos.storage.StorageException;
 import com.lewisesteban.paxos.storage.StorageUnit;
 
@@ -19,9 +20,9 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
     private Membership membership;
     private boolean running = false;
 
-    public PaxosNode(int myNodeId, List<RemotePaxosNode> members, StateMachine stateMachine, StorageUnit.Creator storage) throws StorageException {
+    public PaxosNode(int myNodeId, List<RemotePaxosNode> members, StateMachine stateMachine, StorageUnit.Creator storage, FileAccessorCreator fileAccessorCreator) throws StorageException {
         membership = new Membership(myNodeId, members);
-        acceptor = new Acceptor(membership, storage);
+        acceptor = new Acceptor(membership, storage, fileAccessorCreator);
         listener = new Listener(membership, stateMachine);
         proposer = new Proposer(membership, listener, storage.make("proposer" + membership.getMyNodeId(), null));
     }

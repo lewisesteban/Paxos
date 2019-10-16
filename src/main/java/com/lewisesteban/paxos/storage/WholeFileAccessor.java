@@ -8,7 +8,7 @@ public class WholeFileAccessor implements FileAccessor {
     private FileOutputStream outputStream = null;
     private FileInputStream inputStream = null;
 
-    private WholeFileAccessor(String name, String dirName) throws IOException {
+    public WholeFileAccessor(String name, String dirName) throws IOException {
         if (dirName != null && !dirName.equals(".")) {
             File dir = new File(dirName);
             if (!dir.exists()) {

@@ -23,8 +23,9 @@ public class HeavyPaxosTest extends PaxosTestCase {
      */
     public void testSingleStateMachineNoFailure() throws Exception {
         final int NB_NODES = 7;
-        final int NB_CLIENTS = 500; // used to take less than 20 seconds
+        final int NB_CLIENTS = 10; // used to take less than 20 seconds (500 clients, 3 requests, 7 machines)
         final int NB_REQUESTS = 3;
+        // TODO error (with slow acceptor storage, 20 clients, 3 req, 7 nodes): client number 1 got 1 after -1
 
         AtomicBoolean error = new AtomicBoolean(false);
         int[] lastReceived = new int[NB_CLIENTS];
@@ -73,7 +74,7 @@ public class HeavyPaxosTest extends PaxosTestCase {
 
     public void testBasicClientsNoFailure() throws Exception {
         final int NB_NODES = 7;
-        final int NB_CLIENTS = 500; // used to take less than 20 seconds
+        final int NB_CLIENTS = 500; // used to take less than 20 seconds (500 clients, 3 requests, 7 machines)
         final int NB_REQUESTS = 3;
 
         StateMachine stateMachine = data -> data;

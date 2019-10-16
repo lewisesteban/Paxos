@@ -34,8 +34,10 @@ public class NetworkFactory {
         for (List<RemotePaxosNode> networkView : networkViews) {
             final int thisNodeId = nodeId;
             final Callable<StateMachine> stateMachineCreator = executorIt.next();
-            final Callable<StorageUnit.Creator> storageCreator = interruptibleStorageCreator(thisNodeId);
-            Callable<PaxosNode> paxosNodeCreator = () -> paxosFactory.create(thisNodeId, networkView, stateMachineCreator.call(), storageCreator.call());
+            final FileAccessorCreator fileAccessorCreator = InterruptibleWholeFileAccessor.creator(true);
+            final StorageUnit.Creator encapsulatedStorageUnitCreator = (file, dir) -> new SafeSingleFileStorage(file, dir, InterruptibleWholeFileAccessor.creator(true));
+            final StorageUnit.Creator storageCreator = InterruptibleTestStorage.creator(nodeId, encapsulatedStorageUnitCreator);
+            Callable<PaxosNode> paxosNodeCreator = () -> paxosFactory.create(thisNodeId, networkView, stateMachineCreator.call(), storageCreator, WholeFileAccessor::new);
             PaxosServer srv = new PaxosServer(paxosNodeCreator);
             int rack = srv.getId() % nbRacks;
             paxosNodes.add(new PaxosNetworkNode(srv, rack));
@@ -55,12 +57,6 @@ public class NetworkFactory {
         }
         network.startAll();
         return paxosNodes;
-    }
-
-    private static Callable<StorageUnit.Creator> interruptibleStorageCreator(int nodeId) {
-        FileAccessorCreator fileAccessorCreator = InterruptibleWholeFileAccessor.creator(true);
-        StorageUnit.Creator encapsulatedStorageUnitCreator = (file, dir) -> new SafeSingleFileStorage(file, dir, InterruptibleWholeFileAccessor.creator(true));
-        return () -> InterruptibleTestStorage.creator(nodeId, encapsulatedStorageUnitCreator);
     }
 
     public static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network, PaxosFactory paxosFactory, Iterable<Callable<StateMachine>> stateMachineCreators) {
@@ -109,6 +105,6 @@ public class NetworkFactory {
     }
 
     interface PaxosFactory {
-        PaxosNode create(int nodeId, List<RemotePaxosNode> networkView, StateMachine stateMachine, StorageUnit.Creator storage) throws StorageException;
+        PaxosNode create(int nodeId, List<RemotePaxosNode> networkView, StateMachine stateMachine, StorageUnit.Creator storage, FileAccessorCreator fileAccessorCreator) throws StorageException;
     }
 }

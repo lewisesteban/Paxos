@@ -4,6 +4,7 @@ import com.lewisesteban.paxos.Logger;
 import com.lewisesteban.paxos.paxosnode.MembershipGetter;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
 import com.lewisesteban.paxos.rpc.paxos.AcceptorRPCHandle;
+import com.lewisesteban.paxos.storage.FileAccessorCreator;
 import com.lewisesteban.paxos.storage.StorageException;
 import com.lewisesteban.paxos.storage.StorageUnit;
 
@@ -11,11 +12,11 @@ public class Acceptor implements AcceptorRPCHandle {
 
     private InstanceContainer<AcceptDataInstance> instances;
     private MembershipGetter memberList;
-    private StorageUnit.Creator storageUnitCreator;
+    private FileAccessorCreator fileAccessorCreator;
 
-    public Acceptor(MembershipGetter memberList, StorageUnit.Creator storageUnitCreator) throws StorageException {
+    public Acceptor(MembershipGetter memberList, StorageUnit.Creator storageUnitCreator, FileAccessorCreator fileAccessorCreator) throws StorageException {
         this.memberList = memberList;
-        this.storageUnitCreator = storageUnitCreator;
+        this.fileAccessorCreator = fileAccessorCreator;
         this.instances = new InstanceContainer<>(AcceptDataInstance::new,
                 AcceptDataInstance.readStorage(memberList.getMyNodeId(), storageUnitCreator));
     }
@@ -25,7 +26,7 @@ public class Acceptor implements AcceptorRPCHandle {
         synchronized (thisInstance) {
             if (propId.isGreaterThan(thisInstance.getLastPreparedPropId())) {
                 thisInstance.setLastPreparedPropId(propId);
-                thisInstance.saveToStorage(memberList.getMyNodeId(), instanceNb, storageUnitCreator);
+                thisInstance.saveToStorage(memberList.getMyNodeId(), instanceNb, fileAccessorCreator);
                 Logger.println("--o inst " + instanceNb + " srv " + memberList.getMyNodeId() + " prepare OK " + propId);
                 return new PrepareAnswer(true, thisInstance.getLastAcceptedProp());
             } else {
@@ -43,7 +44,7 @@ public class Acceptor implements AcceptorRPCHandle {
                 return false;
             } else {
                 thisInstance.setLastAcceptedProp(proposal);
-                thisInstance.saveToStorage(memberList.getMyNodeId(), instanceNb, storageUnitCreator);
+                thisInstance.saveToStorage(memberList.getMyNodeId(), instanceNb, fileAccessorCreator);
                 Logger.println("--- inst " + instanceNb + " srv " + memberList.getMyNodeId() + " accept " + proposal.getCommand());
                 return true;
             }

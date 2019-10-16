@@ -2,11 +2,12 @@ package com.lewisesteban.paxos.paxosnode.acceptor;
 
 import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
-import com.lewisesteban.paxos.storage.StorageException;
-import com.lewisesteban.paxos.storage.StorageUnit;
+import com.lewisesteban.paxos.storage.*;
 
-import java.io.File;
-import java.io.Serializable;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -46,20 +47,32 @@ class AcceptDataInstance implements Serializable {
         return lastAcceptedProp;
     }
 
-    void saveToStorage(int nodeId, long instanceNb, StorageUnit.Creator storageUnitCreator) throws StorageException {
-        StorageUnit storageUnit = storageUnitCreator.make("inst" + instanceNb, "acceptor" + nodeId);
-        storageUnit.put(STORAGE_KEY_LAST_PREPARED_ID_NODE, String.valueOf(lastPreparedPropId.getNodeId()));
-        storageUnit.put(STORAGE_KEY_LAST_PREPARED_ID_PROP, String.valueOf(lastPreparedPropId.getNodePropNb()));
+    void saveToStorage(int nodeId, long instanceNb, FileAccessorCreator fileAccessorCreator) throws StorageException {
+        Map<String, String> map = new TreeMap<>();
+        map.put(STORAGE_KEY_LAST_PREPARED_ID_NODE, String.valueOf(lastPreparedPropId.getNodeId()));
+        map.put(STORAGE_KEY_LAST_PREPARED_ID_PROP, String.valueOf(lastPreparedPropId.getNodePropNb()));
         if (lastAcceptedProp == null) {
-            storageUnit.put(STORAGE_KEY_LAST_ACCEPTED_ID_NODE, null);
+            map.put(STORAGE_KEY_LAST_ACCEPTED_ID_NODE, null);
         } else {
-            storageUnit.put(STORAGE_KEY_LAST_ACCEPTED_ID_NODE, String.valueOf(lastAcceptedProp.getId().getNodeId()));
-            storageUnit.put(STORAGE_KEY_LAST_ACCEPTED_ID_PROP, String.valueOf(lastAcceptedProp.getId().getNodePropNb()));
-            storageUnit.put(STORAGE_KEY_LAST_ACCEPTED_CMD_DATA, lastAcceptedProp.getCommand().getData().toString());
-            storageUnit.put(STORAGE_KEY_LAST_ACCEPTED_CMD_CLIENT, lastAcceptedProp.getCommand().getClientId());
-            storageUnit.put(STORAGE_KEY_LAST_ACCEPTED_CMD_NB, String.valueOf(lastAcceptedProp.getCommand().getClientCmdNb()));
+            map.put(STORAGE_KEY_LAST_ACCEPTED_ID_NODE, String.valueOf(lastAcceptedProp.getId().getNodeId()));
+            map.put(STORAGE_KEY_LAST_ACCEPTED_ID_PROP, String.valueOf(lastAcceptedProp.getId().getNodePropNb()));
+            map.put(STORAGE_KEY_LAST_ACCEPTED_CMD_DATA, lastAcceptedProp.getCommand().getData().toString());
+            map.put(STORAGE_KEY_LAST_ACCEPTED_CMD_CLIENT, lastAcceptedProp.getCommand().getClientId());
+            map.put(STORAGE_KEY_LAST_ACCEPTED_CMD_NB, String.valueOf(lastAcceptedProp.getCommand().getClientCmdNb()));
         }
-        storageUnit.flush();
+        try {
+            FileAccessor mainFile = fileAccessorCreator.create("inst" + instanceNb, "acceptor" + nodeId);
+            FileAccessor tmpFile = fileAccessorCreator.create("inst" + instanceNb + "_tmp", "acceptor" + nodeId);
+            OutputStream fos = tmpFile.startWrite();
+            ObjectOutputStream oos = new ObjectOutputStream(fos);
+            oos.writeObject(map);
+            oos.close();
+            tmpFile.endWrite();
+            if (mainFile.exists()) mainFile.delete();
+            Files.move(Paths.get(tmpFile.getFilePath()), Paths.get(mainFile.getFilePath()), StandardCopyOption.ATOMIC_MOVE);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     static Map<Long, AcceptDataInstance> readStorage(int nodeId, StorageUnit.Creator storageUnitCreator) throws StorageException {
