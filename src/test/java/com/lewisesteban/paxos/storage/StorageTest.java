@@ -1,5 +1,6 @@
 package com.lewisesteban.paxos.storage;
 
+import com.lewisesteban.paxos.storage.virtual.InterruptibleVirtualFileAccessor;
 import junit.framework.TestCase;
 
 import java.io.File;
@@ -36,6 +37,9 @@ public class StorageTest extends TestCase {
         testBasicSingleFileStorage(InterruptibleWholeFileAccessor.creator(true, 1), null);
         testBasicSingleFileStorage(InterruptibleWholeFileAccessor.creator(true, 1), "test");
         System.out.println("interruptible file accessor OK");
+        testBasicSingleFileStorage(InterruptibleVirtualFileAccessor.creator(1), null);
+        testBasicSingleFileStorage(InterruptibleVirtualFileAccessor.creator(1), "test");
+        System.out.println("virtual file accessor OK");
     }
 
     private void testBasicSingleFileStorage(FileAccessorCreator fileAccessorCreator, String dir) {
@@ -162,7 +166,7 @@ public class StorageTest extends TestCase {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            InterruptibleWholeFileAccessor.Container.interrupt(1);
+            InterruptibleAccessorContainer.interrupt(1);
 
             if (error.get() != null) {
                 error.get().printStackTrace();
@@ -183,8 +187,14 @@ public class StorageTest extends TestCase {
         return -1;
     }
 
-    public void testFailSafeSingleFileStorage() throws InterruptedException, StorageException {
-        SafeSingleFileStorage fileDeleter = new SafeSingleFileStorage(fileName(1), null, WholeFileAccessor.creator());
+    public void testFailSafeSingleFileStorage() throws StorageException, InterruptedException {
+        // TODO this one sometimes fails: assertEquals("val", newInstance.read("test")); exepcted val got null
+        testFailSafeSingleFileStorage(InterruptibleWholeFileAccessor.creator(false, 1), 15);
+        testFailSafeSingleFileStorage(InterruptibleVirtualFileAccessor.creator(1), 1);
+    }
+
+    public void testFailSafeSingleFileStorage(FileAccessorCreator fileAccessorCreator, int waitTime) throws InterruptedException, StorageException {
+        SafeSingleFileStorage fileDeleter = new SafeSingleFileStorage(fileName(1), null, fileAccessorCreator);
         try {
             fileDeleter.delete();
             fileDeleter.close();
@@ -194,7 +204,6 @@ public class StorageTest extends TestCase {
 
             System.out.println("--- NEW TEST " + testnb);
 
-            FileAccessorCreator fileAccessorCreator = InterruptibleWholeFileAccessor.creator(false, 1);
             StorageUnit storageUnit = new SafeSingleFileStorage(fileName(1), null, fileAccessorCreator);
             try {
                 assertNull(storageUnit.read("test"));
@@ -223,18 +232,18 @@ public class StorageTest extends TestCase {
                 }
             });
             thread.start();
-            Thread.sleep(20);
-            InterruptibleWholeFileAccessor.Container.interrupt(1);
+            Thread.sleep(waitTime);
+            InterruptibleAccessorContainer.interrupt(1);
             System.out.println("# interrupted");
             int writeCount1 = nbWrites.get();
             System.out.println(writeCount1);
-            Thread.sleep(20);
+            Thread.sleep(waitTime);
             if (nbWrites.get() > writeCount1 + 1)
                 fail();
             if (failed.get())
                 fail();
 
-            SafeSingleFileStorage newInstance = new SafeSingleFileStorage(fileName(1), null, WholeFileAccessor.creator());
+            SafeSingleFileStorage newInstance = new SafeSingleFileStorage(fileName(1), null, fileAccessorCreator);
             try {
                 assertEquals("val", newInstance.read("test"));
                 newInstance.delete();

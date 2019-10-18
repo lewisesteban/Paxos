@@ -4,7 +4,7 @@ import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.PaxosNode;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.*;
-import com.lewisesteban.paxos.storage.InterruptibleWholeFileAccessor;
+import com.lewisesteban.paxos.storage.InterruptibleAccessorContainer;
 
 import java.io.IOException;
 import java.util.concurrent.*;
@@ -61,7 +61,7 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
 
     public void kill() {
         threadManager.shutDownNow();
-        InterruptibleWholeFileAccessor.Container.interrupt(paxosNode.getId());
+        InterruptibleAccessorContainer.interrupt(paxosNode.getId());
         paxosNode.stop();
     }
 

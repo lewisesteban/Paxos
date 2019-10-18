@@ -1,5 +1,7 @@
 package com.lewisesteban.paxos;
 
+import com.lewisesteban.paxos.storage.InterruptibleAccessorContainer;
+import com.lewisesteban.paxos.storage.virtual.VirtualFileSystem;
 import junit.framework.TestCase;
 
 import java.io.File;
@@ -37,6 +39,8 @@ public class PaxosTestCase extends TestCase {
                 }
             }
         }
+        InterruptibleAccessorContainer.clear();
+        VirtualFileSystem.clear();
     }
 
 

@@ -18,7 +18,7 @@ public class Acceptor implements AcceptorRPCHandle {
         this.memberList = memberList;
         this.fileAccessorCreator = fileAccessorCreator;
         this.instances = new InstanceContainer<>(AcceptDataInstance::new,
-                AcceptDataInstance.readStorage(memberList.getMyNodeId(), storageUnitCreator));
+                AcceptDataInstance.readStorage(memberList.getMyNodeId(), fileAccessorCreator, storageUnitCreator));
     }
 
     public PrepareAnswer reqPrepare(long instanceNb, Proposal.ID propId) throws StorageException {

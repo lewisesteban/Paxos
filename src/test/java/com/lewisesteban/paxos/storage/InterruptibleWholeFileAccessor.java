@@ -3,12 +3,13 @@ package com.lewisesteban.paxos.storage;
 import sun.awt.Mutex;
 
 import java.io.*;
+import java.nio.file.CopyOption;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.Map;
 import java.util.Random;
-import java.util.TreeMap;
 
-public class InterruptibleWholeFileAccessor implements FileAccessor {
+public class InterruptibleWholeFileAccessor implements FileAccessor, InterruptibleStorage {
 
     static final int SLOW_WRITING_MAX = 10;
     static final int FAST_WRITING_MIN = 500;
@@ -21,6 +22,7 @@ public class InterruptibleWholeFileAccessor implements FileAccessor {
     private boolean interrupted = false;
     private Mutex writing = new Mutex();
     private Mutex reading = new Mutex();
+    private int nodeId;
 
     InterruptibleWholeFileAccessor(String name, String dirName, boolean fastWriting, int nodeId) throws StorageException {
         this.fastWriting = fastWriting;
@@ -34,10 +36,11 @@ public class InterruptibleWholeFileAccessor implements FileAccessor {
         } else {
             file = new File(name);
         }
-        Container.add(nodeId, this);
+        InterruptibleAccessorContainer.add(nodeId, this);
+        this.nodeId = nodeId;
     }
 
-    private void interrupt() {
+    public void interrupt() {
         interrupted = true;
         writing.lock();
         reading.lock();
@@ -156,8 +159,39 @@ public class InterruptibleWholeFileAccessor implements FileAccessor {
     }
 
     @Override
+    public void moveTo(FileAccessor dest, CopyOption copyOption) throws StorageException {
+        writing.lock();
+        try {
+            if (interrupted)
+                throw new StorageInterruptedException();
+            Files.move(Paths.get(getFilePath()), Paths.get(dest.getFilePath()), copyOption);
+        } catch (IOException e) {
+            throw new StorageException(e);
+        } finally {
+            writing.unlock();
+        }
+    }
+
+    @Override
     public String getFilePath() {
         return file.getPath();
+    }
+
+    @Override
+    public String getName() {
+        return file.getName();
+    }
+
+    @Override
+    public FileAccessor[] listFiles() throws StorageException {
+        File[] files = file.listFiles();
+        if (files == null)
+            return null;
+        FileAccessor[] accessors = new FileAccessor[files.length];
+        for (int i = 0; i < accessors.length; ++i) {
+            accessors[i] = new InterruptibleWholeFileAccessor(files[i].getName(), file.getName(), fastWriting, nodeId);
+        }
+        return accessors;
     }
 
     class InterruptibleOutputStream extends OutputStream {
@@ -230,24 +264,5 @@ public class InterruptibleWholeFileAccessor implements FileAccessor {
 
     public static FileAccessorCreator creator(boolean fastWriting, int nodeId) {
         return (fileName, dir) -> new InterruptibleWholeFileAccessor(fileName, dir, fastWriting, nodeId);
-    }
-
-    public static class Container {
-        static private Map<Integer, InterruptibleWholeFileAccessor> map = new TreeMap<>();
-
-        static void add(int nodeId, InterruptibleWholeFileAccessor fileAccessor) {
-            map.put(nodeId, fileAccessor);
-        }
-
-        public static void interrupt(int nodeId) {
-            map.get(nodeId).interrupt();
-            map.remove(nodeId);
-        }
-
-        public static void clear() {
-            for (InterruptibleWholeFileAccessor fileAccessor : map.values()) {
-                fileAccessor.interrupt();
-            }
-        }
     }
 }

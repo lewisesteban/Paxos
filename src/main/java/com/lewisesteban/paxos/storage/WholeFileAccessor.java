@@ -1,6 +1,9 @@
 package com.lewisesteban.paxos.storage;
 
 import java.io.*;
+import java.nio.file.CopyOption;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 public class WholeFileAccessor implements FileAccessor {
 
@@ -84,6 +87,32 @@ public class WholeFileAccessor implements FileAccessor {
     @Override
     public String getFilePath() {
         return file.getPath();
+    }
+
+    @Override
+    public String getName() {
+        return file.getName();
+    }
+
+    @Override
+    public void moveTo(FileAccessor dest, CopyOption copyOption) throws StorageException {
+        try {
+            Files.move(Paths.get(getFilePath()), Paths.get(dest.getFilePath()), copyOption);
+        } catch (IOException e) {
+            throw new StorageException(e);
+        }
+    }
+
+    @Override
+    public FileAccessor[] listFiles() throws StorageException {
+        File[] files = file.listFiles();
+        if (files == null)
+            return null;
+        FileAccessor[] accessors = new FileAccessor[files.length];
+        for (int i = 0; i < accessors.length; ++i) {
+            accessors[i] = new WholeFileAccessor(files[i].getName(), file.getName());
+        }
+        return accessors;
     }
 
     static FileAccessorCreator creator() {

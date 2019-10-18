@@ -2,11 +2,14 @@ package com.lewisesteban.paxos.paxosnode.acceptor;
 
 import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
-import com.lewisesteban.paxos.storage.*;
+import com.lewisesteban.paxos.storage.FileAccessor;
+import com.lewisesteban.paxos.storage.FileAccessorCreator;
+import com.lewisesteban.paxos.storage.StorageException;
+import com.lewisesteban.paxos.storage.StorageUnit;
 
-import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
 import java.nio.file.StandardCopyOption;
 import java.util.Map;
 import java.util.TreeMap;
@@ -69,35 +72,37 @@ class AcceptDataInstance implements Serializable {
             oos.close();
             tmpFile.endWrite();
             if (mainFile.exists()) mainFile.delete();
-            Files.move(Paths.get(tmpFile.getFilePath()), Paths.get(mainFile.getFilePath()), StandardCopyOption.ATOMIC_MOVE);
+            tmpFile.moveTo(mainFile, StandardCopyOption.ATOMIC_MOVE);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    static Map<Long, AcceptDataInstance> readStorage(int nodeId, StorageUnit.Creator storageUnitCreator) throws StorageException {
+    static Map<Long, AcceptDataInstance> readStorage(int nodeId, FileAccessorCreator fileAccessorCreator, StorageUnit.Creator storageUnitCreator) throws StorageException {
         Map<Long, AcceptDataInstance> list = new TreeMap<>();
-        File folder = new File("acceptor" + nodeId);
-        File[] matchingFiles = folder.listFiles((dir, name) -> name.startsWith("inst") && !name.endsWith("tmp"));
+        FileAccessor folder = fileAccessorCreator.create("acceptor" + nodeId, null);
+        FileAccessor[] matchingFiles = folder.listFiles();
         if (matchingFiles != null) {
-            for (File file : matchingFiles) {
-                Long instance = Long.parseLong(file.getName().substring(("inst").length()));
-                StorageUnit storageUnit = storageUnitCreator.make(file.getName(), "acceptor" + nodeId);
-                int lastPreparedPropId_node = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_PREPARED_ID_NODE));
-                int lastPreparedPropId_prop = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_PREPARED_ID_PROP));
-                Proposal.ID lastPreparedPropId = new Proposal.ID(lastPreparedPropId_node, lastPreparedPropId_prop);
-                Proposal lastAcceptedProp = null;
-                if (storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE) != null) {
-                    int lastAcceptedId_node = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE));
-                    int lastAcceptedId_prop = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_PROP));
-                    Serializable lastAcceptedCmd_data = storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD_DATA);
-                    String lastAcceptedCmd_client = storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD_CLIENT);
-                    long lastAcceptedCmd_nb = Long.parseLong(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD_NB));
-                    Command lastAcceptedCmd = new Command(lastAcceptedCmd_data, lastAcceptedCmd_client, lastAcceptedCmd_nb);
-                    lastAcceptedProp = new Proposal(lastAcceptedCmd, new Proposal.ID(lastAcceptedId_node, lastAcceptedId_prop));
+            for (FileAccessor file : matchingFiles) {
+                if (file.getName().startsWith("inst") && !file.getName().endsWith("tmp")) {
+                    Long instance = Long.parseLong(file.getName().substring(("inst").length()));
+                    StorageUnit storageUnit = storageUnitCreator.make(file.getName(), "acceptor" + nodeId);
+                    int lastPreparedPropId_node = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_PREPARED_ID_NODE));
+                    int lastPreparedPropId_prop = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_PREPARED_ID_PROP));
+                    Proposal.ID lastPreparedPropId = new Proposal.ID(lastPreparedPropId_node, lastPreparedPropId_prop);
+                    Proposal lastAcceptedProp = null;
+                    if (storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE) != null) {
+                        int lastAcceptedId_node = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE));
+                        int lastAcceptedId_prop = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_PROP));
+                        Serializable lastAcceptedCmd_data = storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD_DATA);
+                        String lastAcceptedCmd_client = storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD_CLIENT);
+                        long lastAcceptedCmd_nb = Long.parseLong(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD_NB));
+                        Command lastAcceptedCmd = new Command(lastAcceptedCmd_data, lastAcceptedCmd_client, lastAcceptedCmd_nb);
+                        lastAcceptedProp = new Proposal(lastAcceptedCmd, new Proposal.ID(lastAcceptedId_node, lastAcceptedId_prop));
+                    }
+                    list.put(instance, new AcceptDataInstance(lastPreparedPropId, lastAcceptedProp));
+                    storageUnit.close();
                 }
-                list.put(instance, new AcceptDataInstance(lastPreparedPropId, lastAcceptedProp));
-                storageUnit.close();
             }
         }
         return list;

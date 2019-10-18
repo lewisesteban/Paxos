@@ -1,8 +1,6 @@
 package com.lewisesteban.paxos.storage;
 
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Iterator;
 import java.util.Map;
@@ -180,7 +178,7 @@ public class SafeSingleFileStorage implements StorageUnit {
                 mainFile.delete();
             }
             try {
-                Files.move(Paths.get(tmpFile.getFilePath()), Paths.get(mainFile.getFilePath()), StandardCopyOption.ATOMIC_MOVE);
+                tmpFile.moveTo(mainFile, StandardCopyOption.ATOMIC_MOVE);
             } catch (IOException e) {
                 throw new StorageException(e);
             }

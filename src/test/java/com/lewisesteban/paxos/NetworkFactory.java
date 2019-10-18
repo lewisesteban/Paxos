@@ -1,9 +1,10 @@
 package com.lewisesteban.paxos;
 
 import com.lewisesteban.paxos.paxosnode.PaxosNode;
-import com.lewisesteban.paxos.storage.*;
 import com.lewisesteban.paxos.paxosnode.StateMachine;
 import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
+import com.lewisesteban.paxos.storage.*;
+import com.lewisesteban.paxos.storage.virtual.InterruptibleVirtualFileAccessor;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.VirtualNetNode;
 import com.lewisesteban.paxos.virtualnet.paxosnet.NodeConnection;
@@ -21,6 +22,8 @@ public class NetworkFactory {
 
     public static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network, PaxosFactory paxosFactory, Iterable<Callable<StateMachine>> stateMachineCreators) {
 
+        InterruptibleAccessorContainer.clear();
+
         List<List<RemotePaxosNode>> networkViews = new ArrayList<>();
         for (int i = 0; i < totalNbNodes; ++i) {
             networkViews.add(new ArrayList<>());
@@ -31,10 +34,9 @@ public class NetworkFactory {
         Iterator<Callable<StateMachine>> executorIt = stateMachineCreators.iterator();
         for (List<RemotePaxosNode> networkView : networkViews) {
             final int thisNodeId = nodeId;
-            // TODO remove InterruptibleTestStorage, use only InterruptibleWholeFileAccessor
             final Callable<StateMachine> stateMachineCreator = executorIt.next();
-            final StorageUnit.Creator storageUnitCreator = (file, dir) -> new SafeSingleFileStorage(file, dir, InterruptibleWholeFileAccessor.creator(true, thisNodeId));
-            final FileAccessorCreator fileAccessorCreator = InterruptibleWholeFileAccessor.creator(false, thisNodeId);
+            final StorageUnit.Creator storageUnitCreator = (file, dir) -> new SafeSingleFileStorage(file, dir, InterruptibleVirtualFileAccessor.creator(thisNodeId));
+            final FileAccessorCreator fileAccessorCreator = InterruptibleVirtualFileAccessor.creator(thisNodeId);
             Callable<PaxosNode> paxosNodeCreator = () -> paxosFactory.create(thisNodeId, networkView, stateMachineCreator.call(), storageUnitCreator, fileAccessorCreator);
             PaxosServer srv = new PaxosServer(paxosNodeCreator);
             int rack = srv.getId() % nbRacks;
