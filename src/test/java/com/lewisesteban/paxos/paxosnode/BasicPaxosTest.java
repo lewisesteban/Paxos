@@ -1,6 +1,7 @@
 package com.lewisesteban.paxos.paxosnode;
 
 import com.lewisesteban.paxos.PaxosTestCase;
+import com.lewisesteban.paxos.client.BasicPaxosClient;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 import com.lewisesteban.paxos.virtualnet.Network;
@@ -8,7 +9,10 @@ import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
 
 import java.io.IOException;
+import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.lewisesteban.paxos.NetworkFactory.*;
@@ -193,5 +197,43 @@ public class BasicPaxosTest extends PaxosTestCase {
         network.startAll();
         Result res2 = node0.propose(new Command("hello", "", 2), inst);
         assertEquals(Result.CONSENSUS_ON_ANOTHER_CMD, res2.getStatus());
+    }
+
+    public void testBasicCatchingUp() throws IOException {
+        AtomicInteger receivedAt0 = new AtomicInteger(0);
+        Callable<StateMachine> stateMachineCreator0 = () -> (StateMachine) data -> {
+            receivedAt0.incrementAndGet();
+            return null;
+        };
+        AtomicInteger receivedAt1 = new AtomicInteger(0);
+        Callable<StateMachine> stateMachineCreator1 = () -> (StateMachine) data -> {
+            receivedAt1.incrementAndGet();
+            return null;
+        };
+        List<Callable<StateMachine>> stateMachines = new ArrayList<>();
+        stateMachines.add(stateMachineCreator0);
+        stateMachines.add(stateMachineCreator1);
+        stateMachines.add(() -> (Serializable s) -> null);
+
+        Network network = new Network();
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(3, network, stateMachines);
+        network.kill(1);
+        PaxosServer node0 = nodes.get(0).getPaxosSrv();
+        for (int i = 0; i < 10; ++i) {
+            assertEquals(Result.CONSENSUS_ON_THIS_CMD, node0.propose(new Command(i, "", i), i).getStatus());
+        }
+        assertEquals(10, receivedAt0.get());
+        assertEquals(0, receivedAt1.get());
+
+        network.start(1);
+        PaxosServer node1 = nodes.get(1).getPaxosSrv();
+        assertEquals(Result.CONSENSUS_ON_THIS_CMD, node1.propose(new Command(0, "", 0), 0).getStatus());
+        assertEquals(Result.CONSENSUS_ON_ANOTHER_CMD, node1.propose(new Command(0, "", 0), 1).getStatus());
+        BasicPaxosClient basicPaxosClient = new BasicPaxosClient(node1, "client");
+        basicPaxosClient.doCommand("hi");
+        assertEquals(11, node1.getNewInstanceId());
+
+        assertEquals(11, receivedAt0.get());
+        assertEquals(11, receivedAt1.get());
     }
 }
