@@ -163,12 +163,12 @@ public class BasicPaxosTest extends PaxosTestCase {
 
     public void testNoWaitForSlowNode() throws IOException {
         Network network = new Network();
-        network.setWaitTimes(2, 3, 1000, 0.1f);
+        network.setWaitTimes(2, 3, 2000, 0.1f);
         List<PaxosNetworkNode> nodes = initSimpleNetwork(100, new Network(), stateMachinesEmpty(100));
         long startTime = System.currentTimeMillis();
         PaxosProposer proposer = nodes.get(0).getPaxosSrv();
         assertEquals(proposer.propose(cmd1, proposer.getNewInstanceId()).getStatus(), Result.CONSENSUS_ON_THIS_CMD);
-        assertTrue(System.currentTimeMillis() - startTime < 1000);
+        assertTrue(System.currentTimeMillis() - startTime < 2000);
     }
 
     public void testReturnValue() {

@@ -21,8 +21,6 @@ public class NetworkFactory {
 
     public static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network, PaxosFactory paxosFactory, Iterable<Callable<StateMachine>> stateMachineCreators) {
 
-        InterruptibleTestStorage.Container.deleteAllFiles();
-
         List<List<RemotePaxosNode>> networkViews = new ArrayList<>();
         for (int i = 0; i < totalNbNodes; ++i) {
             networkViews.add(new ArrayList<>());
@@ -33,11 +31,11 @@ public class NetworkFactory {
         Iterator<Callable<StateMachine>> executorIt = stateMachineCreators.iterator();
         for (List<RemotePaxosNode> networkView : networkViews) {
             final int thisNodeId = nodeId;
+            // TODO remove InterruptibleTestStorage, use only InterruptibleWholeFileAccessor
             final Callable<StateMachine> stateMachineCreator = executorIt.next();
-            final FileAccessorCreator fileAccessorCreator = InterruptibleWholeFileAccessor.creator(true);
-            final StorageUnit.Creator encapsulatedStorageUnitCreator = (file, dir) -> new SafeSingleFileStorage(file, dir, InterruptibleWholeFileAccessor.creator(true));
-            final StorageUnit.Creator storageCreator = InterruptibleTestStorage.creator(nodeId, encapsulatedStorageUnitCreator);
-            Callable<PaxosNode> paxosNodeCreator = () -> paxosFactory.create(thisNodeId, networkView, stateMachineCreator.call(), storageCreator, WholeFileAccessor::new);
+            final StorageUnit.Creator storageUnitCreator = (file, dir) -> new SafeSingleFileStorage(file, dir, InterruptibleWholeFileAccessor.creator(true, thisNodeId));
+            final FileAccessorCreator fileAccessorCreator = InterruptibleWholeFileAccessor.creator(false, thisNodeId);
+            Callable<PaxosNode> paxosNodeCreator = () -> paxosFactory.create(thisNodeId, networkView, stateMachineCreator.call(), storageUnitCreator, fileAccessorCreator);
             PaxosServer srv = new PaxosServer(paxosNodeCreator);
             int rack = srv.getId() % nbRacks;
             paxosNodes.add(new PaxosNetworkNode(srv, rack));

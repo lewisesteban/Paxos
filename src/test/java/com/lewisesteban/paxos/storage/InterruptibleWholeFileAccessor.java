@@ -1,12 +1,16 @@
 package com.lewisesteban.paxos.storage;
 
+import sun.awt.Mutex;
+
 import java.io.*;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Random;
+import java.util.TreeMap;
 
 public class InterruptibleWholeFileAccessor implements FileAccessor {
 
-    @SuppressWarnings("WeakerAccess")
+    static final int SLOW_WRITING_MAX = 10;
     static final int FAST_WRITING_MIN = 500;
     static final int FAST_WRITING_MAX = 1000;
 
@@ -14,53 +18,131 @@ public class InterruptibleWholeFileAccessor implements FileAccessor {
     private InterruptibleOutputStream outputStream = null;
     private FileInputStream inputStream = null;
     private boolean fastWriting;
+    private boolean interrupted = false;
+    private Mutex writing = new Mutex();
+    private Mutex reading = new Mutex();
 
-    InterruptibleWholeFileAccessor(String name, String dirName, boolean fastWriting) throws IOException {
+    InterruptibleWholeFileAccessor(String name, String dirName, boolean fastWriting, int nodeId) throws StorageException {
         this.fastWriting = fastWriting;
         if (dirName != null && !dirName.equals(".")) {
             File dir = new File(dirName);
             if (!dir.exists()) {
                 if (!dir.mkdir())
-                    throw new IOException("Failed to create directory");
+                    throw new StorageException("Failed to create directory");
             }
             file = new File(dir + File.separator + name);
         } else {
             file = new File(name);
         }
+        Container.add(nodeId, this);
     }
 
-    @Override
-    public OutputStream startWrite() throws IOException {
-        endRead();
-        outputStream = new InterruptibleOutputStream(file.getPath());
-        return outputStream;
-    }
-
-    @Override
-    public void endWrite() throws IOException {
+    private void interrupt() {
+        interrupted = true;
+        writing.lock();
+        reading.lock();
         if (outputStream != null) {
-            outputStream.close();
+            try {
+                outputStream.interruptClose();
+                outputStream = null;
+            } catch (IOException ignored) { }
         }
-    }
-
-    @Override
-    public InputStream startRead() throws IOException {
-        endWrite();
-        inputStream = new FileInputStream(file.getPath());
-        return inputStream;
-    }
-
-    @Override
-    public void endRead() throws IOException {
         if (inputStream != null) {
-            inputStream.close();
+            try {
+                inputStream.close();
+            } catch (IOException ignored) { }
+        }
+        reading.unlock();
+        writing.unlock();
+    }
+
+    @Override
+    public OutputStream startWrite() throws StorageException {
+        endRead();
+        writing.lock();
+        try {
+            if (interrupted) {
+                throw new StorageInterruptedException();
+            }
+            InterruptibleOutputStream outputStream = new InterruptibleOutputStream(file.getPath());
+            this.outputStream = outputStream;
+            return outputStream;
+        } catch (FileNotFoundException e) {
+            throw new StorageException(e);
+        } finally {
+            writing.unlock();
         }
     }
 
     @Override
-    public void delete() throws IOException {
-        if (!file.delete())
-            throw new IOException("Could not delete " + file.getPath());
+    public void endWrite() throws StorageException {
+        if (outputStream != null) {
+            writing.lock();
+            try {
+                if (interrupted) {
+                    throw new StorageInterruptedException();
+                }
+                try {
+                    outputStream.close();
+                    outputStream = null;
+                } catch (IOException e) {
+                    throw new StorageException(e);
+                }
+            } finally {
+                writing.unlock();
+            }
+        }
+    }
+
+    @Override
+    public InputStream startRead() throws StorageException {
+        reading.lock();
+        try {
+            if (interrupted) {
+                throw new StorageInterruptedException();
+            }
+            endWrite();
+            try {
+                inputStream = new FileInputStream(file.getPath());
+            } catch (FileNotFoundException e) {
+                throw new StorageException(e);
+            }
+            return inputStream;
+        } finally {
+            if (inputStream == null) {
+                reading.unlock();
+            }
+        }
+    }
+
+    @Override
+    public void endRead() throws StorageException {
+        if (inputStream != null) {
+            try {
+                inputStream.close();
+                inputStream = null;
+                reading.unlock();
+            } catch (IOException e) {
+                throw new StorageException(e);
+            }
+        }
+        if (interrupted) {
+            throw new StorageInterruptedException();
+        }
+    }
+
+    @Override
+    public void delete() throws StorageException {
+        writing.lock();
+        try {
+            if (interrupted) {
+                throw new StorageInterruptedException();
+            }
+            if (!file.delete())
+                throw new StorageException("Could not delete " + file.getPath());
+        } finally {
+            writing.unlock();
+        }
     }
 
     @Override
@@ -82,37 +164,39 @@ public class InterruptibleWholeFileAccessor implements FileAccessor {
 
         FileOutputStream outputStream;
         String fileName;
-        int flushFreq = 100 + new Random().nextInt(100);
-        int counter = 0;
+        Random random = new Random();
 
-        InterruptibleOutputStream(String fileName) throws FileNotFoundException {
+        InterruptibleOutputStream(String fileName) throws FileNotFoundException, StorageInterruptedException {
+            if (interrupted)
+                throw new StorageInterruptedException();
             this.fileName = fileName;
             outputStream = new FileOutputStream(fileName);
         }
 
         @Override
         public void write(int b) throws IOException {
-            if (Thread.interrupted())
-                throw new IOException("interrupted");
-            outputStream.write(b);
-            if (fastWriting) {
-                counter++;
-                if (counter == flushFreq) {
-                    outputStream.flush();
-                    counter = 0;
-                }
-            } else {
+            writing.lock();
+            try {
+                if (interrupted)
+                    throw new StorageInterruptedException();
+                outputStream.write(b);
                 outputStream.flush();
+            } finally {
+                writing.unlock();
             }
         }
 
+        @Override
         public void write(byte[] arr) throws IOException {
-            if (fastWriting) {
+            writing.lock();
+            try {
                 int i = 0;
                 while (i < arr.length) {
-                    if (Thread.interrupted())
-                        throw new IOException("interrupted");
-                    int flushFreq = FAST_WRITING_MIN + new Random().nextInt(FAST_WRITING_MAX - FAST_WRITING_MIN);
+                    if (interrupted)
+                        throw new StorageInterruptedException();
+                    int flushFreq =
+                            fastWriting ? FAST_WRITING_MIN + random.nextInt(FAST_WRITING_MAX - FAST_WRITING_MIN)
+                                    : random.nextInt(SLOW_WRITING_MAX);
                     int to = i + flushFreq;
                     if (to > arr.length)
                         to = arr.length;
@@ -121,19 +205,49 @@ public class InterruptibleWholeFileAccessor implements FileAccessor {
                     outputStream.flush();
                     i += flushFreq;
                 }
-            } else {
-                for (byte b : arr) {
-                    write(b);
-                }
+            } finally {
+                writing.unlock();
             }
         }
 
         public void close() throws IOException {
-            outputStream.close();
+            if (interrupted) {
+                throw new StorageInterruptedException();
+            }
+            if (outputStream != null) {
+                outputStream.close();
+                outputStream = null;
+            }
+        }
+
+        void interruptClose() throws IOException {
+            if (outputStream != null) {
+                outputStream.close();
+                outputStream = null;
+            }
         }
     }
 
-    public static FileAccessorCreator creator(boolean fastWriting) {
-        return (fileName, dir) -> new InterruptibleWholeFileAccessor(fileName, dir, fastWriting);
+    public static FileAccessorCreator creator(boolean fastWriting, int nodeId) {
+        return (fileName, dir) -> new InterruptibleWholeFileAccessor(fileName, dir, fastWriting, nodeId);
+    }
+
+    public static class Container {
+        static private Map<Integer, InterruptibleWholeFileAccessor> map = new TreeMap<>();
+
+        static void add(int nodeId, InterruptibleWholeFileAccessor fileAccessor) {
+            map.put(nodeId, fileAccessor);
+        }
+
+        public static void interrupt(int nodeId) {
+            map.get(nodeId).interrupt();
+            map.remove(nodeId);
+        }
+
+        public static void clear() {
+            for (InterruptibleWholeFileAccessor fileAccessor : map.values()) {
+                fileAccessor.interrupt();
+            }
+        }
     }
 }

@@ -8,12 +8,12 @@ public class WholeFileAccessor implements FileAccessor {
     private FileOutputStream outputStream = null;
     private FileInputStream inputStream = null;
 
-    public WholeFileAccessor(String name, String dirName) throws IOException {
+    private WholeFileAccessor(String name, String dirName) throws StorageException {
         if (dirName != null && !dirName.equals(".")) {
             File dir = new File(dirName);
             if (!dir.exists()) {
                 if (!dir.mkdir())
-                    throw new IOException("Failed to create directory");
+                    throw new StorageException("Failed to create directory");
             }
             file = new File(dir + File.separator + name);
         } else {
@@ -22,37 +22,53 @@ public class WholeFileAccessor implements FileAccessor {
     }
 
     @Override
-    public OutputStream startWrite() throws IOException {
-        endRead();
-        outputStream = new FileOutputStream(file.getPath());
-        return outputStream;
+    public OutputStream startWrite() throws StorageException {
+        try {
+            endRead();
+            outputStream = new FileOutputStream(file.getPath());
+            return outputStream;
+        } catch (FileNotFoundException e) {
+            throw new StorageException(e);
+        }
     }
 
     @Override
-    public void endWrite() throws IOException {
+    public void endWrite() throws StorageException {
         if (outputStream != null) {
-            outputStream.close();
+            try {
+                outputStream.close();
+            } catch (IOException e) {
+                throw new StorageException(e);
+            }
         }
     }
 
     @Override
-    public InputStream startRead() throws IOException {
-        endWrite();
-        inputStream = new FileInputStream(file.getPath());
-        return inputStream;
+    public InputStream startRead() throws StorageException {
+        try {
+            endWrite();
+            inputStream = new FileInputStream(file.getPath());
+            return inputStream;
+        } catch (IOException e) {
+            throw new StorageException(e);
+        }
     }
 
     @Override
-    public void endRead() throws IOException {
+    public void endRead() throws StorageException {
         if (inputStream != null) {
-            inputStream.close();
+            try {
+                inputStream.close();
+            } catch (IOException e) {
+                throw new StorageException(e);
+            }
         }
     }
 
     @Override
-    public void delete() throws IOException {
+    public void delete() throws StorageException {
         if (!file.delete())
-            throw new IOException("Could not delete " + file.getPath());
+            throw new StorageException("Could not delete " + file.getPath());
     }
 
     @Override
@@ -70,7 +86,7 @@ public class WholeFileAccessor implements FileAccessor {
         return file.getPath();
     }
 
-    public static FileAccessorCreator creator() {
+    static FileAccessorCreator creator() {
         return WholeFileAccessor::new;
     }
 }

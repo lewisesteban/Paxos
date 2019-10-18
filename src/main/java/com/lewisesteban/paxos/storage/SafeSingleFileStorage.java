@@ -61,13 +61,9 @@ public class SafeSingleFileStorage implements StorageUnit {
     public void flush() throws StorageException {
         try {
             OutputStream writer = fileManager.startWrite();
-            try {
-                ObjectOutputStream oos = new ObjectOutputStream(writer);
-                oos.writeObject(content);
-                oos.flush();
-            } catch (IOException e) {
-                throw new StorageException(e);
-            }
+            ObjectOutputStream oos = new ObjectOutputStream(writer);
+            oos.writeObject(content);
+            oos.flush();
             fileManager.endWrite();
         } catch (IOException e) {
             throw new StorageException(e);
@@ -83,7 +79,7 @@ public class SafeSingleFileStorage implements StorageUnit {
         }
     }
 
-    private void readAllContent() throws IOException {
+    private void readAllContent() throws StorageException {
         InputStream reader = fileManager.startRead();
         if (reader == null) {
             content = new TreeMap<>();
@@ -98,7 +94,6 @@ public class SafeSingleFileStorage implements StorageUnit {
                 fileManager.endRead();
 
             } catch (EOFException | StreamCorruptedException e) {
-                e.printStackTrace();
                 reader = fileManager.fixCorruption();
                 if (reader == null) {
                     content = new TreeMap<>();
@@ -111,8 +106,8 @@ public class SafeSingleFileStorage implements StorageUnit {
                 fileManager.endRead();
             }
 
-        } catch (ClassNotFoundException classNotFoundException) {
-            throw new StorageException(classNotFoundException);
+        } catch (IOException | ClassNotFoundException e) {
+            throw new StorageException(e);
         }
     }
 
@@ -132,36 +127,43 @@ public class SafeSingleFileStorage implements StorageUnit {
         private FileAccessor mainFile;
         private FileAccessor tmpFile;
 
-        FileManager(String fileName, String dir, FileAccessorCreator fileAccessorCreator) throws IOException {
-            mainFile = fileAccessorCreator.create(fileName, dir);
-            tmpFile = fileAccessorCreator.create(fileName + "_tmp", dir);
+        FileManager(String fileName, String dir, FileAccessorCreator fileAccessorCreator) throws StorageException {
+            try {
+                mainFile = fileAccessorCreator.create(fileName, dir);
+                tmpFile = fileAccessorCreator.create(fileName + "_tmp", dir);
+            } catch (IOException e) {
+                throw new StorageException(e);
+            }
         }
 
-        OutputStream startWrite() throws IOException {
+        OutputStream startWrite() throws StorageException {
             return tmpFile.startWrite();
         }
 
-        void endWrite() throws IOException {
+        void endWrite() throws StorageException {
             tmpFile.endWrite();
             moveTempToMain();
         }
 
-        InputStream startRead() throws IOException {
+        InputStream startRead() throws StorageException {
             if (!mainFile.exists() && tmpFile.exists()) {
                 moveTempToMain();
             }
             try {
                 return mainFile.startRead();
-            } catch (FileNotFoundException e) {
-                return null;
+            } catch (StorageException e) {
+                if (e.getCause() instanceof FileNotFoundException)
+                    return null;
+                else
+                    throw e;
             }
         }
 
-        void endRead() throws IOException {
+        void endRead() throws StorageException {
             mainFile.endRead();
         }
 
-        InputStream fixCorruption() throws IOException {
+        InputStream fixCorruption() throws StorageException {
             endRead();
             if (tmpFile.exists()) {
                 moveTempToMain();
@@ -171,16 +173,20 @@ public class SafeSingleFileStorage implements StorageUnit {
             }
         }
 
-        private void moveTempToMain() throws IOException {
+        private void moveTempToMain() throws StorageException {
             if (tmpFile.length() == 0)
                 return;
             if (mainFile.exists()) {
                 mainFile.delete();
             }
-            Files.move(Paths.get(tmpFile.getFilePath()), Paths.get(mainFile.getFilePath()), StandardCopyOption.ATOMIC_MOVE);
+            try {
+                Files.move(Paths.get(tmpFile.getFilePath()), Paths.get(mainFile.getFilePath()), StandardCopyOption.ATOMIC_MOVE);
+            } catch (IOException e) {
+                throw new StorageException(e);
+            }
         }
 
-        void deleteAll() throws IOException {
+        void deleteAll() throws StorageException {
             mainFile.delete();
             try {
                 tmpFile.delete();
@@ -188,7 +194,7 @@ public class SafeSingleFileStorage implements StorageUnit {
 
         }
 
-        void close() throws IOException {
+        void close() throws StorageException {
             mainFile.endRead();
             mainFile.endWrite();
             tmpFile.endRead();
