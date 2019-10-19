@@ -42,7 +42,7 @@ public class VirtualNetTest extends PaxosTestCase {
         List<PaxosNetworkNode> nodes = initSimpleNetwork(2, 2, network, stateMachinesEmpty(2));
         network.disconnectRack(1);
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
-        assertEquals(node0.propose(cmd1, 0).getStatus(), Result.CONSENSUS_FAILED);
+        assertEquals(node0.propose(cmd1, 0).getStatus(), Result.NETWORK_ERROR);
     }
 
     public void testSlowNetworkDown() throws IOException {
@@ -137,7 +137,7 @@ public class VirtualNetTest extends PaxosTestCase {
         Thread.sleep(100); // wait for the proposeNew/accept tasks to start
         System.out.println("Enough waiting. Kill the server.");
         network.kill(slowAcceptorId);
-        assertEquals((byte) client.get(), Result.CONSENSUS_FAILED);
+        assertEquals((byte) client.get(), Result.NETWORK_ERROR);
     }
 
     public void testKillAndRestartSingleServer() {
@@ -220,7 +220,7 @@ public class VirtualNetTest extends PaxosTestCase {
         }
 
         @Override
-        public Result propose(Command command, long inst) throws StorageException {
+        public Result propose(Command command, long inst) throws IOException {
             if (slowPropose) {
                 doHeavyWork();
             }

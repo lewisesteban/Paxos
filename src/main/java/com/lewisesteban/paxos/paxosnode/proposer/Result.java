@@ -4,7 +4,7 @@ import java.io.Serializable;
 
 @SuppressWarnings("WeakerAccess")
 public class Result {
-    public static final byte CONSENSUS_FAILED = 0;
+    public static final byte NETWORK_ERROR = 0;
     public static final byte CONSENSUS_ON_ANOTHER_CMD = 1;
     public static final byte CONSENSUS_ON_THIS_CMD = 2;
 

@@ -10,6 +10,7 @@ import com.lewisesteban.paxos.storage.FileAccessorCreator;
 import com.lewisesteban.paxos.storage.StorageException;
 import com.lewisesteban.paxos.storage.StorageUnit;
 
+import java.io.IOException;
 import java.util.List;
 
 public class PaxosNode implements RemotePaxosNode, PaxosProposer {
@@ -41,9 +42,9 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
         return proposer.getNewInstanceId();
     }
 
-    public Result propose(Command command, long inst) throws StorageException {
+    public Result propose(Command command, long inst) throws IOException {
         if (!running) {
-            return new Result(Result.CONSENSUS_FAILED);
+            throw new IOException("not started");
         } else {
             return proposer.propose(command, inst);
         }

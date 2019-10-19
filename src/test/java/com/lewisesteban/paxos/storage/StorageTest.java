@@ -188,12 +188,12 @@ public class StorageTest extends TestCase {
     }
 
     public void testFailSafeSingleFileStorage() throws StorageException, InterruptedException {
-        // TODO this one sometimes fails: assertEquals("val", newInstance.read("test")); exepcted val got null
+        // (?) this one sometimes fails (?): assertEquals("val", newInstance.read("test")); exepcted val got null
         testFailSafeSingleFileStorage(InterruptibleWholeFileAccessor.creator(false, 1), 15);
         testFailSafeSingleFileStorage(InterruptibleVirtualFileAccessor.creator(1), 1);
     }
 
-    public void testFailSafeSingleFileStorage(FileAccessorCreator fileAccessorCreator, int waitTime) throws InterruptedException, StorageException {
+    private void testFailSafeSingleFileStorage(FileAccessorCreator fileAccessorCreator, int waitTime) throws InterruptedException, StorageException {
         SafeSingleFileStorage fileDeleter = new SafeSingleFileStorage(fileName(1), null, fileAccessorCreator);
         try {
             fileDeleter.delete();

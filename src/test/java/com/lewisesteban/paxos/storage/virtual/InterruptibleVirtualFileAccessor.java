@@ -74,8 +74,7 @@ public class InterruptibleVirtualFileAccessor implements FileAccessor, Interrupt
         if (interrupted) {
             throw new StorageInterruptedException();
         }
-        if (!file.delete())
-            throw new StorageException("Could not delete " + file.getPath());
+        file.delete();
     }
 
     @Override

@@ -44,7 +44,10 @@ public class BasicPaxosTest extends PaxosTestCase {
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
         assertEquals(node0.propose(cmd1, 0).getStatus(), Result.CONSENSUS_ON_THIS_CMD);
         assertEquals(node0.propose(cmd2, 0).getStatus(), Result.CONSENSUS_ON_ANOTHER_CMD);
-        assertEquals(receivedCorrectData.get(), NB_NODES);
+        try {
+            Thread.sleep(50); // wait for scatter to finish
+        } catch (InterruptedException ignored) { }
+        assertEquals(NB_NODES, receivedCorrectData.get());
     }
 
     public void testSameProposals() throws IOException {
@@ -87,9 +90,9 @@ public class BasicPaxosTest extends PaxosTestCase {
         byte rack0Proposal = aRack0Node.getPaxosSrv().propose(cmd1, 0).getStatus();
         byte rack1Proposal = aRack1Node.getPaxosSrv().propose(cmd2, 0).getStatus();
         if (rack0ShouldSucceed) {
-            assertTrue(rack0Proposal == Result.CONSENSUS_ON_THIS_CMD && rack1Proposal == Result.CONSENSUS_FAILED);
+            assertTrue(rack0Proposal == Result.CONSENSUS_ON_THIS_CMD && rack1Proposal == Result.NETWORK_ERROR);
         } else {
-            assertTrue(rack0Proposal == Result.CONSENSUS_FAILED && rack1Proposal == Result.CONSENSUS_ON_THIS_CMD);
+            assertTrue(rack0Proposal == Result.NETWORK_ERROR && rack1Proposal == Result.CONSENSUS_ON_THIS_CMD);
         }
     }
 
@@ -117,7 +120,7 @@ public class BasicPaxosTest extends PaxosTestCase {
     public void testClientParallelism() throws Exception {
         final int NB_NODES = 3;
         final int NB_CLIENTS = 4;
-        final int NB_REQUESTS = 5;
+        final int NB_REQUESTS = 10;
 
         Network network = new Network();
         network.setWaitTimes(20, 20, 1, 0);
@@ -161,7 +164,7 @@ public class BasicPaxosTest extends PaxosTestCase {
 
         System.out.println("Sequential: " + sequentialTime);
         System.out.println("Parallel: " + parallelTime);
-        assertTrue(parallelTime < (sequentialTime / (NB_CLIENTS - 1)));
+        assertTrue(parallelTime < (sequentialTime / (NB_CLIENTS / 2)));
     }
 
 
@@ -222,6 +225,9 @@ public class BasicPaxosTest extends PaxosTestCase {
         for (int i = 0; i < 10; ++i) {
             assertEquals(Result.CONSENSUS_ON_THIS_CMD, node0.propose(new Command(i, "", i), i).getStatus());
         }
+        try {
+            Thread.sleep(50); // wait for scatter to finish
+        } catch (InterruptedException ignored) { }
         assertEquals(10, receivedAt0.get());
         assertEquals(0, receivedAt1.get());
 
@@ -233,6 +239,9 @@ public class BasicPaxosTest extends PaxosTestCase {
         basicPaxosClient.doCommand("hi");
         assertEquals(11, node1.getNewInstanceId());
 
+        try {
+            Thread.sleep(50); // wait for scatter to finish
+        } catch (InterruptedException ignored) { }
         assertEquals(11, receivedAt0.get());
         assertEquals(11, receivedAt1.get());
     }

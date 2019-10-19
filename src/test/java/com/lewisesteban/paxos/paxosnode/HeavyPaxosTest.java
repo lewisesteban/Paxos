@@ -22,6 +22,7 @@ public class HeavyPaxosTest extends PaxosTestCase {
      * Should be executed with no dedicated proposer.
      */
     public void testSingleStateMachineNoFailure() throws Exception {
+        // TODO error here
         final int NB_NODES = 7;
         final int NB_CLIENTS = 100; // used to take less than 20 seconds (500 clients, 3 requests, 7 machines)
         final int NB_REQUESTS = 3;
