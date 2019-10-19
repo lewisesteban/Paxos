@@ -12,7 +12,7 @@ public interface StorageUnit {
     void delete() throws StorageException;
     void close() throws StorageException;
 
-    interface Creator {
+    public interface Creator {
         StorageUnit make(String file, String dir) throws StorageException;
     }
 }

@@ -86,10 +86,7 @@ public class Proposer implements PaxosProposer {
 
         // scatter
         scatter(instanceId, prepared);
-        java.io.Serializable returnData = null;
-        if (!proposalChanged) {
-            returnData = listener.getReturnOf(instanceId, prepared.getCommand());
-        }
+        java.io.Serializable returnData = listener.getReturnOf(instanceId, prepared.getCommand());
         return new Result(proposalChanged ? Result.CONSENSUS_ON_ANOTHER_CMD : Result.CONSENSUS_ON_THIS_CMD,
                 instanceId, returnData);
     }

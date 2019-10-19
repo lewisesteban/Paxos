@@ -107,7 +107,7 @@ public class Network {
                 throw new IOException();
             return result;
         } catch (Exception e) {
-            throw new IOException();
+            throw new IOException(e);
         }
     }
 

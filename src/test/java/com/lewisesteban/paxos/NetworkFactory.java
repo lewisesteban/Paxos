@@ -95,6 +95,14 @@ public class NetworkFactory {
         return stateMachines;
     }
 
+    public static Iterable<Callable<StateMachine>> stateMachinesIncrement(int nb) {
+        List<Callable<StateMachine>> stateMachines = new LinkedList<>();
+        for (int i = 0; i < nb; ++i) {
+            stateMachines.add(() -> (data) -> ((int)data) + 1);
+        }
+        return stateMachines;
+    }
+
     public static Iterable<Callable<StateMachine>> stateMachinesSingle(Callable<StateMachine> stateMachineCreator, int nb) {
         List<Callable<StateMachine>> stateMachines = new LinkedList<>();
         stateMachines.add(stateMachineCreator);

@@ -191,15 +191,17 @@ public class BasicPaxosTest extends PaxosTestCase {
 
     public void testAcceptorStorage() throws IOException {
         Network network = new Network();
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(2, network, stateMachinesEmpty(2));
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(1, network, stateMachinesIncrement(1));
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
         long inst = node0.getNewInstanceId();
-        Result res1 = node0.propose(new Command("hello", "", 1), inst);
+        Result res1 = node0.propose(new Command(10, "", 1), inst);
         assertEquals(Result.CONSENSUS_ON_THIS_CMD, res1.getStatus());
+        assertEquals(11, res1.getReturnData());
         network.killAll();
         network.startAll();
-        Result res2 = node0.propose(new Command("hello", "", 2), inst);
+        Result res2 = node0.propose(new Command(20, "", 2), inst);
         assertEquals(Result.CONSENSUS_ON_ANOTHER_CMD, res2.getStatus());
+        assertEquals(11, res2.getReturnData());
     }
 
     public void testBasicCatchingUp() throws IOException {

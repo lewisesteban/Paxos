@@ -23,8 +23,9 @@ public class HeavyPaxosTest extends PaxosTestCase {
      */
     public void testSingleStateMachineNoFailure() throws Exception {
         // TODO error here
+
         final int NB_NODES = 7;
-        final int NB_CLIENTS = 100; // used to take less than 20 seconds (500 clients, 3 requests, 7 machines)
+        final int NB_CLIENTS = 100;
         final int NB_REQUESTS = 3;
 
         AtomicBoolean error = new AtomicBoolean(false);
@@ -35,7 +36,6 @@ public class HeavyPaxosTest extends PaxosTestCase {
             TestCommand cmdData = (TestCommand) data;
             if (cmdData.cmdNb != lastReceived[cmdData.clientId] + 1) {
                 error.set(true);
-                System.err.println("client number " + cmdData.cmdNb + " got " + cmdData.cmdNb + " after " + lastReceived[cmdData.clientId]);
             } else {
                 lastReceived[cmdData.clientId] = cmdData.cmdNb;
             }
@@ -53,6 +53,7 @@ public class HeavyPaxosTest extends PaxosTestCase {
                 PaxosProposer paxosServer = nodes.get(new Random().nextInt(nodes.size())).getPaxosSrv();
                 BasicPaxosClient paxosHandle = new BasicPaxosClient(paxosServer, "client" + thisClientsId);
                 for (int cmdId = 0; cmdId < NB_REQUESTS; cmdId++) {
+                    System.out.println(cmdId);
                     TestCommand cmdData = new TestCommand(thisClientsId, cmdId);
                     try {
                         paxosHandle.doCommand(cmdData);
@@ -74,7 +75,7 @@ public class HeavyPaxosTest extends PaxosTestCase {
 
     public void testBasicClientsNoFailure() throws Exception {
         final int NB_NODES = 7;
-        final int NB_CLIENTS = 100; // used to take less than 20 seconds (500 clients, 3 requests, 7 machines)
+        final int NB_CLIENTS = 100;
         final int NB_REQUESTS = 3;
 
         StateMachine stateMachine = data -> data;
@@ -115,7 +116,7 @@ public class HeavyPaxosTest extends PaxosTestCase {
         }
     }
 
-    class TestCommand implements java.io.Serializable {
+    static class TestCommand implements java.io.Serializable {
 
         TestCommand(int clientId, int cmdNb) {
             this.clientId = clientId;
@@ -124,10 +125,5 @@ public class HeavyPaxosTest extends PaxosTestCase {
 
         int clientId;
         int cmdNb;
-        @Override
-        public String toString() {
-            return "client" + clientId + ";cmd" + cmdNb;
-        }
-
     }
 }

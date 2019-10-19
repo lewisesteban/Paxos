@@ -6,11 +6,9 @@ import com.lewisesteban.paxos.storage.FileAccessor;
 import com.lewisesteban.paxos.storage.FileAccessorCreator;
 import com.lewisesteban.paxos.storage.StorageException;
 import com.lewisesteban.paxos.storage.StorageUnit;
+import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 
-import java.io.ObjectOutputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
-import java.nio.file.StandardCopyOption;
+import java.io.*;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -50,29 +48,26 @@ class AcceptDataInstance implements Serializable {
         return lastAcceptedProp;
     }
 
-    void saveToStorage(int nodeId, long instanceNb, FileAccessorCreator fileAccessorCreator) throws StorageException {
-        Map<String, String> map = new TreeMap<>();
-        map.put(STORAGE_KEY_LAST_PREPARED_ID_NODE, String.valueOf(lastPreparedPropId.getNodeId()));
-        map.put(STORAGE_KEY_LAST_PREPARED_ID_PROP, String.valueOf(lastPreparedPropId.getNodePropNb()));
+    void saveToStorage(int nodeId, long instanceNb, StorageUnit.Creator storageCreator) throws StorageException {
+        StorageUnit storage = storageCreator.make("inst" + instanceNb, "acceptor" + nodeId);
+        storage.put(STORAGE_KEY_LAST_PREPARED_ID_NODE, String.valueOf(lastPreparedPropId.getNodeId()));
+        storage.put(STORAGE_KEY_LAST_PREPARED_ID_PROP, String.valueOf(lastPreparedPropId.getNodePropNb()));
         if (lastAcceptedProp == null) {
-            map.put(STORAGE_KEY_LAST_ACCEPTED_ID_NODE, null);
+            storage.put(STORAGE_KEY_LAST_ACCEPTED_ID_NODE, null);
         } else {
-            map.put(STORAGE_KEY_LAST_ACCEPTED_ID_NODE, String.valueOf(lastAcceptedProp.getId().getNodeId()));
-            map.put(STORAGE_KEY_LAST_ACCEPTED_ID_PROP, String.valueOf(lastAcceptedProp.getId().getNodePropNb()));
-            map.put(STORAGE_KEY_LAST_ACCEPTED_CMD_DATA, lastAcceptedProp.getCommand().getData().toString());
-            map.put(STORAGE_KEY_LAST_ACCEPTED_CMD_CLIENT, lastAcceptedProp.getCommand().getClientId());
-            map.put(STORAGE_KEY_LAST_ACCEPTED_CMD_NB, String.valueOf(lastAcceptedProp.getCommand().getClientCmdNb()));
+            storage.put(STORAGE_KEY_LAST_ACCEPTED_ID_NODE, String.valueOf(lastAcceptedProp.getId().getNodeId()));
+            storage.put(STORAGE_KEY_LAST_ACCEPTED_ID_PROP, String.valueOf(lastAcceptedProp.getId().getNodePropNb()));
+            try {
+                storage.put(STORAGE_KEY_LAST_ACCEPTED_CMD_DATA, serializeCommandData(lastAcceptedProp.getCommand().getData()));
+            } catch (IOException e) {
+                throw new StorageException(e);
+            }
+            storage.put(STORAGE_KEY_LAST_ACCEPTED_CMD_CLIENT, lastAcceptedProp.getCommand().getClientId());
+            storage.put(STORAGE_KEY_LAST_ACCEPTED_CMD_NB, String.valueOf(lastAcceptedProp.getCommand().getClientCmdNb()));
         }
         try {
-            FileAccessor mainFile = fileAccessorCreator.create("inst" + instanceNb, "acceptor" + nodeId);
-            FileAccessor tmpFile = fileAccessorCreator.create("inst" + instanceNb + "_tmp", "acceptor" + nodeId);
-            OutputStream fos = tmpFile.startWrite();
-            ObjectOutputStream oos = new ObjectOutputStream(fos);
-            oos.writeObject(map);
-            oos.close();
-            tmpFile.endWrite();
-            if (mainFile.exists()) mainFile.delete();
-            tmpFile.moveTo(mainFile, StandardCopyOption.ATOMIC_MOVE);
+            storage.flush();
+            storage.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -94,7 +89,12 @@ class AcceptDataInstance implements Serializable {
                     if (storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE) != null) {
                         int lastAcceptedId_node = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE));
                         int lastAcceptedId_prop = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_PROP));
-                        Serializable lastAcceptedCmd_data = storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD_DATA);
+                        Serializable lastAcceptedCmd_data;
+                        try {
+                            lastAcceptedCmd_data = deserializeCommandData(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD_DATA));
+                        } catch (IOException e) {
+                            throw new StorageException(e);
+                        }
                         String lastAcceptedCmd_client = storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD_CLIENT);
                         long lastAcceptedCmd_nb = Long.parseLong(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD_NB));
                         Command lastAcceptedCmd = new Command(lastAcceptedCmd_data, lastAcceptedCmd_client, lastAcceptedCmd_nb);
@@ -106,5 +106,24 @@ class AcceptDataInstance implements Serializable {
             }
         }
         return list;
+    }
+
+    private static String serializeCommandData(Serializable data) throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
+        objectOutputStream.writeObject(data);
+        objectOutputStream.flush();
+        return Base64.encode(outputStream.toByteArray());
+    }
+
+    private static Serializable deserializeCommandData(String serialized) throws IOException {
+        byte[] bytes = Base64.decode(serialized);
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
+        ObjectInputStream objectInputStream = new ObjectInputStream(inputStream);
+        try {
+            return (Serializable)objectInputStream.readObject();
+        } catch (ClassNotFoundException e) {
+            throw new StorageException(e);
+        }
     }
 }

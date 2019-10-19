@@ -12,11 +12,11 @@ public class Acceptor implements AcceptorRPCHandle {
 
     private InstanceContainer<AcceptDataInstance> instances;
     private MembershipGetter memberList;
-    private FileAccessorCreator fileAccessorCreator;
+    private StorageUnit.Creator storageCreator;
 
     public Acceptor(MembershipGetter memberList, StorageUnit.Creator storageUnitCreator, FileAccessorCreator fileAccessorCreator) throws StorageException {
         this.memberList = memberList;
-        this.fileAccessorCreator = fileAccessorCreator;
+        this.storageCreator = storageUnitCreator;
         this.instances = new InstanceContainer<>(AcceptDataInstance::new,
                 AcceptDataInstance.readStorage(memberList.getMyNodeId(), fileAccessorCreator, storageUnitCreator));
     }
@@ -26,7 +26,7 @@ public class Acceptor implements AcceptorRPCHandle {
         synchronized (thisInstance) {
             if (propId.isGreaterThan(thisInstance.getLastPreparedPropId())) {
                 thisInstance.setLastPreparedPropId(propId);
-                thisInstance.saveToStorage(memberList.getMyNodeId(), instanceNb, fileAccessorCreator);
+                thisInstance.saveToStorage(memberList.getMyNodeId(), instanceNb, storageCreator);
                 Logger.println("--o inst " + instanceNb + " srv " + memberList.getMyNodeId() + " prepare OK " + propId);
                 return new PrepareAnswer(true, thisInstance.getLastAcceptedProp());
             } else {
@@ -44,7 +44,7 @@ public class Acceptor implements AcceptorRPCHandle {
                 return false;
             } else {
                 thisInstance.setLastAcceptedProp(proposal);
-                thisInstance.saveToStorage(memberList.getMyNodeId(), instanceNb, fileAccessorCreator);
+                thisInstance.saveToStorage(memberList.getMyNodeId(), instanceNb, storageCreator);
                 Logger.println("--- inst " + instanceNb + " srv " + memberList.getMyNodeId() + " accept " + proposal.getCommand());
                 return true;
             }
