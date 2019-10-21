@@ -16,7 +16,7 @@ class ClientCommandSender {
         return doCommand(paxosNode, command, null);
     }
 
-    Serializable doCommand(PaxosProposer paxosNode, Command command, Long instance) throws CommandException {
+    private Serializable doCommand(PaxosProposer paxosNode, Command command, Long instance) throws CommandException {
         Serializable commandReturn = null;
         boolean success = false;
         if (instance == null)
@@ -34,6 +34,7 @@ class ClientCommandSender {
                     commandReturn = result.getReturnData();
                     break;
                 case Result.CONSENSUS_ON_ANOTHER_CMD:
+                case Result.INSTANCE_ALREADY_RUNNING:
                     instance = getNewInstanceId(paxosNode, instance);
                     break;
                 case Result.NETWORK_ERROR:

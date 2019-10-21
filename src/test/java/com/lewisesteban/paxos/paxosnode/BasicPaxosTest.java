@@ -13,7 +13,9 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.lewisesteban.paxos.NetworkFactory.*;
 
@@ -45,7 +47,7 @@ public class BasicPaxosTest extends PaxosTestCase {
         assertEquals(node0.propose(cmd1, 0).getStatus(), Result.CONSENSUS_ON_THIS_CMD);
         assertEquals(node0.propose(cmd2, 0).getStatus(), Result.CONSENSUS_ON_ANOTHER_CMD);
         try {
-            Thread.sleep(50); // wait for scatter to finish
+            Thread.sleep(100); // wait for scatter to finish
         } catch (InterruptedException ignored) { }
         assertEquals(NB_NODES, receivedCorrectData.get());
     }
@@ -96,7 +98,7 @@ public class BasicPaxosTest extends PaxosTestCase {
         }
     }
 
-    public void testSingleRequestParallelism() throws IOException {
+    public void testSingleRequestParallelism() throws IOException, InterruptedException {
         Network networkA = new Network();
         List<PaxosNetworkNode> nodesA = initSimpleNetwork(10, networkA, stateMachinesEmpty(10));
         networkA.setWaitTimes(30, 40, 40, 0);
@@ -104,6 +106,10 @@ public class BasicPaxosTest extends PaxosTestCase {
         PaxosProposer proposer = nodesA.get(0).getPaxosSrv();
         proposer.propose(cmd1, proposer.getNewInstanceId());
         long timeA = System.currentTimeMillis() - startTime;
+
+        // wait until everyone got cmd
+        Thread.sleep(100);
+        super.cleanup();
 
         Network networkB = new Network();
         List<PaxosNetworkNode> nodesB = initSimpleNetwork(100, networkB, stateMachinesEmpty(100));
@@ -147,6 +153,7 @@ public class BasicPaxosTest extends PaxosTestCase {
                 for (int cmdId = 0; cmdId < NB_REQUESTS; cmdId++) {
                     try {
                         dedicatedServer.propose(cmd1, dedicatedServer.getNewInstanceId());
+                        // side note: sometimes NoOp will win over a regular cmd on the same instance
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -242,9 +249,101 @@ public class BasicPaxosTest extends PaxosTestCase {
         assertEquals(11, node1.getNewInstanceId());
 
         try {
-            Thread.sleep(50); // wait for scatter to finish
+            Thread.sleep(100); // wait for scatter to finish
         } catch (InterruptedException ignored) { }
         assertEquals(11, receivedAt0.get());
         assertEquals(11, receivedAt1.get());
+    }
+
+    public void testOrderingSlowCommand() throws InterruptedException {
+        Serializable cmd1 = "1";
+        Serializable cmd2 = "2";
+        AtomicReference<Exception> error = new AtomicReference<>(null);
+        Callable<StateMachine> stateMachine = () -> new StateMachine() {
+            boolean finishedCmd1 = false;
+            @Override
+            public Serializable execute(Serializable data) {
+                if (data.equals(cmd1)) {
+                    try {
+                        Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    finishedCmd1 = true;
+                } else if (data.equals(cmd2)) {
+                    if (!finishedCmd1) {
+                        error.set(new Exception("received cmd2 before cmd1"));
+                    }
+                } else {
+                    error.set(new Exception("wrong command: " + data));
+                }
+                return null;
+            }
+        };
+
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(1, new Network(), stateMachinesSingle(stateMachine, 1));
+        PaxosProposer proposer = nodes.get(0).getPaxosSrv();
+        Thread thread1 = new Thread(() -> {
+            try {
+                proposer.propose(new Command(cmd1, "", 1), 0);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+        Thread thread2 = new Thread(() -> {
+            try {
+                proposer.propose(new Command(cmd2, "", 2), 1);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+        thread1.start();
+        thread2.start();
+        thread1.join();
+        thread2.join();
+        if (error.get() != null) {
+            error.get().printStackTrace();
+            fail();
+        }
+    }
+
+    public void testNoOpCmd() throws IOException {
+        AtomicBoolean error = new AtomicBoolean(false);
+        Callable<StateMachine> stateMachine = () -> new StateMachine() {
+            int receivedCmds = 0;
+            @Override
+            public Serializable execute(Serializable data) {
+                if (receivedCmds == 0) {
+                    if (!data.equals(cmd1.getData())) {
+                        System.err.println("received " + data + " instead of " + cmd1.getData());
+                        error.set(true);
+                    } else {
+                        receivedCmds = 1;
+                    }
+                } else if (receivedCmds == 1) {
+                    if (!data.equals(cmd2.getData())) {
+                        System.err.println("received " + data + " instead of " + cmd2.getData());
+                        error.set(true);
+                    } else {
+                        receivedCmds = 2;
+                    }
+                } else {
+                    System.err.println("received one extra command: " + data);
+                    error.set(true);
+                }
+                return null;
+            }
+        };
+
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(3, new Network(), stateMachinesSingle(stateMachine, 3));
+        PaxosProposer proposer = nodes.get(0).getPaxosSrv();
+
+        Result res1 = proposer.propose(cmd1, 0);
+        assertEquals(Result.CONSENSUS_ON_THIS_CMD, res1.getStatus());
+        assertEquals(0, res1.getInstanceId());
+        Result res2 =  proposer.propose(cmd2, 2);
+        assertEquals(Result.CONSENSUS_ON_THIS_CMD, res2.getStatus());
+        assertEquals(2, res2.getInstanceId());
+        assertFalse(error.get());
     }
 }

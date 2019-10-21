@@ -22,8 +22,6 @@ public class NetworkFactory {
 
     public static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network, PaxosFactory paxosFactory, Iterable<Callable<StateMachine>> stateMachineCreators) {
 
-        InterruptibleAccessorContainer.clear();
-
         List<List<RemotePaxosNode>> networkViews = new ArrayList<>();
         for (int i = 0; i < totalNbNodes; ++i) {
             networkViews.add(new ArrayList<>());

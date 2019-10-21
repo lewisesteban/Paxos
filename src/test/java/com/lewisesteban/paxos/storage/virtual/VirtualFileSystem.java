@@ -48,9 +48,11 @@ public class VirtualFileSystem {
 
     static List<String> listFiles(String dir) {
         List<String> list = new ArrayList<>();
-        for (String path : files.keySet()) {
-            if (path.startsWith(dir + File.separator)) {
-                list.add(path);
+        synchronized (files) {
+            for (String path : files.keySet()) {
+                if (path.startsWith(dir + File.separator)) {
+                    list.add(path);
+                }
             }
         }
         if (list.size() == 0)

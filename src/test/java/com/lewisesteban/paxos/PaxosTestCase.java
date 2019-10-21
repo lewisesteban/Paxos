@@ -24,7 +24,7 @@ public class PaxosTestCase extends TestCase {
         folder.delete();
     }
 
-    private void cleanup() {
+    protected void cleanup() {
         File rootDir = new File(".");
         File[] files = rootDir.listFiles();
         if(files!=null) {

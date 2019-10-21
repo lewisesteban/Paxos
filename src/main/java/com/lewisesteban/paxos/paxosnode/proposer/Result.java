@@ -7,6 +7,7 @@ public class Result {
     public static final byte NETWORK_ERROR = 0;
     public static final byte CONSENSUS_ON_ANOTHER_CMD = 1;
     public static final byte CONSENSUS_ON_THIS_CMD = 2;
+    public static final byte INSTANCE_ALREADY_RUNNING = 3;
 
     private byte status;
     private long instanceId = -1;

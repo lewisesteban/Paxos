@@ -22,10 +22,7 @@ class NodeConListener implements ListenerRPCHandle {
     }
 
     @Override
-    public void execute(long instanceId, Command command) throws IOException {
-        parent.tryNetCall(() -> {
-            listenerHandle().execute(instanceId, command);
-            return true;
-        });
+    public boolean execute(long instanceId, Command command) throws IOException {
+        return parent.tryNetCall(() -> listenerHandle().execute(instanceId, command));
     }
 }

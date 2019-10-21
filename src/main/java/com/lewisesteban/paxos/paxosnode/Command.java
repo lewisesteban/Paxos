@@ -9,6 +9,7 @@ public class Command implements Serializable {
     private Serializable data;
     private String clientId;
     private long clientCmdNb;
+    private boolean noOp = false;
 
     /**
      * The clientId and clientCmdNb are only used to check if two commands are equal
@@ -17,6 +18,12 @@ public class Command implements Serializable {
         this.data = data;
         this.clientId = clientId;
         this.clientCmdNb = clientCmdNb;
+    }
+
+    public static Command NoOpCommand() {
+        Command command = new Command("NoOp", null, -1);
+        command.noOp = true;
+        return command;
     }
 
     public Serializable getData() {
@@ -31,8 +38,14 @@ public class Command implements Serializable {
         return clientCmdNb;
     }
 
+    public boolean isNoOp() {
+        return noOp;
+    }
+
     public boolean equals(Command other) {
-        return other.clientId.equals(clientId) && other.clientCmdNb == clientCmdNb;
+        if (noOp && other.noOp)
+            return true;
+        return noOp == other.noOp && other.clientId.equals(clientId) && other.clientCmdNb == clientCmdNb;
     }
 
     @Override
@@ -46,6 +59,8 @@ public class Command implements Serializable {
 
     @Override
     public String toString() {
+        if (data == null)
+            return null;
         return data.toString();
     }
 

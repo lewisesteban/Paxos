@@ -18,9 +18,7 @@ class AcceptDataInstance implements Serializable {
     private static final String STORAGE_KEY_LAST_PREPARED_ID_PROP = "b";
     private static final String STORAGE_KEY_LAST_ACCEPTED_ID_NODE = "c";
     private static final String STORAGE_KEY_LAST_ACCEPTED_ID_PROP = "d";
-    private static final String STORAGE_KEY_LAST_ACCEPTED_CMD_DATA = "e";
-    private static final String STORAGE_KEY_LAST_ACCEPTED_CMD_CLIENT = "f";
-    private static final String STORAGE_KEY_LAST_ACCEPTED_CMD_NB = "g";
+    private static final String STORAGE_KEY_LAST_ACCEPTED_CMD = "e";
 
     private Proposal.ID lastPreparedPropId = Proposal.ID.noProposal();
     private Proposal lastAcceptedProp = null;
@@ -58,12 +56,10 @@ class AcceptDataInstance implements Serializable {
             storage.put(STORAGE_KEY_LAST_ACCEPTED_ID_NODE, String.valueOf(lastAcceptedProp.getId().getNodeId()));
             storage.put(STORAGE_KEY_LAST_ACCEPTED_ID_PROP, String.valueOf(lastAcceptedProp.getId().getNodePropNb()));
             try {
-                storage.put(STORAGE_KEY_LAST_ACCEPTED_CMD_DATA, serializeCommandData(lastAcceptedProp.getCommand().getData()));
+                storage.put(STORAGE_KEY_LAST_ACCEPTED_CMD, serializeCommand(lastAcceptedProp.getCommand()));
             } catch (IOException e) {
                 throw new StorageException(e);
             }
-            storage.put(STORAGE_KEY_LAST_ACCEPTED_CMD_CLIENT, lastAcceptedProp.getCommand().getClientId());
-            storage.put(STORAGE_KEY_LAST_ACCEPTED_CMD_NB, String.valueOf(lastAcceptedProp.getCommand().getClientCmdNb()));
         }
         try {
             storage.flush();
@@ -89,15 +85,12 @@ class AcceptDataInstance implements Serializable {
                     if (storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE) != null) {
                         int lastAcceptedId_node = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE));
                         int lastAcceptedId_prop = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_PROP));
-                        Serializable lastAcceptedCmd_data;
+                        Command lastAcceptedCmd;
                         try {
-                            lastAcceptedCmd_data = deserializeCommandData(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD_DATA));
+                            lastAcceptedCmd = deserializeCommand(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD));
                         } catch (IOException e) {
                             throw new StorageException(e);
                         }
-                        String lastAcceptedCmd_client = storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD_CLIENT);
-                        long lastAcceptedCmd_nb = Long.parseLong(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD_NB));
-                        Command lastAcceptedCmd = new Command(lastAcceptedCmd_data, lastAcceptedCmd_client, lastAcceptedCmd_nb);
                         lastAcceptedProp = new Proposal(lastAcceptedCmd, new Proposal.ID(lastAcceptedId_node, lastAcceptedId_prop));
                     }
                     list.put(instance, new AcceptDataInstance(lastPreparedPropId, lastAcceptedProp));
@@ -108,20 +101,20 @@ class AcceptDataInstance implements Serializable {
         return list;
     }
 
-    private static String serializeCommandData(Serializable data) throws IOException {
+    private static String serializeCommand(Command cmd) throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
-        objectOutputStream.writeObject(data);
+        objectOutputStream.writeObject(cmd);
         objectOutputStream.flush();
         return Base64.encode(outputStream.toByteArray());
     }
 
-    private static Serializable deserializeCommandData(String serialized) throws IOException {
+    private static Command deserializeCommand(String serialized) throws IOException {
         byte[] bytes = Base64.decode(serialized);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
         ObjectInputStream objectInputStream = new ObjectInputStream(inputStream);
         try {
-            return (Serializable)objectInputStream.readObject();
+            return (Command) objectInputStream.readObject();
         } catch (ClassNotFoundException e) {
             throw new StorageException(e);
         }

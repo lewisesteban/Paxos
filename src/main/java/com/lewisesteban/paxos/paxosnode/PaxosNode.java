@@ -5,6 +5,7 @@ import com.lewisesteban.paxos.paxosnode.listener.Listener;
 import com.lewisesteban.paxos.paxosnode.membership.Membership;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposer;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
+import com.lewisesteban.paxos.paxosnode.proposer.RunningProposalManager;
 import com.lewisesteban.paxos.rpc.paxos.*;
 import com.lewisesteban.paxos.storage.FileAccessorCreator;
 import com.lewisesteban.paxos.storage.StorageException;
@@ -23,9 +24,11 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
 
     public PaxosNode(int myNodeId, List<RemotePaxosNode> members, StateMachine stateMachine, StorageUnit.Creator storage, FileAccessorCreator fileAccessorCreator) throws StorageException {
         membership = new Membership(myNodeId, members);
+        RunningProposalManager runningProposalManager = new RunningProposalManager();
         acceptor = new Acceptor(membership, storage, fileAccessorCreator);
-        listener = new Listener(membership, stateMachine);
-        proposer = new Proposer(membership, listener, storage.make("proposer" + membership.getMyNodeId(), null));
+        listener = new Listener(membership, stateMachine, runningProposalManager);
+        proposer = new Proposer(membership, listener, storage.make("proposer" + membership.getMyNodeId(), null), runningProposalManager);
+        runningProposalManager.setup(proposer, listener);
     }
 
     public void start() {

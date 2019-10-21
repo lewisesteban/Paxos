@@ -16,62 +16,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static com.lewisesteban.paxos.NetworkFactory.stateMachinesSame;
 import static com.lewisesteban.paxos.NetworkFactory.stateMachinesSingle;
 
+/**
+ * Should be executed with no dedicated proposer.
+ */
 public class HeavyPaxosTest extends PaxosTestCase {
-
-    /**
-     * Should be executed with no dedicated proposer.
-     */
-    public void testSingleStateMachineNoFailure() throws Exception {
-        // TODO error here
-
-        final int NB_NODES = 7;
-        final int NB_CLIENTS = 100;
-        final int NB_REQUESTS = 3;
-
-        AtomicBoolean error = new AtomicBoolean(false);
-        int[] lastReceived = new int[NB_CLIENTS];
-        for (int i = 0; i < lastReceived.length; ++i)
-            lastReceived[i] = -1;
-        StateMachine stateMachine = data -> {
-            TestCommand cmdData = (TestCommand) data;
-            if (cmdData.cmdNb != lastReceived[cmdData.clientId] + 1) {
-                error.set(true);
-            } else {
-                lastReceived[cmdData.clientId] = cmdData.cmdNb;
-            }
-            return null;
-        };
-
-        Network network = new Network();
-        network.setWaitTimes(0, 0, 1, 0);
-        List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(NB_NODES, network, stateMachinesSingle(() -> stateMachine, NB_NODES));
-
-        Thread[] clients = new Thread[NB_CLIENTS];
-        for (int clientId = 0; clientId < NB_CLIENTS; ++clientId) {
-            final int thisClientsId = clientId;
-            clients[clientId] = new Thread(() -> {
-                PaxosProposer paxosServer = nodes.get(new Random().nextInt(nodes.size())).getPaxosSrv();
-                BasicPaxosClient paxosHandle = new BasicPaxosClient(paxosServer, "client" + thisClientsId);
-                for (int cmdId = 0; cmdId < NB_REQUESTS; cmdId++) {
-                    System.out.println(cmdId);
-                    TestCommand cmdData = new TestCommand(thisClientsId, cmdId);
-                    try {
-                        paxosHandle.doCommand(cmdData);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            });
-        }
-
-        for (Thread client : clients) {
-            client.start();
-        }
-        for (Thread client : clients) {
-            client.join();
-            assertFalse(error.get());
-        }
-    }
 
     public void testBasicClientsNoFailure() throws Exception {
         final int NB_NODES = 7;
@@ -116,6 +64,56 @@ public class HeavyPaxosTest extends PaxosTestCase {
         }
     }
 
+    public void testSingleStateMachineNoFailure() throws Exception {
+        final int NB_NODES = 7;
+        final int NB_CLIENTS = 200;
+        final int NB_REQUESTS = 5;
+
+        AtomicBoolean error = new AtomicBoolean(false);
+        int[] lastReceived = new int[NB_CLIENTS];
+        for (int i = 0; i < lastReceived.length; ++i)
+            lastReceived[i] = -1;
+        StateMachine stateMachine = data -> {
+            TestCommand cmdData = (TestCommand) data;
+            if (cmdData.cmdNb != lastReceived[cmdData.clientId] + 1) {
+                System.err.println("FAILED client " + cmdData.clientId + " received " + cmdData.cmdNb + " after " + lastReceived[cmdData.clientId]);
+                error.set(true);
+            } else {
+                lastReceived[cmdData.clientId] = cmdData.cmdNb;
+            }
+            return null;
+        };
+
+        Network network = new Network();
+        network.setWaitTimes(0, 0, 1, 0);
+        List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(NB_NODES, network, stateMachinesSingle(() -> stateMachine, NB_NODES));
+
+        Thread[] clients = new Thread[NB_CLIENTS];
+        for (int clientId = 0; clientId < NB_CLIENTS; ++clientId) {
+            final int thisClientsId = clientId;
+            clients[clientId] = new Thread(() -> {
+                PaxosProposer paxosServer = nodes.get(new Random().nextInt(nodes.size())).getPaxosSrv();
+                BasicPaxosClient paxosHandle = new BasicPaxosClient(paxosServer, "client" + thisClientsId);
+                for (int cmdId = 0; cmdId < NB_REQUESTS; cmdId++) {
+                    TestCommand cmdData = new TestCommand(thisClientsId, cmdId);
+                    try {
+                        paxosHandle.doCommand(cmdData);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+        }
+
+        for (Thread client : clients) {
+            client.start();
+        }
+        for (Thread client : clients) {
+            client.join();
+            assertFalse(error.get());
+        }
+    }
+
     static class TestCommand implements java.io.Serializable {
 
         TestCommand(int clientId, int cmdNb) {
@@ -125,5 +123,10 @@ public class HeavyPaxosTest extends PaxosTestCase {
 
         int clientId;
         int cmdNb;
+
+        @Override
+        public String toString() {
+            return "client" + clientId + "cmd" + cmdNb;
+        }
     }
 }

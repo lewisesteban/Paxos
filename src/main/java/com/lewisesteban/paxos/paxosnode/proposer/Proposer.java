@@ -1,5 +1,6 @@
 package com.lewisesteban.paxos.paxosnode.proposer;
 
+import com.lewisesteban.paxos.Logger;
 import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.MembershipGetter;
 import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
@@ -12,8 +13,12 @@ import com.lewisesteban.paxos.storage.StorageUnit;
 import java.io.IOException;
 import java.util.Queue;
 import java.util.Random;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class Proposer implements PaxosProposer {
 
@@ -22,26 +27,50 @@ public class Proposer implements PaxosProposer {
     private ExecutorService executor = Executors.newCachedThreadPool();
     private Listener listener;
     private Random random = new Random();
+    private RunningProposalManager runningProposalManager;
+    private AtomicLong lastGeneratedInstanceId = new AtomicLong(-1);
 
-    public Proposer(MembershipGetter memberList, Listener listener, StorageUnit storage) throws StorageException {
+    public Proposer(MembershipGetter memberList, Listener listener, StorageUnit storage, RunningProposalManager runningProposalManager) throws StorageException {
         this.memberList = memberList;
         this.propFac = new ProposalFactory(memberList.getMyNodeId(), storage);
         this.listener = listener;
+        this.runningProposalManager = runningProposalManager;
     }
 
     public long getNewInstanceId() {
-        return listener.getLastInstanceId() + 1;
+        if (listener.getLastInstanceId() > lastGeneratedInstanceId.get()) {
+            lastGeneratedInstanceId.set(listener.getLastInstanceId());
+        }
+        return lastGeneratedInstanceId.incrementAndGet();
     }
 
+    @Override
     public Result propose(Command command, long instanceId) throws StorageException {
-        return propose(command, instanceId, 0);
+        return propose(command, instanceId, false);
+    }
+
+    Result propose(Command command, long instanceId, boolean alreadyStartedInMannager) throws StorageException {
+        if (!alreadyStartedInMannager) {
+            try {
+                runningProposalManager.startProposal(instanceId);
+            } catch (RunningProposalManager.InstanceAlreadyRunningException e) {
+                return new Result(Result.INSTANCE_ALREADY_RUNNING);
+            }
+        }
+        try {
+            return propose(command, instanceId, 0);
+        } finally {
+            runningProposalManager.paxosFinished(instanceId);
+        }
     }
 
     private Result tryAgain(Command command, long instanceId, int attempt, boolean badNetworkState) throws StorageException {
+        Logger.println("tryAgain node=" + memberList.getMyNodeId() + " inst=" + instanceId + " cmd=" + command +  " attempt=" + attempt + " badnetworkState=" + badNetworkState);
         if (badNetworkState) {
             if (attempt < 3) {
                 return propose(command, instanceId, attempt + 1);
             } else {
+                Logger.println("network_error node=" + memberList.getMyNodeId() + " inst=" + instanceId + " cmd=" + command +  " attempt=" + attempt);
                 return new Result(Result.NETWORK_ERROR);
             }
         } else {
@@ -53,6 +82,8 @@ public class Proposer implements PaxosProposer {
     }
 
     private Result propose(Command command, long instanceId, int attempt) throws StorageException {
+        Logger.println("propose node=" + memberList.getMyNodeId() + " inst=" + instanceId + " cmd=" + command +  " attempt=" + attempt);
+
         Listener.ExecutedCommand thisInstanceExecutedCmd = listener.tryGetExecutedCommand(instanceId);
         if (thisInstanceExecutedCmd != null) {
             boolean sameCmd = (thisInstanceExecutedCmd.getCommand().equals(command));
@@ -71,6 +102,7 @@ public class Proposer implements PaxosProposer {
         if (prepared == null) {
             return tryAgain(command, instanceId, attempt, false);
         }
+        Logger.println("prepared node=" + memberList.getMyNodeId() + " inst=" + instanceId + " cmd=" + prepared.getCommand() +  " attempt=" + attempt);
 
         // accept
         boolean proposalChanged = !originalProposal.getCommand().equals(prepared.getCommand());
@@ -83,12 +115,13 @@ public class Proposer implements PaxosProposer {
         if (!success) {
             return tryAgain(command, instanceId, attempt, false);
         }
+        Logger.println("accepted node=" + memberList.getMyNodeId() + " inst=" + instanceId + " cmd=" + prepared.getCommand() +  " changed=" + proposalChanged);
 
-        // scatter
+        // scatter and return
         scatter(instanceId, prepared);
         java.io.Serializable returnData = listener.getReturnOf(instanceId, prepared.getCommand());
-        return new Result(proposalChanged ? Result.CONSENSUS_ON_ANOTHER_CMD : Result.CONSENSUS_ON_THIS_CMD,
-                instanceId, returnData);
+        byte resultStatus = proposalChanged ? Result.CONSENSUS_ON_ANOTHER_CMD : Result.CONSENSUS_ON_THIS_CMD;
+        return new Result(resultStatus, instanceId, returnData);
     }
 
     private Proposal prepare(long instanceId, Proposal proposal) throws IOException {
