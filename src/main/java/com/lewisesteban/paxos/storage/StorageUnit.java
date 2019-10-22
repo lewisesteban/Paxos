@@ -11,6 +11,7 @@ public interface StorageUnit {
     void flush() throws StorageException;
     void delete() throws StorageException;
     void close() throws StorageException;
+    boolean isEmpty() throws StorageException;
 
     public interface Creator {
         StorageUnit make(String file, String dir) throws StorageException;

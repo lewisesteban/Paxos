@@ -35,9 +35,10 @@ class VirtualFileHandle {
     }
 
     OutputStream getOutputStream() {
-        if (!exists())
-            VirtualFileSystem.create(path);
-        return VirtualFileSystem.get(path).getOutputStream();
+        VirtualFile file = VirtualFileSystem.get(path);
+        if (file == null)
+            file = VirtualFileSystem.create(path);
+        return file.getOutputStream();
     }
 
     InputStream getInputStream() {
@@ -45,9 +46,5 @@ class VirtualFileHandle {
         if (virtualFile == null)
             return null;
         return virtualFile.getInputStream();
-    }
-
-    void moveTo(String dest) {
-
     }
 }

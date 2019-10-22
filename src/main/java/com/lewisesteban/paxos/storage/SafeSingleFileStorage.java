@@ -90,8 +90,9 @@ public class SafeSingleFileStorage implements StorageUnit {
                 //noinspection unchecked
                 content = (TreeMap<String, String>) res;
                 fileManager.endRead();
-
-            } catch (EOFException | StreamCorruptedException e) {
+            } catch (StorageException e) {
+                throw e;
+            } catch (IOException e) {
                 reader = fileManager.fixCorruption();
                 if (reader == null) {
                     content = new TreeMap<>();
@@ -107,6 +108,18 @@ public class SafeSingleFileStorage implements StorageUnit {
         } catch (IOException | ClassNotFoundException e) {
             throw new StorageException(e);
         }
+    }
+
+    @Override
+    public synchronized boolean isEmpty() throws StorageException {
+        if (content == null) {
+            try {
+                readAllContent();
+            } catch (IOException e) {
+                throw new StorageException(e);
+            }
+        }
+        return content.isEmpty();
     }
 
     @Override
@@ -144,17 +157,14 @@ public class SafeSingleFileStorage implements StorageUnit {
         }
 
         InputStream startRead() throws StorageException {
-            if (!mainFile.exists() && tmpFile.exists()) {
-                moveTempToMain();
-            }
-            try {
-                return mainFile.startRead();
-            } catch (StorageException e) {
-                if (e.getCause() instanceof FileNotFoundException)
+            if (!mainFile.exists()) {
+                if (tmpFile.exists()) {
+                    moveTempToMain();
+                } else {
                     return null;
-                else
-                    throw e;
+                }
             }
+            return mainFile.startRead();
         }
 
         void endRead() throws StorageException {

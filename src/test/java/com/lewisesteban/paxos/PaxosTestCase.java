@@ -48,4 +48,8 @@ public class PaxosTestCase extends TestCase {
     public void tearDown() {
         cleanup();
     }
+
+    protected static boolean isCause(Class<? extends Throwable> expected, Throwable exc) {
+        return expected.isInstance(exc) || (exc != null && isCause(expected, exc.getCause()));
+    }
 }

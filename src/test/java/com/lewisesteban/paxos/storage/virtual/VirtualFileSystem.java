@@ -8,12 +8,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+@SuppressWarnings("SynchronizeOnNonFinalField")
 public class VirtualFileSystem {
-    private static Map<String, VirtualFile> files = new TreeMap<>();
+    public static Map<String, VirtualFile> files = new TreeMap<>(); // TODO private
 
-    static void create(String path) {
+    static VirtualFile create(String path) {
         synchronized (files) {
-            files.put(path, new VirtualFile());
+            VirtualFile newFile = new VirtualFile();
+            files.put(path, newFile);
+            return newFile;
         }
     }
 
@@ -24,7 +27,9 @@ public class VirtualFileSystem {
     }
 
     static boolean exists(String path) {
-        return files.containsKey(path);
+        synchronized (files) {
+            return files.containsKey(path);
+        }
     }
 
     static VirtualFile get(String path) {

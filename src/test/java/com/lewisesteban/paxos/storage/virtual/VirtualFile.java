@@ -4,11 +4,9 @@ import java.io.*;
 import java.util.ArrayList;
 
 class VirtualFile {
-    private ArrayList<Byte> content;
+    private final ArrayList<Byte> content = new ArrayList<>();
 
-    VirtualFile() {
-        this.content = new ArrayList<>();
-    }
+    VirtualFile() { }
 
     long getLength() {
         return content.size();
@@ -26,20 +24,26 @@ class VirtualFile {
 
         @Override
         public void write(int b) {
-            content.add((byte)b);
+            synchronized (content) {
+                content.add((byte) b);
+            }
         }
 
         @Override
         public void write(byte[] arr) {
-            for (byte b : arr) {
-                write(b);
+            synchronized (content) {
+                for (byte b : arr) {
+                    write(b);
+                }
             }
         }
 
         @Override
         public void write(byte[] arr, int off, int len) {
-            for (int i = 0; i < len; ++i) {
-                write(arr[i + off]);
+            synchronized (content) {
+                for (int i = 0; i < len; ++i) {
+                    write(arr[i + off]);
+                }
             }
         }
 
@@ -54,58 +58,68 @@ class VirtualFile {
         int cursor = 0;
 
         @Override
-        public int read(byte[] b) throws IOException {
-            if (cursor >= content.size()) {
-                throw new EOFException();
+        public int read(byte[] b) {
+            synchronized (content) {
+                if (cursor >= content.size()) {
+                    return -1;
+                }
+                int i = 0;
+                while (i < b.length && cursor + i < content.size()) {
+                    b[i] = content.get(cursor + i);
+                    ++i;
+                }
+                cursor += i;
+                return i;
             }
-            int i = 0;
-            while (i < b.length && cursor + i < content.size()) {
-                b[i] = content.get(cursor + i);
-                ++i;
-            }
-            cursor += i;
-            return i;
         }
 
         @Override
-        public int read(byte[] b, int off, int len) throws IOException {
-            if (cursor >= content.size()) {
-                throw new EOFException();
+        public int read(byte[] b, int off, int len) {
+            synchronized (content) {
+                if (cursor >= content.size()) {
+                    return -1;
+                }
+                int i = 0;
+                while (i < len && cursor + i < content.size() && off + i < b.length) {
+                    b[i + off] = content.get(cursor + i);
+                    ++i;
+                }
+                cursor += i;
+                return i;
             }
-            int i = 0;
-            while (i < len && cursor + i < content.size()) {
-                b[i + off] = content.get(cursor + i);
-                ++i;
-            }
-            cursor += i;
-            return i;
         }
 
         @Override
         public long skip(long n) {
-            if (cursor + n > content.size()) {
-                n = content.size() - cursor;
-                cursor = content.size();
-            } else {
-                cursor += n;
+            synchronized (content) {
+                if (cursor + n > content.size()) {
+                    n = content.size() - cursor;
+                    cursor = content.size();
+                } else {
+                    cursor += n;
+                }
+                return n;
             }
-            return n;
         }
 
         @Override
         public int available() {
-            return content.size() - cursor;
+            synchronized (content) {
+                return content.size() - cursor;
+            }
         }
 
         @Override
         public void close() { }
 
         @Override
-        public int read() throws IOException {
-            if (cursor >= content.size()) {
-                throw new EOFException();
+        public int read() {
+            synchronized (content) {
+                if (cursor >= content.size()) {
+                    return -1;
+                }
+                return content.get(cursor++);
             }
-            return content.get(cursor++);
         }
     }
 }

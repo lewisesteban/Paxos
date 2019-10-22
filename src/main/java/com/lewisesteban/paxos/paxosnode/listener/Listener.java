@@ -7,6 +7,7 @@ import com.lewisesteban.paxos.paxosnode.StateMachine;
 import com.lewisesteban.paxos.paxosnode.proposer.RunningProposalManager;
 import com.lewisesteban.paxos.rpc.paxos.ListenerRPCHandle;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,7 +31,7 @@ public class Listener implements ListenerRPCHandle {
      * Returns true if some consensus has been reached on that instance.
      * Returns false if consensus cannot be reached (eg because of network failure).
      */
-    private synchronized boolean waitForConsensusOn(long instance) {
+    public synchronized boolean waitForConsensusOn(long instance) {
         runningProposalManager.tryProposeNoOp(instance);
         while (runningProposalManager.contains(instance)) {
             try {
@@ -58,7 +59,7 @@ public class Listener implements ListenerRPCHandle {
             if (instanceId > lastInstanceId) {
                 lastInstanceId = instanceId;
             }
-            Logger.println("node " + memberList.getMyNodeId() + " execute inst=" + instanceId + " cmd=" + command);
+            Logger.println("node " + memberList.getMyNodeId() + " execute inst=" + instanceId + " cmd=" + command + " on object " + stateMachine.hashCode());
             executedCommands.put(instanceId, new ExecutedCommand(command, result));
         }
         return true;
@@ -67,17 +68,22 @@ public class Listener implements ListenerRPCHandle {
     /**
      * Returns the return value of a command that has been executed.
      * If that command hasn't been executed yet, it is executed and its return value is returned.
+     * If the previous instance hasn't reached and cannot reach consensus because of some various failures,
+     * IOException is thrown.
      */
-    public synchronized Serializable getReturnOf(long instanceId, Command command) {
+    public synchronized Serializable getReturnOf(long instanceId, Command command) throws IOException {
         if (!executedCommands.containsKey(instanceId)) {
-            execute(instanceId, command);
+            if (!execute(instanceId, command))
+                throw new IOException();
         }
+        if (command.isNoOp())
+            return null;
         return executedCommands.get(instanceId).result;
     }
 
     /**
      * Checks if a command has been executed in a particular instance.
-     * If it has, it (the command itself) is returned.
+     * If it has, the executed command is returned.
      */
     public ExecutedCommand tryGetExecutedCommand(long instanceId) {
         if (!executedCommands.containsKey(instanceId)) {

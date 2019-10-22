@@ -5,8 +5,10 @@ import com.lewisesteban.paxos.paxosnode.PaxosNode;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.*;
 import com.lewisesteban.paxos.storage.InterruptibleAccessorContainer;
+import com.lewisesteban.paxos.virtualnet.InterruptibleThread;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -40,6 +42,7 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
             listener = new PaxosSrvListener(paxosNode.getListener(), threadManager);
             membership = new PaxosSrvMembership(paxosNode.getMembership(), threadManager);
         } catch (Exception e) {
+            System.err.println("PaxosServer createInstance exception");
             e.printStackTrace();
         }
     }
@@ -50,6 +53,7 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
             threadManager.start();
             paxosNode.start();
         } catch (Exception e) {
+            System.err.println("PaxosServer start exception");
             e.printStackTrace();
         }
     }
@@ -97,35 +101,39 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
 
     class ThreadManager {
 
-        private ExecutorService executor = Executors.newCachedThreadPool();
+        private ExecutorService executor = Executors.newCachedThreadPool(InterruptibleThread::new);
         private ConcurrentSkipListSet<FutureWithId> waitingTasks = new ConcurrentSkipListSet<>();
         private AtomicInteger lastGivenId = new AtomicInteger(0);
         private boolean isRunning = true;
 
         <T> T pleaseDo(Callable<T> task) throws IOException {
-            Future<T> future = executor.submit(task);
-            // note: if server shuts down right here, this task will not be interrupted
-            FutureWithId storedTask = new FutureWithId(future, lastGivenId.getAndIncrement());
             try {
-                synchronized (this) {
-                    if (!isRunning)
-                        throw new RejectedExecutionException("Shutdown");
-                    waitingTasks.add(storedTask);
+                Future<T> future = executor.submit(task);
+                // note: if server shuts down right here, this task will not be interrupted
+                FutureWithId storedTask = new FutureWithId(future, lastGivenId.getAndIncrement());
+                try {
+                    synchronized (this) {
+                        if (!isRunning)
+                            throw new RejectedExecutionException();
+                        waitingTasks.add(storedTask);
+                    }
+                    return future.get();
+                } catch (InterruptedException | RejectedExecutionException | CancellationException e) {
+                    throw new InterruptedIOException(SRV_FAILURE_MSG);
+                } catch (ExecutionException e) {
+                    throw new IOException(e);
+                } finally {
+                    waitingTasks.remove(storedTask);
                 }
-                return future.get();
-            } catch (InterruptedException | RejectedExecutionException | CancellationException e) {
-                throw new IOException(SRV_FAILURE_MSG);
-            } catch (ExecutionException e) {
-                throw new IOException(e);
-            } finally {
-                waitingTasks.remove(storedTask);
+            } catch (RejectedExecutionException e) {
+                throw new InterruptedIOException(SRV_FAILURE_MSG);
             }
         }
 
         synchronized void start() {
             waitingTasks = new ConcurrentSkipListSet<>();
             lastGivenId = new AtomicInteger(0);
-            executor  = Executors.newCachedThreadPool();
+            executor  = Executors.newCachedThreadPool(InterruptibleThread::new);
             isRunning = true;
         }
 

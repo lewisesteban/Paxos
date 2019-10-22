@@ -11,6 +11,8 @@ public class Command implements Serializable {
     private long clientCmdNb;
     private boolean noOp = false;
 
+    public Command() { }
+
     /**
      * The clientId and clientCmdNb are only used to check if two commands are equal
      */

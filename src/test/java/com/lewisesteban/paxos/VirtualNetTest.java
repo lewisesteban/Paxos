@@ -176,7 +176,7 @@ public class VirtualNetTest extends PaxosTestCase {
         BasicPaxosClient client = new BasicPaxosClient(server.getPaxosSrv(), "");
         Thread thread = new Thread(() -> {
             try {
-                Serializable res = client.doCommand("hi");
+                Serializable res = client.tryDoCommand("hi");
                 if (!serverRestarted.get()) {
                     System.err.println("too early");
                     success.set(false);

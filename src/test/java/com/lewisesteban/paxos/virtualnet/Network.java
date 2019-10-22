@@ -1,6 +1,7 @@
 package com.lewisesteban.paxos.virtualnet;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.util.*;
 import java.util.concurrent.Callable;
 
@@ -10,10 +11,10 @@ public class Network {
     private Map<Integer, VirtualNetNode> nodes = new HashMap<>();
     private Set<Integer> isolatedRacks = new TreeSet<>();
 
-    private int waitTimeMin = 10;
-    private int waitTimeUsualMax = 30;
-    private int waitTimeUnusualMax = 100;
-    private float unusualWaitRisk = 0.1f;
+    private int waitTimeMin = 0;
+    private int waitTimeUsualMax = 0;
+    private int waitTimeUnusualMax = 1;
+    private float unusualWaitRisk = 0;
 
     public void setWaitTimes(int waitTimeMin, int waitTimeUsualMax, int waitTimeUnusualMax, float unusualWaitRisk) {
         this.waitTimeMin = waitTimeMin;
@@ -94,17 +95,17 @@ public class Network {
 
     public <RT> RT tryNetCall(Callable<RT> callable, int callerAddr, int targetAddr) throws IOException {
         if (!canCommunicate(callerAddr, targetAddr))
-            throw new IOException();
+            throw new InterruptedIOException();
         waitNetworkDelay();
         if (!canCommunicate(callerAddr, targetAddr))
-            throw new IOException();
+            throw new InterruptedIOException();
         try {
             RT result = callable.call();
             if (!canCommunicate(callerAddr, targetAddr))
-                throw new IOException();
+                throw new InterruptedIOException();
             waitNetworkDelay();
             if (!canCommunicate(callerAddr, targetAddr))
-                throw new IOException();
+                throw new InterruptedIOException();
             return result;
         } catch (Exception e) {
             throw new IOException(e);
@@ -113,10 +114,10 @@ public class Network {
 
     public void tryNetCall(Runnable runnable, int callerAddr, int targetAddr) throws IOException {
         if (!canCommunicate(callerAddr, targetAddr))
-            throw new IOException();
+            throw new InterruptedIOException();
         waitNetworkDelay();
         if (!canCommunicate(callerAddr, targetAddr))
-            throw new IOException();
+            throw new InterruptedIOException();
         try {
             runnable.run();
         } catch (Exception e) {
@@ -127,7 +128,7 @@ public class Network {
     private boolean canCommunicate(int nodeId1, int nodeId2) {
         VirtualNetNode node1 = nodes.get(nodeId1);
         VirtualNetNode node2 = nodes.get(nodeId2);
-        if (!node1.isRunning() || !node2.isRunning())
+        if (Thread.interrupted() || !node1.isRunning() || !node2.isRunning())
             return false;
         int rack1 = node1.getRack();
         int rack2 = node2.getRack();

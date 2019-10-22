@@ -49,12 +49,17 @@ public class Proposer implements PaxosProposer {
         return propose(command, instanceId, false);
     }
 
-    Result propose(Command command, long instanceId, boolean alreadyStartedInMannager) throws StorageException {
-        if (!alreadyStartedInMannager) {
+    Result propose(Command command, long instanceId, boolean alreadyStartedInManager) throws StorageException {
+        if (!alreadyStartedInManager) {
             try {
                 runningProposalManager.startProposal(instanceId);
             } catch (RunningProposalManager.InstanceAlreadyRunningException e) {
-                return new Result(Result.INSTANCE_ALREADY_RUNNING);
+                listener.waitForConsensusOn(instanceId);
+                Listener.ExecutedCommand consensusCmd = listener.tryGetExecutedCommand(instanceId);
+                if (consensusCmd.getCommand().equals(command))
+                    return new Result(Result.CONSENSUS_ON_THIS_CMD, instanceId, consensusCmd.getResult());
+                else
+                    return new Result(Result.CONSENSUS_ON_ANOTHER_CMD, instanceId, consensusCmd.getResult());
             }
         }
         try {
@@ -119,7 +124,12 @@ public class Proposer implements PaxosProposer {
 
         // scatter and return
         scatter(instanceId, prepared);
-        java.io.Serializable returnData = listener.getReturnOf(instanceId, prepared.getCommand());
+        java.io.Serializable returnData;
+        try {
+            returnData = listener.getReturnOf(instanceId, prepared.getCommand());
+        } catch (IOException e) {
+            return tryAgain(command, instanceId, attempt, true);
+        }
         byte resultStatus = proposalChanged ? Result.CONSENSUS_ON_ANOTHER_CMD : Result.CONSENSUS_ON_THIS_CMD;
         return new Result(resultStatus, instanceId, returnData);
     }

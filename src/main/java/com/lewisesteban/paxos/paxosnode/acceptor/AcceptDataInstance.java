@@ -2,7 +2,6 @@ package com.lewisesteban.paxos.paxosnode.acceptor;
 
 import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
-import com.lewisesteban.paxos.storage.FileAccessor;
 import com.lewisesteban.paxos.storage.FileAccessorCreator;
 import com.lewisesteban.paxos.storage.StorageException;
 import com.lewisesteban.paxos.storage.StorageUnit;
@@ -46,6 +45,7 @@ class AcceptDataInstance implements Serializable {
         return lastAcceptedProp;
     }
 
+    // TODO don't write to storage if there has been no change
     void saveToStorage(int nodeId, long instanceNb, StorageUnit.Creator storageCreator) throws StorageException {
         StorageUnit storage = storageCreator.make("inst" + instanceNb, "acceptor" + nodeId);
         storage.put(STORAGE_KEY_LAST_PREPARED_ID_NODE, String.valueOf(lastPreparedPropId.getNodeId()));
@@ -61,42 +61,38 @@ class AcceptDataInstance implements Serializable {
                 throw new StorageException(e);
             }
         }
-        try {
-            storage.flush();
-            storage.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        storage.flush();
+        storage.close();
     }
 
     static Map<Long, AcceptDataInstance> readStorage(int nodeId, FileAccessorCreator fileAccessorCreator, StorageUnit.Creator storageUnitCreator) throws StorageException {
         Map<Long, AcceptDataInstance> list = new TreeMap<>();
-        FileAccessor folder = fileAccessorCreator.create("acceptor" + nodeId, null);
-        FileAccessor[] matchingFiles = folder.listFiles();
-        if (matchingFiles != null) {
-            for (FileAccessor file : matchingFiles) {
-                if (file.getName().startsWith("inst") && !file.getName().endsWith("tmp")) {
-                    Long instance = Long.parseLong(file.getName().substring(("inst").length()));
-                    StorageUnit storageUnit = storageUnitCreator.make(file.getName(), "acceptor" + nodeId);
-                    int lastPreparedPropId_node = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_PREPARED_ID_NODE));
-                    int lastPreparedPropId_prop = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_PREPARED_ID_PROP));
-                    Proposal.ID lastPreparedPropId = new Proposal.ID(lastPreparedPropId_node, lastPreparedPropId_prop);
-                    Proposal lastAcceptedProp = null;
-                    if (storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE) != null) {
-                        int lastAcceptedId_node = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE));
-                        int lastAcceptedId_prop = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_PROP));
-                        Command lastAcceptedCmd;
-                        try {
-                            lastAcceptedCmd = deserializeCommand(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD));
-                        } catch (IOException e) {
-                            throw new StorageException(e);
-                        }
-                        lastAcceptedProp = new Proposal(lastAcceptedCmd, new Proposal.ID(lastAcceptedId_node, lastAcceptedId_prop));
+        boolean instanceExists = true;
+        long instance = 0;
+        while (instanceExists) {
+            StorageUnit storageUnit = storageUnitCreator.make("inst" + instance, "acceptor" + nodeId);
+            if (storageUnit.isEmpty()) {
+                instanceExists = false;
+            } else {
+                int lastPreparedPropId_node = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_PREPARED_ID_NODE));
+                int lastPreparedPropId_prop = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_PREPARED_ID_PROP));
+                Proposal.ID lastPreparedPropId = new Proposal.ID(lastPreparedPropId_node, lastPreparedPropId_prop);
+                Proposal lastAcceptedProp = null;
+                if (storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE) != null) {
+                    int lastAcceptedId_node = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE));
+                    int lastAcceptedId_prop = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_PROP));
+                    Command lastAcceptedCmd;
+                    try {
+                        lastAcceptedCmd = deserializeCommand(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD));
+                    } catch (IOException e) {
+                        throw new StorageException(e);
                     }
-                    list.put(instance, new AcceptDataInstance(lastPreparedPropId, lastAcceptedProp));
-                    storageUnit.close();
+                    lastAcceptedProp = new Proposal(lastAcceptedCmd, new Proposal.ID(lastAcceptedId_node, lastAcceptedId_prop));
                 }
+                list.put(instance, new AcceptDataInstance(lastPreparedPropId, lastAcceptedProp));
+                storageUnit.close();
             }
+            instance++;
         }
         return list;
     }

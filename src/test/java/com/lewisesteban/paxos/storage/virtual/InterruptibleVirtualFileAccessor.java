@@ -39,41 +39,37 @@ public class InterruptibleVirtualFileAccessor implements FileAccessor, Interrupt
         interrupted = true;
     }
 
-    @Override
-    public OutputStream startWrite() throws StorageException {
-        if (interrupted) {
+    private void handleInterruption() throws StorageInterruptedException {
+        if (interrupted || Thread.interrupted()) {
             throw new StorageInterruptedException();
         }
+    }
+
+    @Override
+    public OutputStream startWrite() throws StorageException {
+        handleInterruption();
         return new InterruptibleOutputStream(file);
     }
 
     @Override
     public void endWrite() throws StorageException {
-        if (interrupted) {
-            throw new StorageInterruptedException();
-        }
+        handleInterruption();
     }
 
     @Override
     public InputStream startRead() throws StorageException {
-        if (interrupted) {
-            throw new StorageInterruptedException();
-        }
+        handleInterruption();
         return file.getInputStream();
     }
 
     @Override
     public void endRead() throws StorageException {
-        if (interrupted) {
-            throw new StorageInterruptedException();
-        }
+        handleInterruption();
     }
 
     @Override
     public void delete() throws StorageException {
-        if (interrupted) {
-            throw new StorageInterruptedException();
-        }
+        handleInterruption();
         file.delete();
     }
 
@@ -84,6 +80,7 @@ public class InterruptibleVirtualFileAccessor implements FileAccessor, Interrupt
 
     @Override
     public long length() throws StorageException {
+        handleInterruption();
         return file.length();
     }
 
@@ -99,13 +96,13 @@ public class InterruptibleVirtualFileAccessor implements FileAccessor, Interrupt
 
     @Override
     public void moveTo(FileAccessor dest, CopyOption copyOption) throws StorageException {
-        if (interrupted)
-            throw new StorageInterruptedException();
+        handleInterruption();
         VirtualFileSystem.move(file.getPath(), dest.getFilePath());
     }
 
     @Override
-    public FileAccessor[] listFiles() {
+    public FileAccessor[] listFiles() throws StorageInterruptedException {
+        handleInterruption();
         List<String> files = VirtualFileSystem.listFiles(getName());
         if (files == null)
             return null;
@@ -122,7 +119,7 @@ public class InterruptibleVirtualFileAccessor implements FileAccessor, Interrupt
         VirtualFileHandle fileHandle;
 
         InterruptibleOutputStream(VirtualFileHandle fileHandle) throws StorageInterruptedException {
-            if (interrupted)
+            if (interrupted || Thread.interrupted())
                 throw new StorageInterruptedException();
             this.fileHandle = fileHandle;
             outputStream = fileHandle.getOutputStream();
@@ -130,8 +127,7 @@ public class InterruptibleVirtualFileAccessor implements FileAccessor, Interrupt
 
         @Override
         public void write(int b) throws IOException {
-            if (interrupted)
-                throw new StorageInterruptedException();
+            handleInterruption();
             outputStream.write(b);
             outputStream.flush();
         }
@@ -140,6 +136,15 @@ public class InterruptibleVirtualFileAccessor implements FileAccessor, Interrupt
         public void write(byte[] arr) throws IOException {
             for (byte b : arr) {
                 write(b);
+            }
+        }
+
+        @Override
+        public void write(byte[] arr, int off, int len) throws IOException {
+            for (int i = 0; i < len; ++i) {
+                if (i + off > arr.length)
+                    throw new IndexOutOfBoundsException();
+                write(arr[i + off]);
             }
         }
 
