@@ -234,12 +234,10 @@ public class BasicPaxosTest extends PaxosTestCase {
         for (int i = 0; i < 10; ++i) {
             assertEquals(Result.CONSENSUS_ON_THIS_CMD, node0.propose(new Command(i, "", i), i).getStatus());
         }
-        try {
-            Thread.sleep(50); // wait for scatter to finish
-        } catch (InterruptedException ignored) { }
         assertEquals(10, receivedAt0.get());
         assertEquals(0, receivedAt1.get());
 
+        System.out.println("+++++ start node 1");
         network.start(1);
         PaxosServer node1 = nodes.get(1).getPaxosSrv();
         assertEquals(Result.CONSENSUS_ON_THIS_CMD, node1.propose(new Command(0, "", 0), 0).getStatus());

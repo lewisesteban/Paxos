@@ -144,10 +144,10 @@ public class Proposer implements PaxosProposer {
                 try {
                     PrepareAnswer answer = node.getAcceptor().reqPrepare(instanceId, proposal.getId());
                     if (answer.isPrepareOK()) {
-                        nbOk.getAndIncrement();
                         if (answer.getAlreadyAccepted() != null) {
                             alreadyAcceptedProps.add(answer.getAlreadyAccepted());
                         }
+                        nbOk.getAndIncrement();
                     } else {
                         // Someone else is proposing
                         anyThread.release(memberList.getNbMembers());
