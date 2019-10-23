@@ -33,7 +33,7 @@ class ClientCommandSender {
                     success = true;
                     commandReturn = result.getReturnData();
                     break;
-                case Result.CONSENSUS_ON_ANOTHER_CMD: // TODO back-off ?
+                case Result.CONSENSUS_ON_ANOTHER_CMD:
                     instance = getNewInstanceId(paxosNode, instance);
                     break;
                 case Result.NETWORK_ERROR:

@@ -2,6 +2,7 @@ package com.lewisesteban.paxos.paxosnode.acceptor;
 
 import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
+import com.lewisesteban.paxos.storage.FileAccessor;
 import com.lewisesteban.paxos.storage.FileAccessorCreator;
 import com.lewisesteban.paxos.storage.StorageException;
 import com.lewisesteban.paxos.storage.StorageUnit;
@@ -67,32 +68,35 @@ class AcceptDataInstance implements Serializable {
 
     static Map<Long, AcceptDataInstance> readStorage(int nodeId, FileAccessorCreator fileAccessorCreator, StorageUnit.Creator storageUnitCreator) throws StorageException {
         Map<Long, AcceptDataInstance> list = new TreeMap<>();
-        boolean instanceExists = true;
-        long instance = 0;
-        while (instanceExists) {
-            StorageUnit storageUnit = storageUnitCreator.make("inst" + instance, "acceptor" + nodeId);
-            if (storageUnit.isEmpty()) {
-                instanceExists = false;
-            } else {
-                int lastPreparedPropId_node = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_PREPARED_ID_NODE));
-                int lastPreparedPropId_prop = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_PREPARED_ID_PROP));
-                Proposal.ID lastPreparedPropId = new Proposal.ID(lastPreparedPropId_node, lastPreparedPropId_prop);
-                Proposal lastAcceptedProp = null;
-                if (storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE) != null) {
-                    int lastAcceptedId_node = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE));
-                    int lastAcceptedId_prop = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_PROP));
-                    Command lastAcceptedCmd;
-                    try {
-                        lastAcceptedCmd = deserializeCommand(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD));
-                    } catch (IOException e) {
-                        throw new StorageException(e);
+        FileAccessor folder = fileAccessorCreator.create("acceptor" + nodeId, null);
+        FileAccessor[] files = folder.listFiles();
+        if (files != null) {
+            for (FileAccessor file : files) {
+                String name = file.getName();
+                if (name.endsWith("_tmp"))
+                    name = name.substring(0, name.indexOf("_tmp"));
+                long instance = Long.parseLong(name.substring("inst".length()));
+                if (!list.containsKey(instance)) {
+                    StorageUnit storageUnit = storageUnitCreator.make("inst" + instance, "acceptor" + nodeId);
+                    int lastPreparedPropId_node = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_PREPARED_ID_NODE));
+                    int lastPreparedPropId_prop = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_PREPARED_ID_PROP));
+                    Proposal.ID lastPreparedPropId = new Proposal.ID(lastPreparedPropId_node, lastPreparedPropId_prop);
+                    Proposal lastAcceptedProp = null;
+                    if (storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE) != null) {
+                        int lastAcceptedId_node = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE));
+                        int lastAcceptedId_prop = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_PROP));
+                        Command lastAcceptedCmd;
+                        try {
+                            lastAcceptedCmd = deserializeCommand(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD));
+                        } catch (IOException e) {
+                            throw new StorageException(e);
+                        }
+                        lastAcceptedProp = new Proposal(lastAcceptedCmd, new Proposal.ID(lastAcceptedId_node, lastAcceptedId_prop));
                     }
-                    lastAcceptedProp = new Proposal(lastAcceptedCmd, new Proposal.ID(lastAcceptedId_node, lastAcceptedId_prop));
+                    list.put(instance, new AcceptDataInstance(lastPreparedPropId, lastAcceptedProp));
+                    storageUnit.close();
                 }
-                list.put(instance, new AcceptDataInstance(lastPreparedPropId, lastAcceptedProp));
-                storageUnit.close();
             }
-            instance++;
         }
         return list;
     }

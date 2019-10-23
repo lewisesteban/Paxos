@@ -10,7 +10,7 @@ import java.util.TreeMap;
 
 @SuppressWarnings("SynchronizeOnNonFinalField")
 public class VirtualFileSystem {
-    public static Map<String, VirtualFile> files = new TreeMap<>(); // TODO private
+    private static Map<String, VirtualFile> files = new TreeMap<>();
 
     static VirtualFile create(String path) {
         synchronized (files) {

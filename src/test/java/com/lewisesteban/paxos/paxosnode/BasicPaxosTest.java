@@ -211,7 +211,7 @@ public class BasicPaxosTest extends PaxosTestCase {
         assertEquals(11, res2.getReturnData());
     }
 
-    public void testBasicCatchingUp() throws IOException {
+    public void testBasicCatchingUp() throws IOException, InterruptedException {
         AtomicInteger receivedAt0 = new AtomicInteger(0);
         Callable<StateMachine> stateMachineCreator0 = () -> (StateMachine) data -> {
             receivedAt0.incrementAndGet();
@@ -247,12 +247,10 @@ public class BasicPaxosTest extends PaxosTestCase {
         BasicPaxosClient basicPaxosClient = new BasicPaxosClient(node1, "client");
         basicPaxosClient.doCommand("hi");
         assertEquals(11, node1.getNewInstanceId());
-
-        try {
-            Thread.sleep(100); // wait for scatter to finish
-        } catch (InterruptedException ignored) { }
-        assertEquals(11, receivedAt0.get());
         assertEquals(11, receivedAt1.get());
+
+        Thread.sleep(100); // wait for node 1's scatter to reach node 0
+        assertEquals(11, receivedAt0.get());
     }
 
     public void testOrderingSlowCommand() throws InterruptedException {
