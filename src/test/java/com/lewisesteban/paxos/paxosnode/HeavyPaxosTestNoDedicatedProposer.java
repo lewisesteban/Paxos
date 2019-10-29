@@ -13,18 +13,17 @@ import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.lewisesteban.paxos.NetworkFactory.stateMachinesSame;
-import static com.lewisesteban.paxos.NetworkFactory.stateMachinesSingle;
+import static com.lewisesteban.paxos.NetworkFactory.*;
 
 public class HeavyPaxosTestNoDedicatedProposer extends PaxosTestCase {
-    Random random = new Random();
+    private Random random = new Random();
 
     public void testBasicClientsNoFailure() throws Exception {
         final int NB_NODES = 7;
         final int NB_CLIENTS = 100;
         final int NB_REQUESTS = 3;
 
-        StateMachine stateMachine = data -> data;
+        StateMachine stateMachine = basicStateMachine(data -> data).call();
         Network network = new Network();
         List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(NB_NODES, network, stateMachinesSame(() -> stateMachine, NB_NODES));
 
@@ -167,7 +166,7 @@ public class HeavyPaxosTestNoDedicatedProposer extends PaxosTestCase {
 
     }
 
-    static class TestStateMachine implements StateMachine {
+    static class TestStateMachine extends BasicStateMachine {
         int[] lastReceived;
         AtomicBoolean error;
         private boolean stopped = false;

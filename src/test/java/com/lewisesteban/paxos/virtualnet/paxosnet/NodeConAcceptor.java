@@ -1,5 +1,6 @@
 package com.lewisesteban.paxos.virtualnet.paxosnet;
 
+import com.lewisesteban.paxos.paxosnode.acceptor.AcceptAnswer;
 import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
 import com.lewisesteban.paxos.rpc.paxos.AcceptorRPCHandle;
@@ -28,7 +29,7 @@ class NodeConAcceptor implements AcceptorRPCHandle {
     }
 
     @Override
-    public boolean reqAccept(long instanceId, Proposal proposal) throws IOException {
+    public AcceptAnswer reqAccept(long instanceId, Proposal proposal) throws IOException {
         return parent.tryNetCall(() -> acceptorHandle().reqAccept(instanceId, proposal));
     }
 

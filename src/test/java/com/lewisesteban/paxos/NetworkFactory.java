@@ -11,6 +11,7 @@ import com.lewisesteban.paxos.virtualnet.paxosnet.NodeConnection;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -35,7 +36,11 @@ public class NetworkFactory {
             final Callable<StateMachine> stateMachineCreator = executorIt.next();
             final StorageUnit.Creator storageUnitCreator = (file, dir) -> new SafeSingleFileStorage(file, dir, InterruptibleVirtualFileAccessor.creator(thisNodeId));
             final FileAccessorCreator fileAccessorCreator = InterruptibleVirtualFileAccessor.creator(thisNodeId);
-            Callable<PaxosNode> paxosNodeCreator = () -> paxosFactory.create(thisNodeId, networkView, stateMachineCreator.call(), storageUnitCreator, fileAccessorCreator);
+            Callable<PaxosNode> paxosNodeCreator = () -> {
+                StateMachine stateMachine = stateMachineCreator.call();
+                stateMachine.setNodeId(thisNodeId);
+                return paxosFactory.create(thisNodeId, networkView, stateMachine, storageUnitCreator, fileAccessorCreator);
+            };
             PaxosServer srv = new PaxosServer(paxosNodeCreator);
             int rack = srv.getId() % nbRacks;
             paxosNodes.add(new PaxosNetworkNode(srv, rack));
@@ -80,7 +85,7 @@ public class NetworkFactory {
     public static Iterable<Callable<StateMachine>> stateMachinesEmpty(int nb) {
         List<Callable<StateMachine>> stateMachines = new LinkedList<>();
         for (int i = 0; i < nb; ++i) {
-            stateMachines.add(() -> (data) -> null);
+            stateMachines.add(basicStateMachine((data) -> null));
         }
         return stateMachines;
     }
@@ -88,7 +93,7 @@ public class NetworkFactory {
     public static Iterable<Callable<StateMachine>> stateMachinesAppendOK(int nb) {
         List<Callable<StateMachine>> stateMachines = new LinkedList<>();
         for (int i = 0; i < nb; ++i) {
-            stateMachines.add(() -> (data) -> data.toString() + "OK");
+            stateMachines.add(basicStateMachine((data) -> data.toString() + "OK"));
         }
         return stateMachines;
     }
@@ -96,7 +101,7 @@ public class NetworkFactory {
     public static Iterable<Callable<StateMachine>> stateMachinesIncrement(int nb) {
         List<Callable<StateMachine>> stateMachines = new LinkedList<>();
         for (int i = 0; i < nb; ++i) {
-            stateMachines.add(() -> (data) -> ((int)data) + 1);
+            stateMachines.add(basicStateMachine((data) -> ((int)data) + 1));
         }
         return stateMachines;
     }
@@ -105,12 +110,73 @@ public class NetworkFactory {
         List<Callable<StateMachine>> stateMachines = new LinkedList<>();
         stateMachines.add(stateMachineCreator);
         for (int i = 0; i < nb - 1; ++i) {
-            stateMachines.add(() -> (data) -> null);
+            stateMachines.add(basicStateMachine((data) -> null));
         }
         return stateMachines;
     }
 
+    public static Callable<StateMachine> basicStateMachine(BasicStateMachine.CommandExecutor executeCmd) {
+        return () -> new BasicStateMachine() {
+            @Override
+            public Serializable execute(Serializable data) {
+                return executeCmd.execute(data);
+            }
+        };
+    }
+
     interface PaxosFactory {
         PaxosNode create(int nodeId, List<RemotePaxosNode> networkView, StateMachine stateMachine, StorageUnit.Creator storage, FileAccessorCreator fileAccessorCreator) throws StorageException;
+    }
+
+    public abstract static class BasicStateMachine implements StateMachine {
+        long lastSnapshottedInstance = -1;
+        int nodeId;
+
+        @Override public void setNodeId(int nodeId) {
+            this.nodeId = nodeId;
+        }
+
+        @Override
+        public void snapshot(long lastSnapshottedInstance) throws StorageException {
+            this.lastSnapshottedInstance = lastSnapshottedInstance;
+            StorageUnit storageUnit = new SafeSingleFileStorage("stateMachine" + nodeId, null, InterruptibleVirtualFileAccessor.creator(nodeId));
+            storageUnit.put("inst", Long.toString(lastSnapshottedInstance));
+            storageUnit.flush();
+        }
+
+        @Override
+        public Snapshot getSnapshot() throws StorageException {
+            StorageUnit storageUnit = new SafeSingleFileStorage("stateMachine" + nodeId, null, InterruptibleVirtualFileAccessor.creator(nodeId));
+            if (storageUnit.read("inst") != null)
+                lastSnapshottedInstance = Long.valueOf(storageUnit.read("inst"));
+            return new Snapshot(lastSnapshottedInstance, null);
+        }
+
+        @Override
+        public long getSnapshotLastInstance() {
+            if (lastSnapshottedInstance == -1) {
+                try {
+                    StorageUnit storageUnit = new SafeSingleFileStorage("stateMachine" + nodeId, null, InterruptibleVirtualFileAccessor.creator(nodeId));
+                    if (storageUnit.read("inst") != null)
+                        lastSnapshottedInstance = Long.valueOf(storageUnit.read("inst"));
+                } catch (StorageException e) {
+                    e.printStackTrace();
+                }
+            }
+            return lastSnapshottedInstance;
+        }
+
+        @Override
+        public void loadSnapshot(Snapshot snapshot) {
+            lastSnapshottedInstance = snapshot.getLastIncludedInstance();
+        }
+
+        protected int getNodeId() {
+            return nodeId;
+        }
+
+        public interface CommandExecutor {
+            Serializable execute(Serializable command);
+        }
     }
 }

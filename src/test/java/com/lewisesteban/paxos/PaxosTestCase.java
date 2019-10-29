@@ -1,5 +1,6 @@
 package com.lewisesteban.paxos;
 
+import com.lewisesteban.paxos.paxosnode.listener.SnapshotManager;
 import com.lewisesteban.paxos.storage.InterruptibleAccessorContainer;
 import com.lewisesteban.paxos.storage.virtual.VirtualFileSystem;
 import junit.framework.TestCase;
@@ -47,6 +48,8 @@ public class PaxosTestCase extends TestCase {
     @Override
     public void tearDown() {
         cleanup();
+        SnapshotManager.SNAPSHOT_FREQUENCY = 100;
+        SnapshotManager.KEEP_AFTER_SNAPSHOT = 30;
     }
 
     protected static boolean isCause(Class<? extends Throwable> expected, Throwable exc) {

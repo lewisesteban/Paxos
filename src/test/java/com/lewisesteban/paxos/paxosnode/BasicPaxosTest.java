@@ -2,8 +2,14 @@ package com.lewisesteban.paxos.paxosnode;
 
 import com.lewisesteban.paxos.PaxosTestCase;
 import com.lewisesteban.paxos.client.BasicPaxosClient;
+import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
+import com.lewisesteban.paxos.paxosnode.listener.SnapshotManager;
+import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
+import com.lewisesteban.paxos.storage.FileAccessor;
+import com.lewisesteban.paxos.storage.StorageException;
+import com.lewisesteban.paxos.storage.virtual.InterruptibleVirtualFileAccessor;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
@@ -30,7 +36,7 @@ public class BasicPaxosTest extends PaxosTestCase {
     public void testTwoProposals() throws IOException {
         final int NB_NODES = 2;
         final AtomicInteger receivedCorrectData = new AtomicInteger(0);
-        StateMachine stateMachine = new StateMachine() {
+        StateMachine stateMachine = new BasicStateMachine() {
             boolean received = false;
             @Override
             public java.io.Serializable execute(java.io.Serializable data) {
@@ -213,19 +219,19 @@ public class BasicPaxosTest extends PaxosTestCase {
 
     public void testBasicCatchingUp() throws IOException, InterruptedException {
         AtomicInteger receivedAt0 = new AtomicInteger(0);
-        Callable<StateMachine> stateMachineCreator0 = () -> (StateMachine) data -> {
+        Callable<StateMachine> stateMachineCreator0 = basicStateMachine(data -> {
             receivedAt0.incrementAndGet();
             return null;
-        };
+        });
         AtomicInteger receivedAt1 = new AtomicInteger(0);
-        Callable<StateMachine> stateMachineCreator1 = () -> (StateMachine) data -> {
+        Callable<StateMachine> stateMachineCreator1 = basicStateMachine(data -> {
             receivedAt1.incrementAndGet();
             return null;
-        };
+        });
         List<Callable<StateMachine>> stateMachines = new ArrayList<>();
         stateMachines.add(stateMachineCreator0);
         stateMachines.add(stateMachineCreator1);
-        stateMachines.add(() -> (Serializable s) -> null);
+        stateMachines.add(basicStateMachine((Serializable s) -> null));
 
         Network network = new Network();
         List<PaxosNetworkNode> nodes = initSimpleNetwork(3, network, stateMachines);
@@ -255,7 +261,7 @@ public class BasicPaxosTest extends PaxosTestCase {
         Serializable cmd1 = "1";
         Serializable cmd2 = "2";
         AtomicReference<Exception> error = new AtomicReference<>(null);
-        Callable<StateMachine> stateMachine = () -> new StateMachine() {
+        Callable<StateMachine> stateMachine = () -> new BasicStateMachine() {
             boolean finishedCmd1 = false;
             @Override
             public Serializable execute(Serializable data) {
@@ -305,7 +311,7 @@ public class BasicPaxosTest extends PaxosTestCase {
 
     public void testNoOpCmd() throws IOException {
         AtomicBoolean error = new AtomicBoolean(false);
-        Callable<StateMachine> stateMachine = () -> new StateMachine() {
+        Callable<StateMachine> stateMachine = () -> new BasicStateMachine() {
             int receivedCmds = 0;
             @Override
             public Serializable execute(Serializable data) {
@@ -342,4 +348,145 @@ public class BasicPaxosTest extends PaxosTestCase {
         assertEquals(2, res2.getInstanceId());
         assertFalse(error.get());
     }
+
+    public void testLogRemovalAfterSnapshot() throws IOException {
+        Callable<StateMachine> stateMachine = basicStateMachine((val) -> null);
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(1, new Network(), stateMachinesSingle(stateMachine, 1));
+        PaxosProposer proposer = nodes.get(0).getPaxosSrv();
+        SnapshotManager.SNAPSHOT_FREQUENCY = 3;
+        SnapshotManager.KEEP_AFTER_SNAPSHOT = 1;
+        proposer.propose(new Command("0", "client", 0), proposer.getNewInstanceId());
+        proposer.propose(new Command("1", "client", 1), proposer.getNewInstanceId());
+        assertEquals(2, InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length);
+        proposer.propose(new Command("2", "client", 2), proposer.getNewInstanceId());
+        assertEquals(SnapshotManager.KEEP_AFTER_SNAPSHOT, InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length);
+    }
+
+    public void testDownloadSnapshot() throws IOException {
+        AtomicBoolean snapshotLoaded = new AtomicBoolean(false);
+        AtomicInteger snapshotCreated = new AtomicInteger(0);
+        AtomicReference<String> stateMachineError = new AtomicReference<>(null);
+        Callable<StateMachine> stateMachine = () -> new BasicStateMachine() {
+            @Override
+            public Serializable execute(Serializable data) {
+                return data;
+            }
+
+            @Override
+            public void loadSnapshot(Snapshot snapshot) {
+                super.loadSnapshot(snapshot);
+                if (getNodeId() != 2)
+                    stateMachineError.set("snapshot loaded on wrong server");
+                else {
+                    if (snapshotLoaded.get())
+                        stateMachineError.set("snapshot loaded more than once");
+                    else
+                        snapshotLoaded.set(true);
+                }
+            }
+
+            @Override
+            public void snapshot(long lastSnapshottedInstance) throws StorageException {
+                super.snapshot(lastSnapshottedInstance);
+                if (getNodeId() == 2)
+                    stateMachineError.set("snapshot created on node 2");
+                else
+                    snapshotCreated.incrementAndGet();
+            }
+        };
+
+        // init network
+        Network network = new Network();
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(3, network, stateMachinesSame(stateMachine, 3));
+        PaxosProposer proposer = nodes.get(0).getPaxosSrv();
+        PaxosServer lateServer = nodes.get(2).getPaxosSrv();
+        network.kill(2);
+
+        // do three commands with server 2 down
+        SnapshotManager.SNAPSHOT_FREQUENCY = 3;
+        SnapshotManager.KEEP_AFTER_SNAPSHOT = 1;
+        proposer.propose(new Command("0", "client", 0), 0);
+        proposer.propose(new Command("1", "client", 1), 1);
+        proposer.propose(new Command("2", "client", 2), 2);
+        FileAccessor srv2Dir = InterruptibleVirtualFileAccessor.creator(2).create("acceptor2", null);
+        assertTrue(!srv2Dir.exists() || srv2Dir.listFiles() == null || srv2Dir.listFiles().length == 0);
+
+        // do requests on failed server
+        network.start(2);
+        Result result;
+        result = lateServer.propose(new Command("3", "anotherClient", 0), lateServer.getNewInstanceId());
+        assertEquals(Result.CONSENSUS_ON_ANOTHER_CMD, result.getStatus());
+        long newInst = lateServer.getNewInstanceId();
+        assertEquals(3, newInst);
+        result = lateServer.propose(new Command("3", "anotherClient", 0), newInst);
+        assertEquals(Result.CONSENSUS_ON_THIS_CMD, result.getStatus());
+        assertEquals(3, result.getInstanceId());
+        assertEquals("3", result.getReturnData());
+
+        // check  files
+        FileAccessor[] files = InterruptibleVirtualFileAccessor.creator(2).create("acceptor2", null).listFiles();
+        assertTrue(files.length == 1 || files.length == 2); // note: there might be an extra file left that is within the snapshot (due to the fact that the acceptor is not synchronized with the snapshotting process), but the acceptor's InstanceManager will not use the information contained in it
+        files = InterruptibleVirtualFileAccessor.creator(1).create("acceptor1", null).listFiles();
+        assertEquals(2, files.length);
+        if (!(files[0].getName().equals("inst2") || files[1].getName().equals("inst2")))
+            fail();
+        if (!(files[0].getName().equals("inst3") || files[1].getName().equals("inst3")))
+            fail();
+
+        // check state machine
+        if (stateMachineError.get() != null) {
+            System.out.println(stateMachineError.get());
+            fail();
+        }
+        if (!snapshotLoaded.get())
+            fail();
+        if (snapshotCreated.get() != 2)
+            fail();
+    }
+
+    public void testRecoveryAfterSnapshot() throws IOException {
+        List<Serializable> stateMachineReceived = new ArrayList<>();
+        Callable<StateMachine> stateMachine = basicStateMachine((data) -> {
+            stateMachineReceived.add(data);
+            return data;
+        });
+        Network network = new Network();
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(1, network, stateMachinesSame(stateMachine, 1));
+        PaxosServer server = nodes.get(0).getPaxosSrv();
+        SnapshotManager.SNAPSHOT_FREQUENCY = 3;
+        SnapshotManager.KEEP_AFTER_SNAPSHOT = 1;
+
+        // do three proposals
+        Command cmd2 = new Command("2", "client", 2);
+        server.propose(new Command("0", "client", 0), 0);
+        server.propose(new Command("1", "client", 1), 1);
+        server.propose(cmd2, 2);
+        network.kill(0);
+        network.start(0);
+
+        // check recovery
+        Result result;
+        result = server.propose(new Command("3", "client", 3), 2);
+        assertEquals(Result.CONSENSUS_ON_ANOTHER_CMD, result.getStatus());
+        assertEquals(2, result.getInstanceId());
+        PrepareAnswer prepareAnswer = server.getAcceptor().reqPrepare(2, new Proposal.ID(0, 10000));
+        assertTrue(prepareAnswer.isPrepareOK());
+        assertEquals(prepareAnswer.getAlreadyAccepted().getCommand(), cmd2);
+        assertFalse(prepareAnswer.isSnapshotRequestRequired());
+
+        // try another proposal
+        result = server.propose(new Command("3", "client", 3), server.getNewInstanceId());
+        assertEquals(Result.CONSENSUS_ON_THIS_CMD, result.getStatus());
+        assertEquals(3, result.getInstanceId());
+        assertEquals("3", result.getReturnData());
+
+        // check state machine
+        assertEquals(4, stateMachineReceived.size());
+        assertEquals("0", stateMachineReceived.get(0));
+        assertEquals("1", stateMachineReceived.get(1));
+        assertEquals("2", stateMachineReceived.get(2));
+        assertEquals("3", stateMachineReceived.get(3));
+    }
+
+    // TODO test slow snapshot responsiveness
 }

@@ -1,5 +1,6 @@
 package com.lewisesteban.paxos.virtualnet.server;
 
+import com.lewisesteban.paxos.paxosnode.acceptor.AcceptAnswer;
 import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
 import com.lewisesteban.paxos.rpc.paxos.AcceptorRPCHandle;
@@ -22,7 +23,7 @@ public class PaxosSrvAcceptor implements AcceptorRPCHandle {
     }
 
     @Override
-    public boolean reqAccept(long instanceId, Proposal proposal) throws IOException {
+    public AcceptAnswer reqAccept(long instanceId, Proposal proposal) throws IOException {
         return threadManager.pleaseDo(() -> paxosAcceptor.reqAccept(instanceId, proposal));
     }
 

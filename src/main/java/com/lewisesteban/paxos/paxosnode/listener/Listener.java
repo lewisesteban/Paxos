@@ -6,6 +6,7 @@ import com.lewisesteban.paxos.paxosnode.MembershipGetter;
 import com.lewisesteban.paxos.paxosnode.StateMachine;
 import com.lewisesteban.paxos.paxosnode.proposer.RunningProposalManager;
 import com.lewisesteban.paxos.rpc.paxos.ListenerRPCHandle;
+import com.lewisesteban.paxos.storage.StorageException;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -14,16 +15,20 @@ import java.util.Map;
 
 public class Listener implements ListenerRPCHandle {
 
+    private long snapshotLastInstanceId = -1;
     private Map<Long, ExecutedCommand> executedCommands = new HashMap<>();
     private long lastInstanceId = -1;
     private MembershipGetter memberList;
     private StateMachine stateMachine;
     private RunningProposalManager runningProposalManager;
+    private SnapshotManager snapshotManager;
 
-    public Listener(MembershipGetter memberList, StateMachine stateMachine, RunningProposalManager runningProposalManager) {
+    public Listener(MembershipGetter memberList, StateMachine stateMachine,
+                    RunningProposalManager runningProposalManager, SnapshotManager snapshotManager) {
         this.memberList = memberList;
         this.stateMachine = stateMachine;
         this.runningProposalManager = runningProposalManager;
+        this.snapshotManager = snapshotManager;
     }
 
     /**
@@ -32,6 +37,8 @@ public class Listener implements ListenerRPCHandle {
      * Returns false if consensus cannot be reached (eg because of network failure).
      */
     public synchronized boolean waitForConsensusOn(long instance) {
+        if (instance <= snapshotLastInstanceId)
+            return true;
         runningProposalManager.tryProposeNoOp(instance);
         while (runningProposalManager.contains(instance)) {
             try {
@@ -40,18 +47,22 @@ public class Listener implements ListenerRPCHandle {
             } catch (InterruptedException ignored) {
             }
         }
-        return executedCommands.containsKey(instance);
+        return instance <= snapshotLastInstanceId || executedCommands.containsKey(instance);
     }
 
     @Override
-    public synchronized boolean execute(long instanceId, Command command) {
+    public synchronized boolean execute(long instanceId, Command command) throws IOException {
+        if (instanceId <= snapshotLastInstanceId)
+            return false;
         if (executedCommands.containsKey(instanceId))
             return true;
         if (instanceId > 0 && !executedCommands.containsKey(instanceId - 1)) {
             if (!waitForConsensusOn(instanceId - 1)) {
-                return false;
+                throw new IOException("bad network state");
             }
         }
+        if (instanceId <= snapshotLastInstanceId)
+            return false;
         if (!executedCommands.containsKey(instanceId)) {
             Serializable result = null;
             if (!command.isNoOp())
@@ -61,6 +72,7 @@ public class Listener implements ListenerRPCHandle {
             }
             Logger.println("node " + memberList.getMyNodeId() + " execute inst=" + instanceId + " cmd=" + command + " on object " + stateMachine.hashCode());
             executedCommands.put(instanceId, new ExecutedCommand(command, result));
+            snapshotManager.instanceFinished(instanceId);
         }
         return true;
     }
@@ -71,7 +83,9 @@ public class Listener implements ListenerRPCHandle {
      * If the previous instance hasn't reached and cannot reach consensus because of some various failures,
      * IOException is thrown.
      */
-    public synchronized Serializable getReturnOf(long instanceId, Command command) throws IOException {
+    public synchronized Serializable getReturnOf(long instanceId, Command command) throws IOException, IsInSnapshotException {
+        if (instanceId <= snapshotLastInstanceId)
+            throw new IsInSnapshotException();
         if (!executedCommands.containsKey(instanceId)) {
             if (!execute(instanceId, command))
                 throw new IOException();
@@ -94,6 +108,24 @@ public class Listener implements ListenerRPCHandle {
 
     public long getLastInstanceId() {
         return lastInstanceId;
+    }
+
+    @Override
+    public StateMachine.Snapshot getSnapshot() throws StorageException {
+        return snapshotManager.getSnapshot();
+    }
+
+    public long getSnapshotLastInstanceId() {
+        return snapshotManager.getSnapshotLastInstance();
+    }
+
+    synchronized void setSnapshotUpTo(long instanceId) {
+        for (long i = snapshotLastInstanceId; i <= instanceId; ++i) {
+            executedCommands.remove(i);
+        }
+        this.snapshotLastInstanceId = instanceId;
+        if (snapshotLastInstanceId > lastInstanceId)
+            lastInstanceId = snapshotLastInstanceId;
     }
 
     public class ExecutedCommand {

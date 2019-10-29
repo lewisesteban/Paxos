@@ -1,6 +1,7 @@
 package com.lewisesteban.paxos.virtualnet.server;
 
 import com.lewisesteban.paxos.paxosnode.Command;
+import com.lewisesteban.paxos.paxosnode.StateMachine;
 import com.lewisesteban.paxos.rpc.paxos.ListenerRPCHandle;
 
 import java.io.IOException;
@@ -18,5 +19,15 @@ public class PaxosSrvListener implements ListenerRPCHandle {
     @Override
     public boolean execute(long instanceId, Command command) throws IOException {
         return threadManager.pleaseDo(() -> paxosListener.execute(instanceId, command));
+    }
+
+    @Override
+    public StateMachine.Snapshot getSnapshot() throws IOException {
+        return threadManager.pleaseDo(() -> paxosListener.getSnapshot());
+    }
+
+    @Override
+    public long getSnapshotLastInstanceId() throws IOException {
+        return threadManager.pleaseDo(() -> paxosListener.getSnapshotLastInstanceId());
     }
 }

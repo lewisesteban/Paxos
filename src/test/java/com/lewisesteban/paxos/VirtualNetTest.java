@@ -4,6 +4,7 @@ import com.lewisesteban.paxos.client.BasicPaxosClient;
 import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.PaxosNode;
 import com.lewisesteban.paxos.paxosnode.StateMachine;
+import com.lewisesteban.paxos.paxosnode.acceptor.AcceptAnswer;
 import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
@@ -141,7 +142,7 @@ public class VirtualNetTest extends PaxosTestCase {
     }
 
     public void testKillAndRestartSingleServer() {
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(1, new Network(), Collections.nCopies(1, () -> new StateMachine() {
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(1, new Network(), Collections.nCopies(1, () -> new BasicStateMachine() {
             int nbCommandsReceived = 0;
             @Override
             public java.io.Serializable execute(java.io.Serializable data) {
@@ -248,7 +249,7 @@ public class VirtualNetTest extends PaxosTestCase {
             }
 
             @Override
-            public boolean reqAccept(long instanceId, Proposal proposal) throws IOException {
+            public AcceptAnswer reqAccept(long instanceId, Proposal proposal) throws IOException {
                 return acceptor.reqAccept(instanceId, proposal);
             }
 

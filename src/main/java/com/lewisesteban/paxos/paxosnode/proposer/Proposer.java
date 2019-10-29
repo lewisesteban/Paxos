@@ -3,8 +3,11 @@ package com.lewisesteban.paxos.paxosnode.proposer;
 import com.lewisesteban.paxos.Logger;
 import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.MembershipGetter;
+import com.lewisesteban.paxos.paxosnode.acceptor.AcceptAnswer;
 import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
+import com.lewisesteban.paxos.paxosnode.listener.IsInSnapshotException;
 import com.lewisesteban.paxos.paxosnode.listener.Listener;
+import com.lewisesteban.paxos.paxosnode.listener.SnapshotManager;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
 import com.lewisesteban.paxos.storage.StorageException;
@@ -17,6 +20,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -28,13 +32,16 @@ public class Proposer implements PaxosProposer {
     private Listener listener;
     private Random random = new Random();
     private RunningProposalManager runningProposalManager;
+    private SnapshotRequester snapshotRequester;
     private AtomicLong lastGeneratedInstanceId = new AtomicLong(-1);
 
-    public Proposer(MembershipGetter memberList, Listener listener, StorageUnit storage, RunningProposalManager runningProposalManager) throws StorageException {
+    public Proposer(MembershipGetter memberList, Listener listener, StorageUnit storage,
+                    RunningProposalManager runningProposalManager, SnapshotManager snapshotManager) throws StorageException {
         this.memberList = memberList;
         this.propFac = new ProposalFactory(memberList.getMyNodeId(), storage);
         this.listener = listener;
         this.runningProposalManager = runningProposalManager;
+        this.snapshotRequester = new SnapshotRequester(snapshotManager, memberList);
     }
 
     public long getNewInstanceId() {
@@ -100,7 +107,11 @@ public class Proposer implements PaxosProposer {
         Proposal originalProposal = propFac.make(command);
         Proposal prepared;
         try {
-            prepared = prepare(instanceId, originalProposal);
+            PrepareResult res = prepare(instanceId, originalProposal);
+            if (res.isSnapshotRequestRequired()) {
+                return requestSnapshot(instanceId);
+            }
+            prepared = res.getPreparedProposal();
         } catch (IOException e) {
             return tryAgain(command, instanceId, attempt, true);
         }
@@ -111,14 +122,15 @@ public class Proposer implements PaxosProposer {
 
         // accept
         boolean proposalChanged = !originalProposal.getCommand().equals(prepared.getCommand());
-        boolean success;
         try {
-            success = accept(instanceId, prepared);
+            AcceptAnswer acceptAnswer = accept(instanceId, prepared);
+            if (acceptAnswer.getAnswer() == AcceptAnswer.REFUSED) {
+                return tryAgain(command, instanceId, attempt, false);
+            } else if (acceptAnswer.getAnswer() == AcceptAnswer.SNAPSHOT_REQUEST_REQUIRED) {
+                return requestSnapshot(instanceId);
+            }
         } catch (IOException e) {
             return tryAgain(command, instanceId, attempt, true);
-        }
-        if (!success) {
-            return tryAgain(command, instanceId, attempt, false);
         }
         Logger.println("accepted node=" + memberList.getMyNodeId() + " inst=" + instanceId + " cmd=" + prepared.getCommand() +  " changed=" + proposalChanged);
 
@@ -129,14 +141,17 @@ public class Proposer implements PaxosProposer {
             returnData = listener.getReturnOf(instanceId, prepared.getCommand());
         } catch (IOException e) {
             return tryAgain(command, instanceId, attempt, true);
+        } catch (IsInSnapshotException e) {
+            return new Result(Result.CONSENSUS_ON_ANOTHER_CMD, instanceId, null);
         }
         byte resultStatus = proposalChanged ? Result.CONSENSUS_ON_ANOTHER_CMD : Result.CONSENSUS_ON_THIS_CMD;
         return new Result(resultStatus, instanceId, returnData);
     }
 
-    private Proposal prepare(long instanceId, Proposal proposal) throws IOException {
+    private PrepareResult prepare(long instanceId, Proposal proposal) throws IOException {
         final AtomicInteger nbOk = new AtomicInteger(0);
         final AtomicInteger nbFailed = new AtomicInteger(0);
+        final AtomicBoolean snapshotRequestRequired = new AtomicBoolean(false);
         final Queue<Proposal> alreadyAcceptedProps = new ConcurrentLinkedQueue<>();
         final Semaphore anyThread = new Semaphore(0);
         for (RemotePaxosNode node : memberList.getMembers()) {
@@ -149,7 +164,10 @@ public class Proposer implements PaxosProposer {
                         }
                         nbOk.getAndIncrement();
                     } else {
-                        // Someone else is proposing
+                        if (answer.isSnapshotRequestRequired()) {
+                            snapshotRequestRequired.set(true);
+                        }
+                        // Someone else is proposing or snapshot is required: abandon proposal
                         anyThread.release(memberList.getNbMembers());
                     }
                 } catch (IOException ignored) {
@@ -166,15 +184,18 @@ public class Proposer implements PaxosProposer {
                 anyThread.acquire();
                 runningThreads--;
             } catch (InterruptedException ignored) { }
+            if (snapshotRequestRequired.get()) {
+                return new PrepareResult(null, true);
+            }
         }
 
         if (nbOk.get() > memberList.getNbMembers() / 2) {
-            return getNewProp(alreadyAcceptedProps, proposal);
+            return new PrepareResult(getNewProp(alreadyAcceptedProps, proposal), false);
         }
         if (nbFailed.get() >= memberList.getNbMembers() / 2) {
             throw new IOException("bad network state");
         }
-        return null;
+        return new PrepareResult(null, false);
     }
 
     private Proposal getNewProp(final Queue<Proposal> alreadyAcceptedProps, Proposal originalProp) {
@@ -191,15 +212,19 @@ public class Proposer implements PaxosProposer {
         }
     }
 
-    private boolean accept(long instanceId, Proposal proposal) throws IOException {
+    private AcceptAnswer accept(long instanceId, Proposal proposal) throws IOException {
         final AtomicInteger nbOk = new AtomicInteger(0);
         final AtomicInteger nbFailed = new AtomicInteger(0);
+        final AtomicBoolean snapshotRequestRequired = new AtomicBoolean(false);
         final Semaphore anyThread = new Semaphore(0);
         for (RemotePaxosNode node : memberList.getMembers()) {
             executor.submit(() -> {
                 try {
-                    if (node.getAcceptor().reqAccept(instanceId, proposal)) {
+                    AcceptAnswer answer = node.getAcceptor().reqAccept(instanceId, proposal);
+                    if (answer.getAnswer() == AcceptAnswer.ACCEPTED) {
                         nbOk.incrementAndGet();
+                    } else if (answer.getAnswer() == AcceptAnswer.SNAPSHOT_REQUEST_REQUIRED) {
+                        snapshotRequestRequired.set(true);
                     }
                 } catch (IOException ignored) {
                     nbFailed.incrementAndGet();
@@ -215,16 +240,21 @@ public class Proposer implements PaxosProposer {
                 anyThread.acquire();
                 runningThreads--;
             } catch (InterruptedException ignored) { }
+            if (snapshotRequestRequired.get()) {
+                return new AcceptAnswer(AcceptAnswer.SNAPSHOT_REQUEST_REQUIRED);
+            }
         }
         if (nbOk.get() > memberList.getNbMembers() / 2)
-            return true;
+            return new AcceptAnswer(AcceptAnswer.ACCEPTED);
         if (nbFailed.get() >= memberList.getNbMembers() / 2)
             throw new IOException("bad network state");
-        return false;
+        return new AcceptAnswer(AcceptAnswer.REFUSED);
     }
 
     private void scatter(long instanceId, Proposal prepared) {
-        listener.execute(instanceId, prepared.getCommand());
+        try {
+            listener.execute(instanceId, prepared.getCommand());
+        } catch (IOException ignored) { }
         for (RemotePaxosNode node : memberList.getMembers()) {
             if (node.getId() != memberList.getMyNodeId()) {
                 executor.submit(() -> {
@@ -233,6 +263,33 @@ public class Proposer implements PaxosProposer {
                     } catch (IOException ignored) { }
                 });
             }
+        }
+    }
+
+    private Result requestSnapshot(long instanceId) {
+        try {
+            snapshotRequester.requestSnapshot(instanceId);
+            return new Result(Result.CONSENSUS_ON_ANOTHER_CMD, instanceId);
+        } catch (IOException e) {
+            return new Result(Result.NETWORK_ERROR, instanceId);
+        }
+    }
+
+    private class PrepareResult {
+        private Proposal preparedProposal;
+        private boolean snapshotRequestRequired;
+
+        PrepareResult(Proposal preparedProposal, boolean snapshotRequestRequired) {
+            this.preparedProposal = preparedProposal;
+            this.snapshotRequestRequired = snapshotRequestRequired;
+        }
+
+        Proposal getPreparedProposal() {
+            return preparedProposal;
+        }
+
+        boolean isSnapshotRequestRequired() {
+            return snapshotRequestRequired;
         }
     }
 }

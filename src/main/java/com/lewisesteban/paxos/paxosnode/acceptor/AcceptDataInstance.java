@@ -12,6 +12,9 @@ import java.io.*;
 import java.util.Map;
 import java.util.TreeMap;
 
+/**
+ * Not thread-safe
+ */
 class AcceptDataInstance implements Serializable {
 
     private static final String STORAGE_KEY_LAST_PREPARED_ID_NODE = "a";
@@ -64,6 +67,11 @@ class AcceptDataInstance implements Serializable {
         }
         storage.flush();
         storage.close();
+    }
+
+    void deleteStorage(int nodeId, long instanceNb, StorageUnit.Creator storageCreator) throws StorageException {
+        StorageUnit storage = storageCreator.make("inst" + instanceNb, "acceptor" + nodeId);
+        storage.delete();
     }
 
     static Map<Long, AcceptDataInstance> readStorage(int nodeId, FileAccessorCreator fileAccessorCreator, StorageUnit.Creator storageUnitCreator) throws StorageException {
