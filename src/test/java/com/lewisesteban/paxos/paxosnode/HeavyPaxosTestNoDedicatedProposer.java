@@ -162,9 +162,9 @@ public class HeavyPaxosTestNoDedicatedProposer extends PaxosTestCase {
             fail();
     }
 
-    public void testNetworkFailures() {
+    /*public void testNetworkFailures() {
 
-    }
+    }*/
 
     static class TestStateMachine extends BasicStateMachine {
         int[] lastReceived;

@@ -4,43 +4,74 @@ import com.lewisesteban.paxos.paxosnode.StateMachine;
 import com.lewisesteban.paxos.paxosnode.acceptor.Acceptor;
 import com.lewisesteban.paxos.storage.StorageException;
 
+import java.util.Map;
+
+/**
+ * All synchronization done here is for the state machine's snapshot
+ */
 public class SnapshotManager {
     public static int SNAPSHOT_FREQUENCY = 1000;
-    public static int KEEP_AFTER_SNAPSHOT = SNAPSHOT_FREQUENCY / 4;
 
     private StateMachine stateMachine;
     private Listener listener;
     private Acceptor acceptor;
+    private UnneededInstanceGossipper unneededInstanceGossipper;
 
     public SnapshotManager(StateMachine stateMachine) {
         this.stateMachine = stateMachine;
     }
 
-    public void setup(Listener listener, Acceptor acceptor) {
+    public void setup(Listener listener, Acceptor acceptor, UnneededInstanceGossipper unneededInstanceGossipper) throws StorageException {
         this.listener = listener;
         this.acceptor = acceptor;
-        if (stateMachine.getSnapshotLastInstance() > 0) {
-            applySnapshotToPaxos(stateMachine.getSnapshotLastInstance());
+        this.unneededInstanceGossipper = unneededInstanceGossipper;
+        if (stateMachine.getAppliedSnapshotLastInstance() > 0) {
+            applySnapshotToPaxos(stateMachine.getAppliedSnapshotLastInstance());
         }
     }
 
     void instanceFinished(long instanceId) throws StorageException {
-        if (instanceId - stateMachine.getSnapshotLastInstance() >= SNAPSHOT_FREQUENCY) {
+        unneededInstanceGossipper.sendGossipMaybe();
+        if (instanceId - stateMachine.getAppliedSnapshotLastInstance() >= SNAPSHOT_FREQUENCY
+                && !stateMachine.hasWaitingSnapshot()) {
             synchronized (this) {
-                stateMachine.snapshot(instanceId);
+                if (!stateMachine.hasWaitingSnapshot()) {
+                    stateMachine.createWaitingSnapshot(instanceId);
+                }
             }
-            applySnapshotToPaxos(stateMachine.getSnapshotLastInstance());
         }
     }
 
-    public void applySnapshot(StateMachine.Snapshot snapshot) {
-        stateMachine.loadSnapshot(snapshot);
+    void receiveGossip(Map<Integer, Long> gossipData) throws StorageException {
+        unneededInstanceGossipper.receiveGossip(gossipData);
+    }
+
+    void setNewGlobalUnneededInstance(long highestUnneededInstance) throws StorageException {
+        if (stateMachine.hasWaitingSnapshot()) {
+            Long appliedSnapshotLastInst = null;
+            synchronized (this) {
+                if (stateMachine.hasWaitingSnapshot()
+                        && highestUnneededInstance > stateMachine.getWaitingSnapshotLastInstance()) {
+                    stateMachine.applyCurrentWaitingSnapshot();
+                    appliedSnapshotLastInst = stateMachine.getAppliedSnapshotLastInstance();
+                }
+            }
+            if (appliedSnapshotLastInst != null) {
+                applySnapshotToPaxos(appliedSnapshotLastInst);
+            }
+        }
+    }
+
+    public void loadSnapshot(StateMachine.Snapshot snapshot) throws StorageException {
+        synchronized (this) {
+            stateMachine.applySnapshot(snapshot);
+        }
         applySnapshotToPaxos(snapshot.getLastIncludedInstance());
     }
 
     private void applySnapshotToPaxos(long lastSnapshotInstance) {
         try {
-            acceptor.removeLogsUntil(lastSnapshotInstance - KEEP_AFTER_SNAPSHOT);
+            acceptor.removeLogsUntil(lastSnapshotInstance);
         } catch (StorageException e) {
             e.printStackTrace();
         }
@@ -48,10 +79,10 @@ public class SnapshotManager {
     }
 
     synchronized StateMachine.Snapshot getSnapshot() throws StorageException {
-        return stateMachine.getSnapshot();
+        return stateMachine.getAppliedSnapshot();
     }
 
-    public long getSnapshotLastInstance() {
-        return stateMachine.getSnapshotLastInstance();
+    public long getSnapshotLastInstance() throws StorageException {
+        return stateMachine.getAppliedSnapshotLastInstance();
     }
 }

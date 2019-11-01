@@ -129,54 +129,82 @@ public class NetworkFactory {
     }
 
     public abstract static class BasicStateMachine implements StateMachine {
-        long lastSnapshottedInstance = -1;
-        int nodeId;
+        protected int nodeId;
+        Long waitingSnapshot = null;
+        Long appliedSnapshot = null;
+        StorageUnit storage;
 
-        @Override public void setNodeId(int nodeId) {
+        @Override
+        public void setNodeId(int nodeId) {
             this.nodeId = nodeId;
-        }
-
-        @Override
-        public void snapshot(long lastSnapshottedInstance) throws StorageException {
-            this.lastSnapshottedInstance = lastSnapshottedInstance;
-            StorageUnit storageUnit = new SafeSingleFileStorage("stateMachine" + nodeId, null, InterruptibleVirtualFileAccessor.creator(nodeId));
-            storageUnit.put("inst", Long.toString(lastSnapshottedInstance));
-            storageUnit.flush();
-        }
-
-        @Override
-        public Snapshot getSnapshot() throws StorageException {
-            StorageUnit storageUnit = new SafeSingleFileStorage("stateMachine" + nodeId, null, InterruptibleVirtualFileAccessor.creator(nodeId));
-            if (storageUnit.read("inst") != null)
-                lastSnapshottedInstance = Long.valueOf(storageUnit.read("inst"));
-            return new Snapshot(lastSnapshottedInstance, null);
-        }
-
-        @Override
-        public long getSnapshotLastInstance() {
-            if (lastSnapshottedInstance == -1) {
-                try {
-                    StorageUnit storageUnit = new SafeSingleFileStorage("stateMachine" + nodeId, null, InterruptibleVirtualFileAccessor.creator(nodeId));
-                    if (storageUnit.read("inst") != null)
-                        lastSnapshottedInstance = Long.valueOf(storageUnit.read("inst"));
-                } catch (StorageException e) {
-                    e.printStackTrace();
-                }
+            try {
+                storage = new SafeSingleFileStorage("stateMachine" + nodeId, null, InterruptibleVirtualFileAccessor.creator(nodeId));
+            } catch (StorageException e) {
+                e.printStackTrace();
             }
-            return lastSnapshottedInstance;
         }
 
         @Override
-        public void loadSnapshot(Snapshot snapshot) {
-            lastSnapshottedInstance = snapshot.getLastIncludedInstance();
+        public void createWaitingSnapshot(long idOfLastExecutedInstance) {
+            waitingSnapshot = idOfLastExecutedInstance;
         }
 
-        protected int getNodeId() {
-            return nodeId;
+        @Override
+        public Snapshot getWaitingSnapshot() {
+            if (waitingSnapshot == null)
+                return null;
+            return new Snapshot(waitingSnapshot, waitingSnapshot);
+        }
+
+        @Override
+        public Snapshot getAppliedSnapshot() throws StorageException {
+            if (storage.isEmpty())
+                return null;
+            appliedSnapshot = Long.parseLong(storage.read("inst"));
+            return new Snapshot(appliedSnapshot, appliedSnapshot);
+        }
+
+        @Override
+        public long getWaitingSnapshotLastInstance() {
+            return waitingSnapshot;
+        }
+
+        @Override
+        public long getAppliedSnapshotLastInstance() throws StorageException {
+            if (storage.isEmpty())
+                return -1;
+            appliedSnapshot = Long.parseLong(storage.read("inst"));
+            return appliedSnapshot;
+        }
+
+        @Override
+        public void applySnapshot(Snapshot snapshot) throws StorageException {
+            waitingSnapshot = null;
+            appliedSnapshot = snapshot.getLastIncludedInstance();
+            storage.put("inst", Long.toString(appliedSnapshot));
+            storage.flush();
+        }
+
+        @Override
+        public void applyCurrentWaitingSnapshot() throws StorageException {
+            appliedSnapshot = waitingSnapshot;
+            waitingSnapshot = null;
+            storage.put("inst", Long.toString(appliedSnapshot));
+            storage.flush();
+        }
+
+        @Override
+        public boolean hasWaitingSnapshot() {
+            return waitingSnapshot != null;
+        }
+
+        @Override
+        public boolean hasAppliedSnapshot() throws StorageException {
+            return !storage.isEmpty();
         }
 
         public interface CommandExecutor {
-            Serializable execute(Serializable command);
+            Serializable execute(Serializable data);
         }
     }
 }

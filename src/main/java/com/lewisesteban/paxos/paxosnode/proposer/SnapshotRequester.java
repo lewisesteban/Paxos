@@ -26,7 +26,7 @@ class SnapshotRequester {
             if (snapshotManager.getSnapshotLastInstance() == -1 || instanceId < snapshotManager.getSnapshotLastInstance()) {
                 int chosenNode = chooseNodeToDownloadSnapshotFrom(instanceId);
                 StateMachine.Snapshot snapshot = membership.getMembers().get(chosenNode).getListener().getSnapshot();
-                snapshotManager.applySnapshot(snapshot);
+                snapshotManager.loadSnapshot(snapshot);
             }
         } finally {
             mutex.unlock();

@@ -24,26 +24,34 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * Proposer that works at the instance level, meaning it will only try to propose a value on the specified instance.
+ */
 public class Proposer implements PaxosProposer {
 
     private MembershipGetter memberList;
     private ProposalFactory propFac;
     private ExecutorService executor = Executors.newCachedThreadPool();
-    private Listener listener;
     private Random random = new Random();
-    private RunningProposalManager runningProposalManager;
-    private SnapshotRequester snapshotRequester;
     private AtomicLong lastGeneratedInstanceId = new AtomicLong(-1);
 
+    private Listener listener;
+    private RunningProposalManager runningProposalManager;
+    private SnapshotRequester snapshotRequester;
+    private ClientCommandContainer clientCommandContainer;
+
     public Proposer(MembershipGetter memberList, Listener listener, StorageUnit storage,
-                    RunningProposalManager runningProposalManager, SnapshotManager snapshotManager) throws StorageException {
+                    RunningProposalManager runningProposalManager, SnapshotManager snapshotManager,
+                    ClientCommandContainer clientCommandContainer) throws StorageException {
         this.memberList = memberList;
         this.propFac = new ProposalFactory(memberList.getMyNodeId(), storage);
         this.listener = listener;
         this.runningProposalManager = runningProposalManager;
         this.snapshotRequester = new SnapshotRequester(snapshotManager, memberList);
+        this.clientCommandContainer = clientCommandContainer;
     }
 
+    @Override
     public long getNewInstanceId() {
         if (listener.getLastInstanceId() > lastGeneratedInstanceId.get()) {
             lastGeneratedInstanceId.set(listener.getLastInstanceId());
@@ -53,6 +61,7 @@ public class Proposer implements PaxosProposer {
 
     @Override
     public Result propose(Command command, long instanceId) throws StorageException {
+        clientCommandContainer.putCommand(command, instanceId);
         return propose(command, instanceId, false);
     }
 
@@ -192,7 +201,7 @@ public class Proposer implements PaxosProposer {
         if (nbOk.get() > memberList.getNbMembers() / 2) {
             return new PrepareResult(getNewProp(alreadyAcceptedProps, proposal), false);
         }
-        if (nbFailed.get() >= memberList.getNbMembers() / 2) {
+        if (nbFailed.get() > 0 && nbFailed.get() >= memberList.getNbMembers() / 2) {
             throw new IOException("bad network state");
         }
         return new PrepareResult(null, false);
@@ -273,6 +282,11 @@ public class Proposer implements PaxosProposer {
         } catch (IOException e) {
             return new Result(Result.NETWORK_ERROR, instanceId);
         }
+    }
+
+    @Override
+    public void endClient(String clientId) throws IOException {
+        clientCommandContainer.deleteClient(clientId);
     }
 
     private class PrepareResult {

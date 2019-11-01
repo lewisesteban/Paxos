@@ -3,7 +3,9 @@ package com.lewisesteban.paxos.paxosnode;
 import com.lewisesteban.paxos.paxosnode.acceptor.Acceptor;
 import com.lewisesteban.paxos.paxosnode.listener.Listener;
 import com.lewisesteban.paxos.paxosnode.listener.SnapshotManager;
+import com.lewisesteban.paxos.paxosnode.listener.UnneededInstanceGossipper;
 import com.lewisesteban.paxos.paxosnode.membership.Membership;
+import com.lewisesteban.paxos.paxosnode.proposer.ClientCommandContainer;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposer;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.paxosnode.proposer.RunningProposalManager;
@@ -27,11 +29,13 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
         membership = new Membership(myNodeId, members);
         RunningProposalManager runningProposalManager = new RunningProposalManager();
         SnapshotManager snapshotManager = new SnapshotManager(stateMachine);
+        ClientCommandContainer clientCommandContainer = new ClientCommandContainer(storage, fileAccessorCreator, membership.getMyNodeId());
+        UnneededInstanceGossipper unneededInstanceGossipper = new UnneededInstanceGossipper(clientCommandContainer, membership, snapshotManager);
         acceptor = new Acceptor(membership, storage, fileAccessorCreator);
         listener = new Listener(membership, stateMachine, runningProposalManager, snapshotManager);
-        proposer = new Proposer(membership, listener, storage.make("proposer" + membership.getMyNodeId(), null), runningProposalManager, snapshotManager);
+        proposer = new Proposer(membership, listener, storage.make("proposer" + membership.getMyNodeId(), null), runningProposalManager, snapshotManager, clientCommandContainer);
         runningProposalManager.setup(proposer, listener);
-        snapshotManager.setup(listener, acceptor);
+        snapshotManager.setup(listener, acceptor, unneededInstanceGossipper);
     }
 
     public void start() {
@@ -44,8 +48,12 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
         membership.stop();
     }
 
-    public long getNewInstanceId() {
-        return proposer.getNewInstanceId();
+    public long getNewInstanceId() throws IOException {
+        if (!running) {
+            throw new IOException("not started");
+        } else {
+            return proposer.getNewInstanceId();
+        }
     }
 
     public Result propose(Command command, long inst) throws IOException {
@@ -54,6 +62,11 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
         } else {
             return proposer.propose(command, inst);
         }
+    }
+
+    @Override
+    public void endClient(String clientId) throws IOException {
+        proposer.endClient(clientId);
     }
 
     public int getId() {

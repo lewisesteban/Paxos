@@ -86,23 +86,25 @@ class AcceptDataInstance implements Serializable {
                 long instance = Long.parseLong(name.substring("inst".length()));
                 if (!list.containsKey(instance)) {
                     StorageUnit storageUnit = storageUnitCreator.make("inst" + instance, "acceptor" + nodeId);
-                    int lastPreparedPropId_node = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_PREPARED_ID_NODE));
-                    int lastPreparedPropId_prop = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_PREPARED_ID_PROP));
-                    Proposal.ID lastPreparedPropId = new Proposal.ID(lastPreparedPropId_node, lastPreparedPropId_prop);
-                    Proposal lastAcceptedProp = null;
-                    if (storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE) != null) {
-                        int lastAcceptedId_node = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE));
-                        int lastAcceptedId_prop = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_PROP));
-                        Command lastAcceptedCmd;
-                        try {
-                            lastAcceptedCmd = deserializeCommand(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD));
-                        } catch (IOException e) {
-                            throw new StorageException(e);
+                    if (!storageUnit.isEmpty()) {
+                        int lastPreparedPropId_node = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_PREPARED_ID_NODE));
+                        int lastPreparedPropId_prop = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_PREPARED_ID_PROP));
+                        Proposal.ID lastPreparedPropId = new Proposal.ID(lastPreparedPropId_node, lastPreparedPropId_prop);
+                        Proposal lastAcceptedProp = null;
+                        if (storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE) != null) {
+                            int lastAcceptedId_node = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE));
+                            int lastAcceptedId_prop = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_PROP));
+                            Command lastAcceptedCmd;
+                            try {
+                                lastAcceptedCmd = deserializeCommand(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD));
+                            } catch (IOException e) {
+                                throw new StorageException(e);
+                            }
+                            lastAcceptedProp = new Proposal(lastAcceptedCmd, new Proposal.ID(lastAcceptedId_node, lastAcceptedId_prop));
                         }
-                        lastAcceptedProp = new Proposal(lastAcceptedCmd, new Proposal.ID(lastAcceptedId_node, lastAcceptedId_prop));
+                        list.put(instance, new AcceptDataInstance(lastPreparedPropId, lastAcceptedProp));
+                        storageUnit.close();
                     }
-                    list.put(instance, new AcceptDataInstance(lastPreparedPropId, lastAcceptedProp));
-                    storageUnit.close();
                 }
             }
         }

@@ -5,6 +5,7 @@ import com.lewisesteban.paxos.paxosnode.StateMachine;
 import com.lewisesteban.paxos.rpc.paxos.ListenerRPCHandle;
 
 import java.io.IOException;
+import java.util.Map;
 
 public class PaxosSrvListener implements ListenerRPCHandle {
 
@@ -29,5 +30,13 @@ public class PaxosSrvListener implements ListenerRPCHandle {
     @Override
     public long getSnapshotLastInstanceId() throws IOException {
         return threadManager.pleaseDo(() -> paxosListener.getSnapshotLastInstanceId());
+    }
+
+    @Override
+    public void gossipUnneededInstances(Map<Integer, Long> unneededInstancesOfNodes) throws IOException {
+        threadManager.pleaseDo(() -> {
+            paxosListener.gossipUnneededInstances(unneededInstancesOfNodes);
+            return true;
+        });
     }
 }

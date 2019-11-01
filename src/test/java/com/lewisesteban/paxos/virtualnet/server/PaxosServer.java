@@ -99,6 +99,14 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
         return membership;
     }
 
+    @Override
+    public void endClient(String clientId) throws IOException {
+        threadManager.pleaseDo(() -> {
+            paxosNode.endClient(clientId);
+            return true;
+        });
+    }
+
     class ThreadManager {
 
         private ExecutorService executor = Executors.newCachedThreadPool(InterruptibleThread::new);

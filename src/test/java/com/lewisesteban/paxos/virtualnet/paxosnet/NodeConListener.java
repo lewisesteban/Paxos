@@ -7,6 +7,7 @@ import com.lewisesteban.paxos.virtualnet.VirtualConnection;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
 
 import java.io.IOException;
+import java.util.Map;
 
 class NodeConListener implements ListenerRPCHandle {
 
@@ -35,5 +36,13 @@ class NodeConListener implements ListenerRPCHandle {
     @Override
     public long getSnapshotLastInstanceId() throws IOException {
         return parent.tryNetCall(() -> listenerHandle().getSnapshotLastInstanceId());
+    }
+
+    @Override
+    public void gossipUnneededInstances(Map<Integer, Long> unneededInstancesOfNodes) throws IOException {
+        parent.tryNetCall(() -> {
+            listenerHandle().gossipUnneededInstances(unneededInstancesOfNodes);
+            return true;
+        });
     }
 }

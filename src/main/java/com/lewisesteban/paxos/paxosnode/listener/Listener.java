@@ -52,8 +52,6 @@ public class Listener implements ListenerRPCHandle {
 
     @Override
     public synchronized boolean execute(long instanceId, Command command) throws IOException {
-        if (instanceId <= snapshotLastInstanceId)
-            return false;
         if (executedCommands.containsKey(instanceId))
             return true;
         if (instanceId > 0 && !executedCommands.containsKey(instanceId - 1)) {
@@ -70,9 +68,9 @@ public class Listener implements ListenerRPCHandle {
             if (instanceId > lastInstanceId) {
                 lastInstanceId = instanceId;
             }
+            snapshotManager.instanceFinished(instanceId);
             Logger.println("node " + memberList.getMyNodeId() + " execute inst=" + instanceId + " cmd=" + command + " on object " + stateMachine.hashCode());
             executedCommands.put(instanceId, new ExecutedCommand(command, result));
-            snapshotManager.instanceFinished(instanceId);
         }
         return true;
     }
@@ -115,7 +113,7 @@ public class Listener implements ListenerRPCHandle {
         return snapshotManager.getSnapshot();
     }
 
-    public long getSnapshotLastInstanceId() {
+    public long getSnapshotLastInstanceId() throws StorageException {
         return snapshotManager.getSnapshotLastInstance();
     }
 
@@ -126,6 +124,11 @@ public class Listener implements ListenerRPCHandle {
         this.snapshotLastInstanceId = instanceId;
         if (snapshotLastInstanceId > lastInstanceId)
             lastInstanceId = snapshotLastInstanceId;
+    }
+
+    @Override
+    public void gossipUnneededInstances(Map<Integer, Long> unneededInstancesOfNodes) throws IOException {
+        snapshotManager.receiveGossip(unneededInstancesOfNodes);
     }
 
     public class ExecutedCommand {

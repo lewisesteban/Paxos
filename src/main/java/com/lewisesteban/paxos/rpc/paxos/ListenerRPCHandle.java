@@ -4,6 +4,7 @@ import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.StateMachine;
 
 import java.io.IOException;
+import java.util.Map;
 
 public interface ListenerRPCHandle {
 
@@ -15,10 +16,11 @@ public interface ListenerRPCHandle {
      * Throws StorageException if the command could not be executed because of storage-related problems
      *
      * Returns true if the command has been executed successfully.
-     * Returns false if the command is contained in the snapshot and thus should not be executed again.
+     * Returns false if the instance data is unavailable (contained within the snapshot).
      */
     boolean execute(long instanceId, Command command) throws IOException;
 
     StateMachine.Snapshot getSnapshot() throws IOException;
     long getSnapshotLastInstanceId() throws IOException;
+    void gossipUnneededInstances(Map<Integer, Long> unneededInstancesOfNodes) throws IOException;
 }
