@@ -223,4 +223,26 @@ public class SnapshotTest extends PaxosTestCase {
 
         assertTrue(System.currentTimeMillis() - startTime < 1000);
     }
+
+    public void testEndClient() throws IOException, InterruptedException {
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(1, new Network(), stateMachinesEmpty(1));
+        PaxosServer server = nodes.get(0).getPaxosSrv();
+        SnapshotManager.SNAPSHOT_FREQUENCY = 2;
+        UnneededInstanceGossipper.GOSSIP_FREQUENCY = 1;
+
+        server.propose(new Command(0, "client1", 0), server.getNewInstanceId());
+        server.propose(new Command(0, "client2", 0), server.getNewInstanceId());
+        server.propose(new Command(1, "client2", 1), server.getNewInstanceId());
+        Thread.sleep(100);
+        assertEquals(3, InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length);
+
+        server.endClient("client2");
+        Thread.sleep(100);
+        assertEquals(3, InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length);
+
+        server.endClient("client1");
+        server.propose(new Command(2, "client2", 2), server.getNewInstanceId());
+        Thread.sleep(100);
+        assertEquals(2, InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length);
+    }
 }
