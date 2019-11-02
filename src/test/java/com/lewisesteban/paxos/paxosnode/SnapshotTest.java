@@ -1,6 +1,8 @@
 package com.lewisesteban.paxos.paxosnode;
 
+import com.lewisesteban.paxos.NetworkFactory;
 import com.lewisesteban.paxos.PaxosTestCase;
+import com.lewisesteban.paxos.client.BasicPaxosClient;
 import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
 import com.lewisesteban.paxos.paxosnode.listener.SnapshotManager;
 import com.lewisesteban.paxos.paxosnode.listener.UnneededInstanceGossipper;
@@ -8,16 +10,17 @@ import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 import com.lewisesteban.paxos.storage.FileAccessor;
+import com.lewisesteban.paxos.storage.SafeSingleFileStorage;
 import com.lewisesteban.paxos.storage.StorageException;
+import com.lewisesteban.paxos.storage.StorageUnit;
 import com.lewisesteban.paxos.storage.virtual.InterruptibleVirtualFileAccessor;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
+import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
+import java.io.*;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -244,5 +247,300 @@ public class SnapshotTest extends PaxosTestCase {
         server.propose(new Command(2, "client2", 2), server.getNewInstanceId());
         Thread.sleep(100);
         assertEquals(2, InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length);
+    }
+
+    public void testStress() throws InterruptedException {
+        final int NB_NODES = 5;
+        final int NB_CLIENTS = 10;
+        final int TIME = 10000;
+        final int KILLER_MAX_SLEEP = 200;
+
+        SnapshotManager.SNAPSHOT_FREQUENCY = 3;
+        UnneededInstanceGossipper.GOSSIP_FREQUENCY = 10;
+
+        AtomicBoolean keepGoing = new AtomicBoolean(true);
+        AtomicReference<Exception> error = new AtomicReference<>(null);
+
+        final Network network = new Network();
+        Iterable<Callable<StateMachine>> stateMachines = stateMachinesSame(SnapshotTestStateMachine.creator(NB_CLIENTS, error), NB_NODES);
+        List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(NB_NODES, network, stateMachines);
+
+        final Thread serialKiller = new Thread(() -> {
+            long startTime = System.currentTimeMillis();
+            while (System.currentTimeMillis() - startTime < TIME) {
+                try {
+                    Thread.sleep(random.nextInt(KILLER_MAX_SLEEP));
+                } catch (InterruptedException ignored) {
+                }
+                int server = random.nextInt(NB_NODES);
+                if (nodes.get(server).isRunning()) {
+                    System.out.println("--- killing " + server);
+                    SnapshotTestStateMachine.stop(server);
+                    network.kill(server);
+                } else {
+                    System.out.println("+++ restoring " + server);
+                    network.start(server);
+                }
+            }
+        });
+
+        Thread[] clients = new Thread[NB_CLIENTS];
+        for (int clientId = 0; clientId < NB_CLIENTS; ++clientId) {
+            final int thisClientsId = clientId;
+            final int nodeId = new Random().nextInt(nodes.size());
+            final PaxosProposer paxosServer = nodes.get(nodeId).getPaxosSrv();
+            final BasicPaxosClient paxosHandle = new BasicPaxosClient(paxosServer, "client" + thisClientsId);
+            clients[clientId] = new Thread(() -> {
+                int cmdId = 0;
+                while (keepGoing.get() && error.get() == null) {
+                    TestCommand cmdData = new TestCommand(thisClientsId, cmdId);
+                    paxosHandle.doCommand(cmdData);
+                    System.out.println("FINISHED client " + thisClientsId + " cmd " + cmdId);
+                    cmdId++;
+                }
+            });
+        }
+
+        serialKiller.start();
+        for (Thread client : clients)
+            client.start();
+
+        serialKiller.join(); // time's up
+        keepGoing.set(false);
+        for (PaxosNetworkNode node : nodes) {
+            if (!node.isRunning())
+                node.start();
+        }
+        for (Thread client : clients)
+            client.join();
+
+        if (error.get() != null)
+            fail();
+    }
+
+    public void testStateMachine() throws IOException {
+        AtomicReference<Exception> error = new AtomicReference<>(null);
+        SnapshotTestStateMachine stateMachine = new SnapshotTestStateMachine(error, 3);
+        stateMachine.setup(0);
+
+        assertFalse(stateMachine.hasAppliedSnapshot());
+        assertFalse(stateMachine.hasWaitingSnapshot());
+
+        // commands that will be included in the snapshot (inst 2)
+        stateMachine.execute(new TestCommand(0, 0));
+        stateMachine.execute(new TestCommand(0, 1));
+        stateMachine.execute(new TestCommand(1, 0));
+        stateMachine.createWaitingSnapshot(2);
+        assertFalse(stateMachine.hasAppliedSnapshot());
+        assertTrue(stateMachine.hasWaitingSnapshot());
+
+        // check waiting snapshot data
+        int[] data = (int[]) stateMachine.getWaitingSnapshot().getData();
+        assertEquals(3, data.length);
+        assertEquals(1, data[0]);
+        assertEquals(0, data[1]);
+        assertEquals(-1, data[2]);
+
+        // apply snapshot and execute other commands
+        stateMachine.execute(new TestCommand(1, 1));
+        stateMachine.applyCurrentWaitingSnapshot();
+        assertFalse(stateMachine.hasWaitingSnapshot());
+        assertTrue(stateMachine.hasAppliedSnapshot());
+
+        // create another waiting snapshot (that will be lost)
+        stateMachine.execute(new TestCommand(1, 2));
+        stateMachine.createWaitingSnapshot(4);
+        assertEquals(4, stateMachine.getWaitingSnapshotLastInstance());
+        assertEquals(2, stateMachine.getAppliedSnapshotLastInstance());
+
+        // new state machine - load snapshot
+        stateMachine = new SnapshotTestStateMachine(error, 3);
+        stateMachine.setup(0);
+        assertFalse(stateMachine.hasWaitingSnapshot());
+        assertTrue(stateMachine.hasAppliedSnapshot());
+        assertEquals(2, stateMachine.getAppliedSnapshotLastInstance());
+        stateMachine.execute(new TestCommand(1, 1));
+
+        // load another snapshot
+        stateMachine.createWaitingSnapshot(3);
+        int[] newSnapshotData = new int[] { 10, 11, 12 };
+        stateMachine.applySnapshot(new StateMachine.Snapshot(20, newSnapshotData));
+        assertFalse(stateMachine.hasWaitingSnapshot());
+        assertTrue(stateMachine.hasAppliedSnapshot());
+
+        // check loaded snapshot
+        stateMachine.execute(new TestCommand(2, 13));
+        assertEquals(20, stateMachine.getAppliedSnapshotLastInstance());
+        assertEquals(20, stateMachine.getAppliedSnapshot().getLastIncludedInstance());
+        data = (int[]) stateMachine.getAppliedSnapshot().getData();
+        assertEquals(3, data.length);
+        assertEquals(10, data[0]);
+        assertEquals(11, data[1]);
+        assertEquals(12, data[2]);
+
+        // test error detection
+        assertNull(error.get());
+        stateMachine.execute(new TestCommand(2, 13));
+        assertNotNull(error.get());
+        error.set(null);
+        stateMachine.execute(new TestCommand(2, 14));
+        assertNull(error.get());
+        stateMachine.execute(new TestCommand(2, 16));
+        assertNotNull(error.get());
+    }
+
+
+
+    static class SnapshotTestStateMachine implements StateMachine {
+        int nodeId;
+        StorageUnit storageUnit;
+        int[] lastReceived;
+        AtomicReference<Exception> error;
+        Snapshot waitingSnapshot = null;
+        Snapshot appliedSnapshot = null;
+        boolean keepGoing = true;
+
+        static final Map<Integer, SnapshotTestStateMachine> runningStateMachines = new TreeMap<>();
+
+        SnapshotTestStateMachine(AtomicReference<Exception> error, int nbClients) {
+            this.error = error;
+            this.lastReceived = new int[nbClients];
+            for (int i = 0; i < nbClients; ++i)
+                lastReceived[i] = -1;
+        }
+
+        @Override
+        public void setup(int nodeId) throws IOException {
+            this.nodeId = nodeId;
+
+            synchronized (runningStateMachines) {
+                runningStateMachines.put(nodeId, this);
+            }
+
+            storageUnit = new SafeSingleFileStorage("stateMachine" + nodeId, null, InterruptibleVirtualFileAccessor.creator(nodeId));
+            if (!storageUnit.isEmpty()) {
+                long inst = Long.parseLong(storageUnit.read("inst"));
+                int[] data = deserializeData(storageUnit.read("data"));
+                appliedSnapshot = new Snapshot(inst, data);
+                applySnapshot(appliedSnapshot);
+            }
+        }
+
+        @Override
+        public Serializable execute(Serializable data) {
+            if (!keepGoing)
+                return null;
+            TestCommand testCommand = (TestCommand) data;
+            if (testCommand.cmdNb != lastReceived[testCommand.clientId] + 1) {
+                String errMsg = "error: stateMachine node " + nodeId + " client " + testCommand.clientId + " got cmd " + testCommand.cmdNb + " instead of " + (lastReceived[testCommand.clientId] + 1);
+                System.err.println(errMsg);
+                error.set(new Exception(errMsg));
+            }
+            lastReceived[testCommand.clientId] = testCommand.cmdNb;
+            return data;
+        }
+
+        @Override
+        public void createWaitingSnapshot(long idOfLastExecutedInstance) {
+            waitingSnapshot = new Snapshot(idOfLastExecutedInstance, Arrays.copyOf(lastReceived, lastReceived.length));
+        }
+
+        @Override
+        public Snapshot getWaitingSnapshot() {
+            return waitingSnapshot;
+        }
+
+        @Override
+        public Snapshot getAppliedSnapshot() {
+            return appliedSnapshot;
+        }
+
+        @Override
+        public long getWaitingSnapshotLastInstance() {
+            if (waitingSnapshot == null)
+                return -1;
+            return waitingSnapshot.getLastIncludedInstance();
+        }
+
+        @Override
+        public long getAppliedSnapshotLastInstance() {
+            if (appliedSnapshot == null)
+                return -1;
+            return appliedSnapshot.getLastIncludedInstance();
+        }
+
+        @Override
+        public boolean hasWaitingSnapshot() {
+            return waitingSnapshot != null;
+        }
+
+        @Override
+        public boolean hasAppliedSnapshot() {
+            return appliedSnapshot != null;
+        }
+
+        @Override
+        public void applySnapshot(Snapshot snapshot) throws StorageException {
+            storageUnit.put("inst", Long.toString(snapshot.getLastIncludedInstance()));
+            try {
+                storageUnit.put("data", serializeData((int[]) snapshot.getData()));
+            } catch (IOException e) {
+                throw new StorageException(e);
+            }
+            storageUnit.flush();
+            appliedSnapshot = snapshot;
+
+            int[] snapshotData = (int[])appliedSnapshot.getData();
+            lastReceived = Arrays.copyOf(snapshotData, snapshotData.length);
+            waitingSnapshot = null;
+        }
+
+        @Override
+        public void applyCurrentWaitingSnapshot() throws StorageException {
+            appliedSnapshot = waitingSnapshot;
+            waitingSnapshot = null;
+
+            storageUnit.put("inst", Long.toString(appliedSnapshot.getLastIncludedInstance()));
+            try {
+                storageUnit.put("data", serializeData((int[]) appliedSnapshot.getData()));
+            } catch (IOException e) {
+                throw new StorageException(e);
+            }
+            storageUnit.flush();
+        }
+
+        private String serializeData(int[] data) throws IOException {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
+            objectOutputStream.writeObject(data);
+            objectOutputStream.flush();
+            return Base64.encode(outputStream.toByteArray());
+        }
+
+        private int[] deserializeData(String serialized) throws IOException {
+            byte[] bytes = Base64.decode(serialized);
+            ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
+            ObjectInputStream objectInputStream = new ObjectInputStream(inputStream);
+            try {
+                return (int[])objectInputStream.readObject();
+            } catch (ClassNotFoundException e) {
+                throw new StorageException(e);
+            }
+        }
+
+        private void stop() {
+            keepGoing = false;
+        }
+
+        static Callable<StateMachine> creator(int nbClients, AtomicReference<Exception> error) {
+            return () -> new SnapshotTestStateMachine(error, nbClients);
+        }
+
+        static void stop(int nodeNb) {
+            synchronized (runningStateMachines) {
+                runningStateMachines.get(nodeNb).stop();
+                runningStateMachines.remove(nodeNb);
+            }
+        }
     }
 }

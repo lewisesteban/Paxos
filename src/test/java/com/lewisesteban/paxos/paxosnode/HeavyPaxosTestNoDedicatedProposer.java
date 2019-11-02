@@ -16,7 +16,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static com.lewisesteban.paxos.NetworkFactory.*;
 
 public class HeavyPaxosTestNoDedicatedProposer extends PaxosTestCase {
-    private Random random = new Random();
 
     public void testBasicClientsNoFailure() throws Exception {
         final int NB_NODES = 7;
@@ -229,22 +228,6 @@ public class HeavyPaxosTestNoDedicatedProposer extends PaxosTestCase {
                 runningStateMachines.get(nodeNb).stop();
                 runningStateMachines.remove(nodeNb);
             }
-        }
-    }
-
-    static class TestCommand implements java.io.Serializable {
-
-        TestCommand(int clientId, int cmdNb) {
-            this.clientId = clientId;
-            this.cmdNb = cmdNb;
-        }
-
-        int clientId;
-        int cmdNb;
-
-        @Override
-        public String toString() {
-            return "client" + clientId + "cmd" + cmdNb;
         }
     }
 }

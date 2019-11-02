@@ -2,6 +2,7 @@ package com.lewisesteban.paxos.paxosnode;
 
 import com.lewisesteban.paxos.storage.StorageException;
 
+import java.io.IOException;
 import java.io.Serializable;
 
 /**
@@ -9,7 +10,7 @@ import java.io.Serializable;
  */
 public interface StateMachine {
 
-    void setNodeId(int nodeId);
+    void setup(int nodeId) throws IOException;
 
     /**
      * Execute de command on the state machine

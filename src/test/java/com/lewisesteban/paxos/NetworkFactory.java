@@ -11,6 +11,7 @@ import com.lewisesteban.paxos.virtualnet.paxosnet.NodeConnection;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -38,7 +39,7 @@ public class NetworkFactory {
             final FileAccessorCreator fileAccessorCreator = InterruptibleVirtualFileAccessor.creator(thisNodeId);
             Callable<PaxosNode> paxosNodeCreator = () -> {
                 StateMachine stateMachine = stateMachineCreator.call();
-                stateMachine.setNodeId(thisNodeId);
+                stateMachine.setup(thisNodeId);
                 return paxosFactory.create(thisNodeId, networkView, stateMachine, storageUnitCreator, fileAccessorCreator);
             };
             PaxosServer srv = new PaxosServer(paxosNodeCreator);
@@ -135,7 +136,7 @@ public class NetworkFactory {
         StorageUnit storage;
 
         @Override
-        public void setNodeId(int nodeId) {
+        public void setup(int nodeId) throws IOException {
             this.nodeId = nodeId;
             try {
                 storage = new SafeSingleFileStorage("stateMachine" + nodeId, null, InterruptibleVirtualFileAccessor.creator(nodeId));

@@ -23,7 +23,7 @@ class SnapshotRequester {
         mutex.lock();
         try {
             // make sure snapshot hasn't been received yet
-            if (snapshotManager.getSnapshotLastInstance() == -1 || instanceId < snapshotManager.getSnapshotLastInstance()) {
+            if (snapshotManager.getSnapshotLastInstance() == -1 || instanceId > snapshotManager.getSnapshotLastInstance()) {
                 int chosenNode = chooseNodeToDownloadSnapshotFrom(instanceId);
                 StateMachine.Snapshot snapshot = membership.getMembers().get(chosenNode).getListener().getSnapshot();
                 snapshotManager.loadSnapshot(snapshot);

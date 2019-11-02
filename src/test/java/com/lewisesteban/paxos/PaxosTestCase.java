@@ -7,6 +7,7 @@ import com.lewisesteban.paxos.storage.virtual.VirtualFileSystem;
 import junit.framework.TestCase;
 
 import java.io.File;
+import java.util.Random;
 
 public class PaxosTestCase extends TestCase {
 
@@ -14,6 +15,8 @@ public class PaxosTestCase extends TestCase {
     protected static final Command cmd2 = new Command("TWO", "client", 2);
     protected static final Command cmd3 = new Command("THREE", "client", 3);
     protected static final Command cmd4 = new Command("FOUR", "client", 4);
+
+    protected Random random = new Random();
 
     private static void deleteFolder(File folder) {
         File[] files = folder.listFiles();
@@ -61,5 +64,21 @@ public class PaxosTestCase extends TestCase {
 
     protected static boolean isCause(Class<? extends Throwable> expected, Throwable exc) {
         return expected.isInstance(exc) || (exc != null && isCause(expected, exc.getCause()));
+    }
+
+    static public class TestCommand implements java.io.Serializable {
+
+        public TestCommand(int clientId, int cmdNb) {
+            this.clientId = clientId;
+            this.cmdNb = cmdNb;
+        }
+
+        public int clientId;
+        public int cmdNb;
+
+        @Override
+        public String toString() {
+            return "client" + clientId + "cmd" + cmdNb;
+        }
     }
 }
