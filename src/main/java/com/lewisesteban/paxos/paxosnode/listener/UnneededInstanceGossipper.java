@@ -36,14 +36,17 @@ public class UnneededInstanceGossipper {
         this.snapshotManager = snapshotManager;
     }
 
-    void sendGossipMaybe() {
+    void sendGossipMaybe(long lastFinishedInstance) {
         if (System.currentTimeMillis() - lastGossipTimestamp > GOSSIP_FREQUENCY) {
-            System.out.println("=== send gossip certainly");
             // update value of my own unneeded instance
             synchronized (this) {
                 Long lowestNeededInst = clientCommandContainer.getLowestInstanceId();
-                Long myUnneededInstance = null;
-                if (lowestNeededInst != null)
+                long myUnneededInstance;
+                if (lowestNeededInst == null)
+                    myUnneededInstance = lastFinishedInstance - 1;
+                else if (lowestNeededInst == 0)
+                    myUnneededInstance = -1L;
+                else
                     myUnneededInstance = lowestNeededInst - 1;
                 unneededInstanceOfNodes.put(membership.getMyNodeId(), new GossipInstance(myUnneededInstance, gossipNumber.getAndIncrement()));
             }
@@ -79,6 +82,7 @@ public class UnneededInstanceGossipper {
     }
 
     void receiveGossip(Map<Integer, GossipInstance> data) throws StorageException {
+        // note: an "unneeded instance" of -1 means all instances are needed
         Long lowestReceivedUnneededInst = null;
         synchronized (this) {
             for (int nodeId = 0; nodeId < membership.getNbMembers(); nodeId++) {
@@ -91,18 +95,16 @@ public class UnneededInstanceGossipper {
                     if (myUnneededInst == null)
                         newVal = receivedUnneededInst;
                     else if (receivedUnneededInst == null)
-                        newVal = null;
-                    else if (myUnneededInst.getGossipNumber() > receivedUnneededInst.getGossipNumber())
                         newVal = myUnneededInst;
-                    else
-                        newVal = receivedUnneededInst;
+                    else {
+                        newVal = myUnneededInst.getGossipNumber() > receivedUnneededInst.getGossipNumber() ?
+                                myUnneededInst : receivedUnneededInst;
+                    }
                 }
                 if (newVal != null) {
                     unneededInstanceOfNodes.put(nodeId, newVal);
-                    if (newVal.getInstance() != null) {
-                        if (lowestReceivedUnneededInst == null || newVal.getInstance() < lowestReceivedUnneededInst) {
-                            lowestReceivedUnneededInst = newVal.getInstance();
-                        }
+                    if (lowestReceivedUnneededInst == null || newVal.getInstance() < lowestReceivedUnneededInst) {
+                        lowestReceivedUnneededInst = newVal.getInstance();
                     }
                 }
             }

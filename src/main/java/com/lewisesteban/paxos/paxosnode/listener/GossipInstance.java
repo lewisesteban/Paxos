@@ -2,9 +2,9 @@ package com.lewisesteban.paxos.paxosnode.listener;
 
 public class GossipInstance {
     private long gossipNumber;
-    private Long instance;
+    private long instance;
 
-    GossipInstance(Long instance, long gossipNumber) {
+    GossipInstance(long instance, long gossipNumber) {
         this.gossipNumber = gossipNumber;
         this.instance = instance;
     }
@@ -13,7 +13,7 @@ public class GossipInstance {
         return gossipNumber;
     }
 
-    Long getInstance() {
+    long getInstance() {
         return instance;
     }
 }

@@ -52,7 +52,6 @@ public class Listener implements ListenerRPCHandle {
 
     @Override
     public synchronized boolean execute(long instanceId, Command command) throws IOException {
-        System.out.println("execute node=" + memberList.getMyNodeId() + " cmd=" + command + " inst=" + instanceId + " snapshotLastInt=" + snapshotLastInstanceId);
         if (executedCommands.containsKey(instanceId))
             return true;
         if (instanceId > snapshotLastInstanceId + 1 && !executedCommands.containsKey(instanceId - 1)) {
@@ -119,9 +118,14 @@ public class Listener implements ListenerRPCHandle {
         return snapshotManager.getSnapshotLastInstance();
     }
 
-    synchronized void setSnapshotUpTo(long instanceId) {
+    synchronized void setSnapshotUpTo(long instanceId, boolean replay) {
         for (long i = snapshotLastInstanceId; i <= instanceId; ++i) {
             executedCommands.remove(i);
+        }
+        if (replay) {
+            for (long i = instanceId + 1; i <= lastInstanceId; ++i) {
+                stateMachine.execute(executedCommands.get(i).getCommand().getData());
+            }
         }
         this.snapshotLastInstanceId = instanceId;
         if (snapshotLastInstanceId > lastInstanceId)

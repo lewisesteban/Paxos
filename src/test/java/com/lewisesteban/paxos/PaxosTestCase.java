@@ -61,6 +61,7 @@ public class PaxosTestCase extends TestCase {
     @Override
     public void tearDown() {
         cleanup();
+        VirtualFileSystem.clear();
         SnapshotManager.SNAPSHOT_FREQUENCY = 1000;
     }
 

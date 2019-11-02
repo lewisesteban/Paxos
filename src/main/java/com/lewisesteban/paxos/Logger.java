@@ -2,7 +2,7 @@ package com.lewisesteban.paxos;
 
 public class Logger {
 
-    private static boolean ON = true;
+    private static boolean ON = false;
 
     public static void println(String str) {
         if (ON) {

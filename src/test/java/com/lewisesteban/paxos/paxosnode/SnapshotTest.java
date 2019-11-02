@@ -139,7 +139,7 @@ public class SnapshotTest extends PaxosTestCase {
         // check  files (there should be 3 after snapshot)
         FileAccessor[] files = InterruptibleVirtualFileAccessor.creator(2).create("acceptor2", null).listFiles();
         assertTrue(files.length == 3 || files.length == 4); // note: there might be an extra file left that is within the snapshot (due to the fact that the acceptor is not synchronized with the snapshotting process), but the acceptor's InstanceManager will not use the information contained in it
-        files = InterruptibleVirtualFileAccessor.creator(1).create("acceptor1", null).listFiles();
+        files = InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles();
         assertEquals(3, files.length);
         if (!(files[0].getName().equals("inst2") || files[1].getName().equals("inst2") || files[2].getName().equals("inst2")))
             fail();
@@ -283,12 +283,10 @@ public class SnapshotTest extends PaxosTestCase {
         assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length <= 4);
     }
 
-    // TODO got error
-    // error: stateMachine node 4 client 1 got cmd 0 instead of 1
     public void testStress() throws InterruptedException {
         final int NB_NODES = 5;
         final int NB_CLIENTS = 10;
-        final int TIME = 3000;
+        final int TIME = 10000;
         final int KILLER_MAX_SLEEP = 200;
 
         SnapshotManager.SNAPSHOT_FREQUENCY = 3;
@@ -471,8 +469,6 @@ public class SnapshotTest extends PaxosTestCase {
                 String errMsg = "error: stateMachine node " + nodeId + " client " + testCommand.clientId + " got cmd " + testCommand.cmdNb + " instead of " + (lastReceived[testCommand.clientId] + 1);
                 System.err.println(errMsg);
                 error.set(new Exception(errMsg));
-            } else {
-                System.out.println("stateMachine node " + nodeId + " client " + testCommand.clientId + " got cmd " + testCommand.cmdNb);
             }
             lastReceived[testCommand.clientId] = testCommand.cmdNb;
             return data;
@@ -519,7 +515,6 @@ public class SnapshotTest extends PaxosTestCase {
 
         @Override
         public void applySnapshot(Snapshot snapshot) throws StorageException {
-            printSnapshot((int[]) snapshot.getData(), "== stateMachine " + nodeId + " apply loaded snapshot up to " + snapshot.getLastIncludedInstance());
             storageUnit.put("inst", Long.toString(snapshot.getLastIncludedInstance()));
             try {
                 storageUnit.put("data", serializeData((int[]) snapshot.getData()));
@@ -536,7 +531,6 @@ public class SnapshotTest extends PaxosTestCase {
 
         @Override
         public void applyCurrentWaitingSnapshot() throws StorageException {
-            printSnapshot((int[]) waitingSnapshot.getData(), "== stateMachine " + nodeId + " apply waiting snapshot up to " + waitingSnapshot.getLastIncludedInstance());
             appliedSnapshot = waitingSnapshot;
             waitingSnapshot = null;
 
@@ -549,6 +543,7 @@ public class SnapshotTest extends PaxosTestCase {
             storageUnit.flush();
         }
 
+        @SuppressWarnings("unused")
         private void printSnapshot(int[] data, String msg) {
             StringBuilder stringBuilder = new StringBuilder(msg);
             stringBuilder.append(System.lineSeparator());
@@ -582,6 +577,7 @@ public class SnapshotTest extends PaxosTestCase {
             keepGoing = false;
         }
 
+        @SuppressWarnings("SameParameterValue")
         static Callable<StateMachine> creator(int nbClients, AtomicReference<Exception> error) {
             return () -> new SnapshotTestStateMachine(error, nbClients);
         }

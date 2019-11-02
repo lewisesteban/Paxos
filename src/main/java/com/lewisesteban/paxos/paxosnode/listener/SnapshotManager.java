@@ -23,12 +23,12 @@ public class SnapshotManager {
         this.acceptor = acceptor;
         this.unneededInstanceGossipper = unneededInstanceGossipper;
         if (stateMachine.getAppliedSnapshotLastInstance() > 0) {
-            applySnapshotToPaxos(stateMachine.getAppliedSnapshotLastInstance());
+            applySnapshotToPaxos(stateMachine.getAppliedSnapshotLastInstance(), true);
         }
     }
 
     void instanceFinished(long instanceId) throws StorageException {
-        unneededInstanceGossipper.sendGossipMaybe();
+        unneededInstanceGossipper.sendGossipMaybe(instanceId);
         if (instanceId > stateMachine.getAppliedSnapshotLastInstance() && (instanceId + 1) % SNAPSHOT_FREQUENCY == 0
                 && !stateMachine.hasWaitingSnapshot()) {
             synchronized (stateMachine) {
@@ -44,7 +44,6 @@ public class SnapshotManager {
     }
 
     void setNewGlobalUnneededInstance(long highestUnneededInstance) throws StorageException {
-        System.out.println("=== new unneeded inst");
         if (stateMachine.hasWaitingSnapshot()) {
             Long appliedSnapshotLastInst = null;
             synchronized (stateMachine) {
@@ -55,7 +54,7 @@ public class SnapshotManager {
                 }
             }
             if (appliedSnapshotLastInst != null) {
-                applySnapshotToPaxos(appliedSnapshotLastInst);
+                applySnapshotToPaxos(appliedSnapshotLastInst, false);
             }
         }
     }
@@ -66,17 +65,17 @@ public class SnapshotManager {
             synchronized (stateMachine) {
                 stateMachine.applySnapshot(snapshot);
             }
-            applySnapshotToPaxos(snapshot.getLastIncludedInstance());
+            applySnapshotToPaxos(snapshot.getLastIncludedInstance(), true);
         }
     }
 
-    private void applySnapshotToPaxos(long lastSnapshotInstance) {
+    private void applySnapshotToPaxos(long lastSnapshotInstance, boolean loadedSnapshot) {
         try {
             acceptor.removeLogsUntil(lastSnapshotInstance);
         } catch (StorageException e) {
             e.printStackTrace();
         }
-        listener.setSnapshotUpTo(lastSnapshotInstance);
+        listener.setSnapshotUpTo(lastSnapshotInstance, loadedSnapshot);
     }
 
     StateMachine.Snapshot getSnapshot() throws StorageException {
