@@ -2,6 +2,7 @@ package com.lewisesteban.paxos.virtualnet.server;
 
 import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.StateMachine;
+import com.lewisesteban.paxos.paxosnode.listener.GossipInstance;
 import com.lewisesteban.paxos.rpc.paxos.ListenerRPCHandle;
 
 import java.io.IOException;
@@ -33,7 +34,7 @@ public class PaxosSrvListener implements ListenerRPCHandle {
     }
 
     @Override
-    public void gossipUnneededInstances(Map<Integer, Long> unneededInstancesOfNodes) throws IOException {
+    public void gossipUnneededInstances(Map<Integer, GossipInstance> unneededInstancesOfNodes) throws IOException {
         threadManager.pleaseDo(() -> {
             paxosListener.gossipUnneededInstances(unneededInstancesOfNodes);
             return true;

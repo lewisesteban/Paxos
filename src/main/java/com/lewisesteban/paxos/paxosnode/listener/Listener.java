@@ -52,9 +52,10 @@ public class Listener implements ListenerRPCHandle {
 
     @Override
     public synchronized boolean execute(long instanceId, Command command) throws IOException {
+        System.out.println("execute node=" + memberList.getMyNodeId() + " cmd=" + command + " inst=" + instanceId + " snapshotLastInt=" + snapshotLastInstanceId);
         if (executedCommands.containsKey(instanceId))
             return true;
-        if (instanceId > 0 && !executedCommands.containsKey(instanceId - 1)) {
+        if (instanceId > snapshotLastInstanceId + 1 && !executedCommands.containsKey(instanceId - 1)) {
             if (!waitForConsensusOn(instanceId - 1)) {
                 throw new IOException("bad network state");
             }
@@ -63,8 +64,9 @@ public class Listener implements ListenerRPCHandle {
             return false;
         if (!executedCommands.containsKey(instanceId)) {
             Serializable result = null;
-            if (!command.isNoOp())
+            if (!command.isNoOp()) {
                 result = stateMachine.execute(command.getData());
+            }
             if (instanceId > lastInstanceId) {
                 lastInstanceId = instanceId;
             }
@@ -86,7 +88,7 @@ public class Listener implements ListenerRPCHandle {
             throw new IsInSnapshotException();
         if (!executedCommands.containsKey(instanceId)) {
             if (!execute(instanceId, command))
-                throw new IOException();
+                throw new IsInSnapshotException();
         }
         if (command.isNoOp())
             return null;
@@ -127,7 +129,7 @@ public class Listener implements ListenerRPCHandle {
     }
 
     @Override
-    public void gossipUnneededInstances(Map<Integer, Long> unneededInstancesOfNodes) throws IOException {
+    public void gossipUnneededInstances(Map<Integer, GossipInstance> unneededInstancesOfNodes) throws IOException {
         snapshotManager.receiveGossip(unneededInstancesOfNodes);
     }
 

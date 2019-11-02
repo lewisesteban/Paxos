@@ -2,6 +2,7 @@ package com.lewisesteban.paxos.virtualnet.paxosnet;
 
 import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.StateMachine;
+import com.lewisesteban.paxos.paxosnode.listener.GossipInstance;
 import com.lewisesteban.paxos.rpc.paxos.ListenerRPCHandle;
 import com.lewisesteban.paxos.virtualnet.VirtualConnection;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
@@ -39,7 +40,7 @@ class NodeConListener implements ListenerRPCHandle {
     }
 
     @Override
-    public void gossipUnneededInstances(Map<Integer, Long> unneededInstancesOfNodes) throws IOException {
+    public void gossipUnneededInstances(Map<Integer, GossipInstance> unneededInstancesOfNodes) throws IOException {
         parent.tryNetCall(() -> {
             listenerHandle().gossipUnneededInstances(unneededInstancesOfNodes);
             return true;

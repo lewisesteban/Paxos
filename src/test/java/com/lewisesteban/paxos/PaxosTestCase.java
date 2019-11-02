@@ -15,6 +15,8 @@ public class PaxosTestCase extends TestCase {
     protected static final Command cmd2 = new Command("TWO", "client", 2);
     protected static final Command cmd3 = new Command("THREE", "client", 3);
     protected static final Command cmd4 = new Command("FOUR", "client", 4);
+    protected static final Command cmd5 = new Command("FIVE", "client", 5);
+    protected static final Command cmd6 = new Command("SIX", "client", 6);
 
     protected Random random = new Random();
 

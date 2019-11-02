@@ -277,7 +277,7 @@ public class Proposer implements PaxosProposer {
 
     private Result requestSnapshot(long instanceId) {
         try {
-            Logger.println("reqestSnapshot node=" + memberList.getMyNodeId() + " inst=" + instanceId);
+            Logger.println("requestSnapshot node=" + memberList.getMyNodeId() + " inst=" + instanceId);
             snapshotRequester.requestSnapshot(instanceId);
             return new Result(Result.CONSENSUS_ON_ANOTHER_CMD, instanceId);
         } catch (IOException e) {

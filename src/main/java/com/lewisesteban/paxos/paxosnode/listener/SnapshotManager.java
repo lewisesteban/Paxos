@@ -6,13 +6,10 @@ import com.lewisesteban.paxos.storage.StorageException;
 
 import java.util.Map;
 
-/**
- * All synchronization done here is for the state machine's snapshot
- */
 public class SnapshotManager {
     public static int SNAPSHOT_FREQUENCY = 1000;
 
-    private StateMachine stateMachine;
+    private final StateMachine stateMachine;
     private Listener listener;
     private Acceptor acceptor;
     private UnneededInstanceGossipper unneededInstanceGossipper;
@@ -32,9 +29,9 @@ public class SnapshotManager {
 
     void instanceFinished(long instanceId) throws StorageException {
         unneededInstanceGossipper.sendGossipMaybe();
-        if (instanceId - stateMachine.getAppliedSnapshotLastInstance() >= SNAPSHOT_FREQUENCY
+        if (instanceId > stateMachine.getAppliedSnapshotLastInstance() && (instanceId + 1) % SNAPSHOT_FREQUENCY == 0
                 && !stateMachine.hasWaitingSnapshot()) {
-            synchronized (this) {
+            synchronized (stateMachine) {
                 if (!stateMachine.hasWaitingSnapshot()) {
                     stateMachine.createWaitingSnapshot(instanceId);
                 }
@@ -42,14 +39,15 @@ public class SnapshotManager {
         }
     }
 
-    void receiveGossip(Map<Integer, Long> gossipData) throws StorageException {
+    void receiveGossip(Map<Integer, GossipInstance> gossipData) throws StorageException {
         unneededInstanceGossipper.receiveGossip(gossipData);
     }
 
     void setNewGlobalUnneededInstance(long highestUnneededInstance) throws StorageException {
+        System.out.println("=== new unneeded inst");
         if (stateMachine.hasWaitingSnapshot()) {
             Long appliedSnapshotLastInst = null;
-            synchronized (this) {
+            synchronized (stateMachine) {
                 if (stateMachine.hasWaitingSnapshot()
                         && highestUnneededInstance > stateMachine.getWaitingSnapshotLastInstance()) {
                     stateMachine.applyCurrentWaitingSnapshot();
@@ -63,10 +61,13 @@ public class SnapshotManager {
     }
 
     public void loadSnapshot(StateMachine.Snapshot snapshot) throws StorageException {
-        synchronized (this) {
-            stateMachine.applySnapshot(snapshot);
+        //noinspection SynchronizeOnNonFinalField
+        synchronized (listener) {
+            synchronized (stateMachine) {
+                stateMachine.applySnapshot(snapshot);
+            }
+            applySnapshotToPaxos(snapshot.getLastIncludedInstance());
         }
-        applySnapshotToPaxos(snapshot.getLastIncludedInstance());
     }
 
     private void applySnapshotToPaxos(long lastSnapshotInstance) {
@@ -78,8 +79,10 @@ public class SnapshotManager {
         listener.setSnapshotUpTo(lastSnapshotInstance);
     }
 
-    synchronized StateMachine.Snapshot getSnapshot() throws StorageException {
-        return stateMachine.getAppliedSnapshot();
+    StateMachine.Snapshot getSnapshot() throws StorageException {
+        synchronized (stateMachine) {
+            return stateMachine.getAppliedSnapshot();
+        }
     }
 
     public long getSnapshotLastInstance() throws StorageException {
