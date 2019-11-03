@@ -161,9 +161,7 @@ public class HeavyPaxosTestNoDedicatedProposer extends PaxosTestCase {
             fail();
     }
 
-    /*public void testNetworkFailures() {
-
-    }*/
+    // TODO: partitioning test
 
     static class TestStateMachine extends BasicStateMachine {
         int[] lastReceived;

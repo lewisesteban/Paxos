@@ -22,6 +22,8 @@ class SnapshotRequester {
     void requestSnapshot(long instanceId) throws IOException {
         mutex.lock();
         try {
+            // I know for sure this instance is unneeded
+            snapshotManager.setNewGlobalUnneededInstance(instanceId); // might cause a waiting snapshot to be applied
             // make sure snapshot hasn't been received yet
             if (snapshotManager.getSnapshotLastInstance() == -1 || instanceId > snapshotManager.getSnapshotLastInstance()) {
                 int chosenNode = chooseNodeToDownloadSnapshotFrom(instanceId);

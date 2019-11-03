@@ -29,9 +29,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import static com.lewisesteban.paxos.NetworkFactory.*;
 import static java.lang.Thread.sleep;
 
+// TODO don't download snapshot if I already have a waiting snapshot of the same instance
+
 public class SnapshotTest extends PaxosTestCase {
     // NOTE: Let I be the current instance. A waiting snapshot for an instance X will be applied only if:
-    // I % SNAPSHOT_FREQUENCY == 0 && globalUnneededInstance == X
+    // I % SNAPSHOT_FREQUENCY == 0 && globalUnneededInstance >= X
     // globalUnneededInstance will be equal to X only after X has been gossipped, which happens when instance X+1 ends
 
     public void testLogRemovalAfterSnapshot() throws IOException, InterruptedException {
@@ -286,7 +288,7 @@ public class SnapshotTest extends PaxosTestCase {
     public void testStress() throws InterruptedException {
         final int NB_NODES = 5;
         final int NB_CLIENTS = 10;
-        final int TIME = 10000;
+        final int TIME = 30000;
         final int KILLER_MAX_SLEEP = 200;
 
         SnapshotManager.SNAPSHOT_FREQUENCY = 3;
@@ -299,6 +301,7 @@ public class SnapshotTest extends PaxosTestCase {
         Iterable<Callable<StateMachine>> stateMachines = stateMachinesSame(SnapshotTestStateMachine.creator(NB_CLIENTS, error), NB_NODES);
         List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(NB_NODES, network, stateMachines);
 
+        // TODO make a serial killer that alternates between killing sprees and restoring sprees: do mostly killing in a killing spree, until almost all servers are dead, then do mostly restoring in a a restoring spree, until all servers are up again
         final Thread serialKiller = new Thread(() -> {
             long startTime = System.currentTimeMillis();
             while (System.currentTimeMillis() - startTime < TIME) {

@@ -2,6 +2,7 @@ package com.lewisesteban.paxos;
 
 import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.listener.SnapshotManager;
+import com.lewisesteban.paxos.paxosnode.listener.UnneededInstanceGossipper;
 import com.lewisesteban.paxos.storage.InterruptibleAccessorContainer;
 import com.lewisesteban.paxos.storage.virtual.VirtualFileSystem;
 import junit.framework.TestCase;
@@ -61,8 +62,14 @@ public class PaxosTestCase extends TestCase {
     @Override
     public void tearDown() {
         cleanup();
+        try {
+            Thread.sleep(50);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         VirtualFileSystem.clear();
         SnapshotManager.SNAPSHOT_FREQUENCY = 1000;
+        UnneededInstanceGossipper.GOSSIP_FREQUENCY = 100;
     }
 
     protected static boolean isCause(Class<? extends Throwable> expected, Throwable exc) {

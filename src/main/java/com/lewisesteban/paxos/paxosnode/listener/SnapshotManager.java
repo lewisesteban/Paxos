@@ -43,12 +43,11 @@ public class SnapshotManager {
         unneededInstanceGossipper.receiveGossip(gossipData);
     }
 
-    void setNewGlobalUnneededInstance(long highestUnneededInstance) throws StorageException {
-        if (stateMachine.hasWaitingSnapshot()) {
+    public void setNewGlobalUnneededInstance(long highestUnneededInstance) throws StorageException {
+        if (stateMachine.hasWaitingSnapshot() && highestUnneededInstance >= stateMachine.getWaitingSnapshotLastInstance()) {
             Long appliedSnapshotLastInst = null;
             synchronized (stateMachine) {
-                if (stateMachine.hasWaitingSnapshot()
-                        && highestUnneededInstance > stateMachine.getWaitingSnapshotLastInstance()) {
+                if (stateMachine.hasWaitingSnapshot() && highestUnneededInstance >= stateMachine.getWaitingSnapshotLastInstance()) {
                     stateMachine.applyCurrentWaitingSnapshot();
                     appliedSnapshotLastInst = stateMachine.getAppliedSnapshotLastInstance();
                 }
@@ -61,7 +60,7 @@ public class SnapshotManager {
 
     public void loadSnapshot(StateMachine.Snapshot snapshot) throws StorageException {
         //noinspection SynchronizeOnNonFinalField
-        synchronized (listener) {
+        synchronized (listener) { // prevent execution of commands
             synchronized (stateMachine) {
                 stateMachine.applySnapshot(snapshot);
             }
@@ -86,5 +85,13 @@ public class SnapshotManager {
 
     public long getSnapshotLastInstance() throws StorageException {
         return stateMachine.getAppliedSnapshotLastInstance();
+    }
+
+    public boolean hasWaitingSnapshot() {
+        return stateMachine.hasWaitingSnapshot();
+    }
+
+    public long getWaitingSnapshotLastInstance() {
+        return stateMachine.getWaitingSnapshotLastInstance();
     }
 }
