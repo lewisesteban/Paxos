@@ -135,7 +135,7 @@ public class Listener implements ListenerRPCHandle {
     }
 
     @Override
-    public void gossipUnneededInstances(Map<Integer, GossipInstance> unneededInstancesOfNodes) throws IOException {
+    public void gossipUnneededInstances(long[] unneededInstancesOfNodes) throws IOException {
         snapshotManager.receiveGossip(unneededInstancesOfNodes);
     }
 

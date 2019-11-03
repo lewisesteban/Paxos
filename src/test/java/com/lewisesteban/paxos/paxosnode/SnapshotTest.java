@@ -4,7 +4,6 @@ import com.lewisesteban.paxos.NetworkFactory;
 import com.lewisesteban.paxos.PaxosTestCase;
 import com.lewisesteban.paxos.client.BasicPaxosClient;
 import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
-import com.lewisesteban.paxos.paxosnode.listener.GossipInstance;
 import com.lewisesteban.paxos.paxosnode.listener.SnapshotManager;
 import com.lewisesteban.paxos.paxosnode.listener.UnneededInstanceGossipper;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
@@ -99,13 +98,9 @@ public class SnapshotTest extends PaxosTestCase {
         assertEquals(2, InterruptibleVirtualFileAccessor.creator(2).create("acceptor2", null).listFiles().length);
 
         // make the others do a snapshot
-        Map<Integer, GossipInstance> unneededInstances = new TreeMap<>();
-        unneededInstances.put(0, new GossipInstance(2, 10));
-        unneededInstances.put(1, new GossipInstance(2, 10));
-        unneededInstances.put(2, new GossipInstance(2, 10));
         sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
         proposer.propose(new Command("2", "client", 2), 2);
-        nodes.get(0).getPaxosSrv().getListener().gossipUnneededInstances(unneededInstances);
+        nodes.get(0).getPaxosSrv().getListener().gossipUnneededInstances(new long[] { 2, 2, 2 });
         sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
         proposer.propose(new Command("3", "client", 3), 3); // trigger snapshot
         assertEquals(2, InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length);
@@ -285,7 +280,6 @@ public class SnapshotTest extends PaxosTestCase {
         Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
         server.propose(new Command(2, "client2", 2), server.getNewInstanceId());
         Thread.sleep(200);
-        // make sure there was no snapshot
         assertEquals(4, InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length);
 
         // end client and make sure there is a snapshot

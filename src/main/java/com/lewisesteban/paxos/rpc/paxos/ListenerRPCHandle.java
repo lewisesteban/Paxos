@@ -2,10 +2,8 @@ package com.lewisesteban.paxos.rpc.paxos;
 
 import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.StateMachine;
-import com.lewisesteban.paxos.paxosnode.listener.GossipInstance;
 
 import java.io.IOException;
-import java.util.Map;
 
 public interface ListenerRPCHandle {
 
@@ -23,5 +21,5 @@ public interface ListenerRPCHandle {
 
     StateMachine.Snapshot getSnapshot() throws IOException;
     long getSnapshotLastInstanceId() throws IOException;
-    void gossipUnneededInstances(Map<Integer, GossipInstance> unneededInstancesOfNodes) throws IOException;
+    void gossipUnneededInstances(long[] unneededInstancesOfNodes) throws IOException;
 }

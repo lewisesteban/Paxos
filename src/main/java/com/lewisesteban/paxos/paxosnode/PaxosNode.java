@@ -23,6 +23,7 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
     private Listener listener;
     private Proposer proposer;
     private Membership membership;
+    private UnneededInstanceGossipper unneededInstanceGossipper;
     private boolean running = false;
 
     public PaxosNode(int myNodeId, List<RemotePaxosNode> members, StateMachine stateMachine, StorageUnit.Creator storage, FileAccessorCreator fileAccessorCreator) throws StorageException {
@@ -30,7 +31,7 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
         RunningProposalManager runningProposalManager = new RunningProposalManager();
         SnapshotManager snapshotManager = new SnapshotManager(stateMachine);
         ClientCommandContainer clientCommandContainer = new ClientCommandContainer(storage, fileAccessorCreator, membership.getMyNodeId());
-        UnneededInstanceGossipper unneededInstanceGossipper = new UnneededInstanceGossipper(clientCommandContainer, membership, snapshotManager);
+        unneededInstanceGossipper = new UnneededInstanceGossipper(clientCommandContainer, snapshotManager);
         acceptor = new Acceptor(membership, storage, fileAccessorCreator);
         listener = new Listener(membership, stateMachine, runningProposalManager, snapshotManager);
         proposer = new Proposer(membership, listener, storage.make("proposer" + membership.getMyNodeId(), null), runningProposalManager, snapshotManager, clientCommandContainer);
@@ -40,6 +41,7 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
 
     public void start() {
         membership.start();
+        unneededInstanceGossipper.setup(membership);
         running = true;
     }
 

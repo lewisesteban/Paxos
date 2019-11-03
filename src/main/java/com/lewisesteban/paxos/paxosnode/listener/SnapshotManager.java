@@ -4,8 +4,6 @@ import com.lewisesteban.paxos.paxosnode.StateMachine;
 import com.lewisesteban.paxos.paxosnode.acceptor.Acceptor;
 import com.lewisesteban.paxos.storage.StorageException;
 
-import java.util.Map;
-
 public class SnapshotManager {
     public static int SNAPSHOT_FREQUENCY = 1000;
 
@@ -39,7 +37,7 @@ public class SnapshotManager {
         }
     }
 
-    void receiveGossip(Map<Integer, GossipInstance> gossipData) throws StorageException {
+    void receiveGossip(long[] gossipData) throws StorageException {
         unneededInstanceGossipper.receiveGossip(gossipData);
     }
 
@@ -85,13 +83,5 @@ public class SnapshotManager {
 
     public long getSnapshotLastInstance() throws StorageException {
         return stateMachine.getAppliedSnapshotLastInstance();
-    }
-
-    public boolean hasWaitingSnapshot() {
-        return stateMachine.hasWaitingSnapshot();
-    }
-
-    public long getWaitingSnapshotLastInstance() {
-        return stateMachine.getWaitingSnapshotLastInstance();
     }
 }
