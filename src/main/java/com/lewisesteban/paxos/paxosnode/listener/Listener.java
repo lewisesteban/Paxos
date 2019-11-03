@@ -98,7 +98,7 @@ public class Listener implements ListenerRPCHandle {
      * Checks if a command has been executed in a particular instance.
      * If it has, the executed command is returned.
      */
-    public ExecutedCommand tryGetExecutedCommand(long instanceId) {
+    public synchronized ExecutedCommand tryGetExecutedCommand(long instanceId) {
         if (!executedCommands.containsKey(instanceId)) {
             return null;
         }
@@ -119,6 +119,8 @@ public class Listener implements ListenerRPCHandle {
     }
 
     synchronized void setSnapshotUpTo(long instanceId, boolean replay) {
+        if (snapshotLastInstanceId > instanceId)
+            instanceId = snapshotLastInstanceId + 1;
         for (long i = snapshotLastInstanceId; i <= instanceId; ++i) {
             executedCommands.remove(i);
         }

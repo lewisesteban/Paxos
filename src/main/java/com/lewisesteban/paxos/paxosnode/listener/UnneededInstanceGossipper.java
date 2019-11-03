@@ -44,8 +44,6 @@ public class UnneededInstanceGossipper {
                 long myUnneededInstance;
                 if (lowestNeededInst == null)
                     myUnneededInstance = lastFinishedInstance - 1;
-                else if (lowestNeededInst == 0)
-                    myUnneededInstance = -1L;
                 else
                     myUnneededInstance = lowestNeededInst - 1;
                 unneededInstanceOfNodes.put(membership.getMyNodeId(), new GossipInstance(myUnneededInstance, gossipNumber.getAndIncrement()));
@@ -83,6 +81,7 @@ public class UnneededInstanceGossipper {
 
     void receiveGossip(Map<Integer, GossipInstance> data) throws StorageException {
         // note: an "unneeded instance" of -1 means all instances are needed
+        boolean nodeDataMissing = false;
         Long lowestReceivedUnneededInst = null;
         synchronized (this) {
             for (int nodeId = 0; nodeId < membership.getNbMembers(); nodeId++) {
@@ -106,10 +105,12 @@ public class UnneededInstanceGossipper {
                     if (lowestReceivedUnneededInst == null || newVal.getInstance() < lowestReceivedUnneededInst) {
                         lowestReceivedUnneededInst = newVal.getInstance();
                     }
+                } else {
+                    nodeDataMissing = true;
                 }
             }
         }
-        if (lowestReceivedUnneededInst != null && lowestReceivedUnneededInst > globalUnneededInst) {
+        if (!nodeDataMissing && lowestReceivedUnneededInst != null && lowestReceivedUnneededInst > globalUnneededInst) {
             globalUnneededInst = lowestReceivedUnneededInst;
             snapshotManager.setNewGlobalUnneededInstance(globalUnneededInst);
         }

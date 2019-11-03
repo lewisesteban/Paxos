@@ -5,10 +5,14 @@ import com.lewisesteban.paxos.paxosnode.listener.SnapshotManager;
 import com.lewisesteban.paxos.paxosnode.listener.UnneededInstanceGossipper;
 import com.lewisesteban.paxos.storage.InterruptibleAccessorContainer;
 import com.lewisesteban.paxos.storage.virtual.VirtualFileSystem;
+import com.lewisesteban.paxos.virtualnet.Network;
+import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
 import junit.framework.TestCase;
 
 import java.io.File;
+import java.util.List;
 import java.util.Random;
+import java.util.concurrent.Callable;
 
 public class PaxosTestCase extends TestCase {
 
@@ -90,5 +94,83 @@ public class PaxosTestCase extends TestCase {
         public String toString() {
             return "client" + clientId + "cmd" + cmdNb;
         }
+    }
+
+    protected Thread serialKiller(Network network, List<PaxosNetworkNode> nodes, int duration, int maxSleep, KillController killController) {
+        final int nbNodes = nodes.size();
+
+        Callable<Integer> nbNodesAlive = () -> {
+            int alive = 0;
+            for (PaxosNetworkNode node : nodes) {
+                if (node.isRunning())
+                    alive++;
+            }
+            return alive;
+        };
+
+        Runnable killLiveNode = () -> {
+            int iterations = 0;
+            int node = random.nextInt(nbNodes);
+            while (!nodes.get(node).isRunning() && iterations < nbNodes) {
+                node++;
+                if (node == nbNodes)
+                    node = 0;
+                iterations++;
+            }
+            if (nodes.get(node).isRunning()) {
+                System.out.println("--- killing " + node);
+                killController.kill(node);
+                network.kill(node);
+            }
+        };
+
+        Runnable restoreDeadNode = () -> {
+            int iterations = 0;
+            int node = random.nextInt(nbNodes);
+            while (nodes.get(node).isRunning() && iterations < nbNodes) {
+                node++;
+                if (node == nbNodes)
+                    node = 0;
+                iterations++;
+            }
+            if (!nodes.get(node).isRunning()) {
+                System.out.println("+++ restoring " + node);
+                network.start(node);
+            }
+        };
+
+        return new Thread(() -> {
+            long startTime = System.currentTimeMillis();
+            boolean killingSpree = true;
+            try {
+                while (System.currentTimeMillis() - startTime < duration) {
+                    try {
+                        Thread.sleep(random.nextInt(maxSleep));
+                    } catch (InterruptedException ignored) {
+                    }
+                    if (killingSpree) {
+                        if (random.nextInt(4) == 0 && nbNodesAlive.call() < nbNodes)
+                            restoreDeadNode.run();
+                        else
+                            killLiveNode.run();
+                        if (nbNodesAlive.call() == 0)
+                            killingSpree = false;
+                    } else {
+                        if (random.nextInt(4) == 0 && nbNodesAlive.call() > 0)
+                            killLiveNode.run();
+                        else
+                            restoreDeadNode.run();
+                        if (nbNodesAlive.call() == nbNodes)
+                            killingSpree = true;
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    protected interface KillController {
+        void kill(int nodeId);
     }
 }

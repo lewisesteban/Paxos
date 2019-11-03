@@ -4,7 +4,7 @@ public class GossipInstance {
     private long gossipNumber;
     private long instance;
 
-    GossipInstance(long instance, long gossipNumber) {
+    public GossipInstance(long instance, long gossipNumber) {
         this.gossipNumber = gossipNumber;
         this.instance = instance;
     }

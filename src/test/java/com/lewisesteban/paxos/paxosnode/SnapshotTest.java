@@ -4,6 +4,7 @@ import com.lewisesteban.paxos.NetworkFactory;
 import com.lewisesteban.paxos.PaxosTestCase;
 import com.lewisesteban.paxos.client.BasicPaxosClient;
 import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
+import com.lewisesteban.paxos.paxosnode.listener.GossipInstance;
 import com.lewisesteban.paxos.paxosnode.listener.SnapshotManager;
 import com.lewisesteban.paxos.paxosnode.listener.UnneededInstanceGossipper;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
@@ -29,11 +30,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import static com.lewisesteban.paxos.NetworkFactory.*;
 import static java.lang.Thread.sleep;
 
-// TODO don't download snapshot if I already have a waiting snapshot of the same instance
-
 public class SnapshotTest extends PaxosTestCase {
     // NOTE: Let I be the current instance. A waiting snapshot for an instance X will be applied only if:
-    // I % SNAPSHOT_FREQUENCY == 0 && globalUnneededInstance >= X
+    // (I + 1) % SNAPSHOT_FREQUENCY == 0 && globalUnneededInstance >= X
     // globalUnneededInstance will be equal to X only after X has been gossipped, which happens when instance X+1 ends
 
     public void testLogRemovalAfterSnapshot() throws IOException, InterruptedException {
@@ -91,26 +90,34 @@ public class SnapshotTest extends PaxosTestCase {
         List<PaxosNetworkNode> nodes = initSimpleNetwork(3, network, stateMachinesSame(stateMachine, 3));
         PaxosProposer proposer = nodes.get(0).getPaxosSrv();
         PaxosServer lateServer = nodes.get(2).getPaxosSrv();
-        network.kill(2);
 
-        // do three commands with server 2 down, and have the others apply a snapshot
+        // do the first two commands, then kill 2
         SnapshotManager.SNAPSHOT_FREQUENCY = 2;
         proposer.propose(new Command("0", "client", 0), 0);
         proposer.propose(new Command("1", "client", 1), 1);
-        sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100); // wait til I can gossip again
-        proposer.propose(new Command("2", "client", 2), 2);
-        sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100); // wait til I can gossip again
-        proposer.propose(new Command("3", "client", 3), 3); // trigger snapshot
-        sleep(200); // wait for snapshot to finish
-        FileAccessor srv2Dir = InterruptibleVirtualFileAccessor.creator(2).create("acceptor2", null);
-        assertTrue(!srv2Dir.exists() || srv2Dir.listFiles() == null || srv2Dir.listFiles().length == 0);
+        network.kill(2);
+        assertEquals(2, InterruptibleVirtualFileAccessor.creator(2).create("acceptor2", null).listFiles().length);
 
-        network.start(2);
+        // make the others do a snapshot
+        Map<Integer, GossipInstance> unneededInstances = new TreeMap<>();
+        unneededInstances.put(0, new GossipInstance(2, 10));
+        unneededInstances.put(1, new GossipInstance(2, 10));
+        unneededInstances.put(2, new GossipInstance(2, 10));
+        sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
+        proposer.propose(new Command("2", "client", 2), 2);
+        nodes.get(0).getPaxosSrv().getListener().gossipUnneededInstances(unneededInstances);
+        sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
+        proposer.propose(new Command("3", "client", 3), 3); // trigger snapshot
+        assertEquals(2, InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length);
 
         // proposal that will initiate snapshot downloading
+        network.start(2);
+        assertEquals(2, InterruptibleVirtualFileAccessor.creator(2).create("acceptor2", null).listFiles().length);
         Result result;
         result = lateServer.propose(new Command("4", "anotherClient", 0), lateServer.getNewInstanceId());
         assertEquals(Result.CONSENSUS_ON_ANOTHER_CMD, result.getStatus());
+        FileAccessor node2Dir = InterruptibleVirtualFileAccessor.creator(2).create("acceptor2", null);
+        assertTrue(node2Dir == null || node2Dir.listFiles() == null || node2Dir.listFiles().length == 0);
 
         // proposal that will initiate catching-up of the third command
         long newInst = lateServer.getNewInstanceId();
@@ -259,6 +266,12 @@ public class SnapshotTest extends PaxosTestCase {
         assertTrue(snapshotted.get());
     }
 
+    // TODO error
+    //--- killing 4
+    //...
+    //+++ restoring 4
+    //error: stateMachine node 4 client 0 got cmd 0 instead of 1
+    //FINISHED client 0 cmd 0
     public void testEndClient() throws IOException, InterruptedException {
         List<PaxosNetworkNode> nodes = initSimpleNetwork(1, new Network(), stateMachinesEmpty(1));
         PaxosServer server = nodes.get(0).getPaxosSrv();
@@ -288,7 +301,7 @@ public class SnapshotTest extends PaxosTestCase {
     public void testStress() throws InterruptedException {
         final int NB_NODES = 5;
         final int NB_CLIENTS = 10;
-        final int TIME = 30000;
+        final int TIME = 10000;
         final int KILLER_MAX_SLEEP = 200;
 
         SnapshotManager.SNAPSHOT_FREQUENCY = 3;
@@ -301,25 +314,7 @@ public class SnapshotTest extends PaxosTestCase {
         Iterable<Callable<StateMachine>> stateMachines = stateMachinesSame(SnapshotTestStateMachine.creator(NB_CLIENTS, error), NB_NODES);
         List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(NB_NODES, network, stateMachines);
 
-        // TODO make a serial killer that alternates between killing sprees and restoring sprees: do mostly killing in a killing spree, until almost all servers are dead, then do mostly restoring in a a restoring spree, until all servers are up again
-        final Thread serialKiller = new Thread(() -> {
-            long startTime = System.currentTimeMillis();
-            while (System.currentTimeMillis() - startTime < TIME) {
-                try {
-                    Thread.sleep(random.nextInt(KILLER_MAX_SLEEP));
-                } catch (InterruptedException ignored) {
-                }
-                int server = random.nextInt(NB_NODES);
-                if (nodes.get(server).isRunning()) {
-                    System.out.println("--- killing " + server);
-                    SnapshotTestStateMachine.stop(server);
-                    network.kill(server);
-                } else {
-                    System.out.println("+++ restoring " + server);
-                    network.start(server);
-                }
-            }
-        });
+        final Thread serialKiller = serialKiller(network, nodes, TIME, KILLER_MAX_SLEEP, SnapshotTestStateMachine::stop);
 
         Thread[] clients = new Thread[NB_CLIENTS];
         for (int clientId = 0; clientId < NB_CLIENTS; ++clientId) {
@@ -342,8 +337,8 @@ public class SnapshotTest extends PaxosTestCase {
         for (Thread client : clients)
             client.start();
 
-        serialKiller.join(); // time's up
-        keepGoing.set(false);
+        serialKiller.join();
+        keepGoing.set(false); // time's up
         for (PaxosNetworkNode node : nodes) {
             if (!node.isRunning())
                 node.start();
@@ -527,6 +522,8 @@ public class SnapshotTest extends PaxosTestCase {
             storageUnit.flush();
             appliedSnapshot = snapshot;
 
+            //printSnapshot((int[]) snapshot.getData(), "### node " + nodeId + " apply new snapshot");
+
             int[] snapshotData = (int[]) appliedSnapshot.getData();
             lastReceived = Arrays.copyOf(snapshotData, snapshotData.length);
             waitingSnapshot = null;
@@ -544,6 +541,8 @@ public class SnapshotTest extends PaxosTestCase {
                 throw new StorageException(e);
             }
             storageUnit.flush();
+
+            //printSnapshot(lastReceived, "### node " + nodeId + " apply waiting snapshot");
         }
 
         @SuppressWarnings("unused")
