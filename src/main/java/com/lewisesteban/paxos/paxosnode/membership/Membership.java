@@ -12,6 +12,7 @@ public class Membership implements MembershipGetter, MembershipRPCHandle {
     private int myNodeId;
     private int nbNodes;
     private RemotePaxosNode myNode = null;
+    private NodeStateSupervisor supervisor = new NodeStateSupervisor(this);
 
     public Membership(int myNodeId, List<RemotePaxosNode> nodes) {
         this.nodes = nodes;
@@ -20,20 +21,24 @@ public class Membership implements MembershipGetter, MembershipRPCHandle {
 
     public void start() {
         nbNodes = nodes.size();
+        supervisor.start();
     }
 
     public void stop() {
-
+        supervisor.stop();
     }
 
+    @Override
     public int getMyNodeId() {
         return myNodeId;
     }
 
+    @Override
     public List<RemotePaxosNode> getMembers() {
         return nodes;
     }
 
+    @Override
     public int getNbMembers() {
         return nbNodes;
     }
@@ -44,5 +49,10 @@ public class Membership implements MembershipGetter, MembershipRPCHandle {
             myNode = nodes.get(myNodeId);
         }
         return myNode;
+    }
+
+    @Override
+    public void gossipMemberList(NodeHeartbeat[] memberList) {
+        supervisor.receiveMemberList(memberList);
     }
 }
