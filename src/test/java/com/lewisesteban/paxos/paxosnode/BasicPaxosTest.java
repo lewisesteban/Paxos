@@ -208,7 +208,7 @@ public class BasicPaxosTest extends PaxosTestCase {
         assertEquals(11, res2.getReturnData());
     }
 
-    public void testBasicCatchingUp() throws IOException, InterruptedException {
+    public void testForwardCatchingUp() throws IOException, InterruptedException {
         AtomicInteger receivedAt0 = new AtomicInteger(0);
         Callable<StateMachine> stateMachineCreator0 = basicStateMachine(data -> {
             receivedAt0.incrementAndGet();
@@ -246,6 +246,44 @@ public class BasicPaxosTest extends PaxosTestCase {
 
         Thread.sleep(100); // wait for node 1's scatter to reach node 0
         assertEquals(11, receivedAt0.get());
+    }
+
+    public void testBackwardCatchingUp() throws IOException {
+        AtomicBoolean error = new AtomicBoolean(false);
+        AtomicInteger receivedAt0 = new AtomicInteger(0);
+        Callable<StateMachine> stateMachineCreator0 = basicStateMachine(data -> {
+            if (receivedAt0.getAndIncrement() != (int)data)
+                error.set(true);
+            return null;
+        });
+        AtomicInteger receivedAt1 = new AtomicInteger(0);
+        Callable<StateMachine> stateMachineCreator1 = basicStateMachine(data -> {
+            if (receivedAt1.getAndIncrement() != (int)data)
+                error.set(true);
+            return null;
+        });
+        List<Callable<StateMachine>> stateMachines = new ArrayList<>();
+        stateMachines.add(stateMachineCreator0);
+        stateMachines.add(stateMachineCreator1);
+        stateMachines.add(basicStateMachine((Serializable s) -> null));
+
+        Network network = new Network();
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(3, network, stateMachines);
+        network.kill(1);
+        PaxosServer node0 = nodes.get(0).getPaxosSrv();
+        for (int i = 0; i < 10; ++i) {
+            assertEquals(Result.CONSENSUS_ON_THIS_CMD, node0.propose(new Command(i, "", i), i).getStatus());
+        }
+        assertEquals(10, receivedAt0.get());
+        assertEquals(0, receivedAt1.get());
+
+        System.out.println("+++++ start node 1");
+        network.start(1);
+        PaxosServer node1 = nodes.get(1).getPaxosSrv();
+        assertEquals(Result.CONSENSUS_ON_THIS_CMD, node1.propose(new Command(10, "node1", 0), 10).getStatus());
+        assertEquals(11, receivedAt1.get());
+        assertEquals(11, node1.getNewInstanceId());
+        assertFalse(error.get());
     }
 
     public void testOrderingSlowCommand() throws InterruptedException {

@@ -261,12 +261,6 @@ public class SnapshotTest extends PaxosTestCase {
         assertTrue(snapshotted.get());
     }
 
-    // TODO error
-    //--- killing 4
-    //...
-    //+++ restoring 4
-    //error: stateMachine node 4 client 0 got cmd 0 instead of 1
-    //FINISHED client 0 cmd 0
     public void testEndClient() throws IOException, InterruptedException {
         List<PaxosNetworkNode> nodes = initSimpleNetwork(1, new Network(), stateMachinesEmpty(1));
         PaxosServer server = nodes.get(0).getPaxosSrv();
@@ -414,8 +408,6 @@ public class SnapshotTest extends PaxosTestCase {
         stateMachine.execute(new TestCommand(2, 16));
         assertNotNull(error.get());
     }
-
-
 
     static class SnapshotTestStateMachine implements StateMachine {
         int nodeId;

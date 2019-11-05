@@ -48,7 +48,7 @@ public class VirtualNetTest extends PaxosTestCase {
 
     public void testSlowNetworkDown() throws IOException {
         final int NB_TESTS = 10;
-        final int DIFF = 5;
+        final int DIFF = 20;
 
         Network network = new Network();
         List<PaxosNetworkNode> nodes = initSimpleNetwork(2, network, stateMachinesEmpty(2));
@@ -61,7 +61,7 @@ public class VirtualNetTest extends PaxosTestCase {
         }
         long time1 = System.currentTimeMillis() - start;
 
-        network.setWaitTimes(5, 6, 10000, 0);
+        network.setWaitTimes(DIFF, DIFF, 10000, 0);
         start = System.currentTimeMillis();
         for (int i = 0; i < NB_TESTS; i++) {
             node0.propose(Command.Factory.makeRandom("slow network test"), NB_TESTS + i);

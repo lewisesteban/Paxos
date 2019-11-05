@@ -138,7 +138,7 @@ public class HeavyPaxosTestNoDedicatedProposer extends PaxosTestCase {
                 while (keepGoing.get() && !error.get()) {
                     TestCommand cmdData = new TestCommand(thisClientsId, cmdId);
                     paxosHandle.doCommand(cmdData);
-                    System.out.println("YEAH finished cmd " + cmdId);
+                    System.out.println("FINISHED client " + thisClientsId + " cmd " + cmdId);
                     cmdId++;
                 }
             });
@@ -160,8 +160,6 @@ public class HeavyPaxosTestNoDedicatedProposer extends PaxosTestCase {
         if (error.get())
             fail();
     }
-
-    // TODO: partitioning test
 
     static class TestStateMachine extends BasicStateMachine {
         int[] lastReceived;
