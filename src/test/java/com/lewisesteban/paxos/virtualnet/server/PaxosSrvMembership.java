@@ -22,4 +22,14 @@ public class PaxosSrvMembership implements MembershipRPCHandle {
             return true;
         });
     }
+
+    @Override
+    public int bullyElection(int instanceNb) throws IOException {
+        return threadManager.pleaseDo(() -> paxosMembership.bullyElection(instanceNb));
+    }
+
+    @Override
+    public BullyVictoryResponse bullyVictory(int senderId, int instanceNb) throws IOException {
+        return threadManager.pleaseDo(() -> paxosMembership.bullyVictory(senderId, instanceNb));
+    }
 }

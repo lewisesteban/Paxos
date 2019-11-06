@@ -14,7 +14,7 @@ public class UnneededInstanceGossipper {
     public static int GOSSIP_FREQUENCY = 100;
 
     private ClientCommandContainer clientCommandContainer;
-    private Membership membership;
+    private Membership paxosCluster;
     private SnapshotManager snapshotManager;
 
     private long[] unneededInstanceOfNodes; // we use the nodeId as the position in the array
@@ -29,9 +29,9 @@ public class UnneededInstanceGossipper {
         this.snapshotManager = snapshotManager;
     }
 
-    public void setup(Membership membership) {
-        this.membership = membership;
-        unneededInstanceOfNodes = new long[membership.getNbMembers()];
+    public void setup(Membership paxosCluster) {
+        this.paxosCluster = paxosCluster;
+        unneededInstanceOfNodes = new long[paxosCluster.getNbMembers()];
         for (int i = 0; i < unneededInstanceOfNodes.length; ++i) {
             unneededInstanceOfNodes[i] = -1;
         }
@@ -46,19 +46,19 @@ public class UnneededInstanceGossipper {
                 myUnneededInstance = lastFinishedInstance - 1;
             else
                 myUnneededInstance = lowestNeededInst - 1;
-            unneededInstanceOfNodes[membership.getMyNodeId()] = myUnneededInstance;
+            unneededInstanceOfNodes[paxosCluster.getMyNodeId()] = myUnneededInstance;
             // send to others
             if (isGossipping.compareAndSet(false, true)) {
                 lastGossipTimestamp = System.currentTimeMillis();
                 executorService.submit(() -> {
-                    int node1 = getRandomNodeId(membership.getMyNodeId());
+                    int node1 = getRandomNodeId(paxosCluster.getMyNodeId());
                     int node2 = getRandomNodeId(node1);
                     try {
-                        membership.getMembers().get(node1).getListener().gossipUnneededInstances(unneededInstanceOfNodes);
+                        paxosCluster.getMembers().get(node1).getListener().gossipUnneededInstances(unneededInstanceOfNodes);
                     } catch (IOException ignored) {
                     }
                     try {
-                        membership.getMembers().get(node2).getListener().gossipUnneededInstances(unneededInstanceOfNodes);
+                        paxosCluster.getMembers().get(node2).getListener().gossipUnneededInstances(unneededInstanceOfNodes);
                     } catch (IOException ignored) {
                     }
                     isGossipping.set(false);
@@ -68,11 +68,11 @@ public class UnneededInstanceGossipper {
     }
 
     private int getRandomNodeId(int exceptThisOne) {
-        if (membership.getNbMembers() == 1)
-            return membership.getMyNodeId();
-        int node = random.nextInt(membership.getNbMembers());
-        while (node == membership.getMyNodeId() || node == exceptThisOne)
-            node = random.nextInt(membership.getNbMembers());
+        if (paxosCluster.getNbMembers() == 1)
+            return paxosCluster.getMyNodeId();
+        int node = random.nextInt(paxosCluster.getNbMembers());
+        while (node == paxosCluster.getMyNodeId() || node == exceptThisOne)
+            node = random.nextInt(paxosCluster.getNbMembers());
         return node;
     }
 
@@ -80,9 +80,9 @@ public class UnneededInstanceGossipper {
         // note: an "unneeded instance" of -1 means all instances are needed
         Long lowestReceivedUnneededInst = null;
         synchronized (this) {
-            for (int nodeId = 0; nodeId < membership.getNbMembers(); nodeId++) {
+            for (int nodeId = 0; nodeId < paxosCluster.getNbMembers(); nodeId++) {
                 Long newVal;
-                if (nodeId == membership.getMyNodeId()) {
+                if (nodeId == paxosCluster.getMyNodeId()) {
                     newVal = unneededInstanceOfNodes[nodeId];
                 } else {
                     long myUnneededInst = unneededInstanceOfNodes[nodeId];

@@ -9,9 +9,9 @@ class NodeState {
     private int nodeId;
 
     NodeState(int nodeId) {
-        this.heartbeat = null;
+        this.heartbeat = new NodeHeartbeat(-1);
         this.nodeId = nodeId;
-        this.lastHeartbeatTimestamp = 0;
+        this.lastHeartbeatTimestamp = System.currentTimeMillis();
     }
 
     long getLastHeartbeatTimestamp() {

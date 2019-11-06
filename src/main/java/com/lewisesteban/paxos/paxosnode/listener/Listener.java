@@ -2,7 +2,7 @@ package com.lewisesteban.paxos.paxosnode.listener;
 
 import com.lewisesteban.paxos.Logger;
 import com.lewisesteban.paxos.paxosnode.Command;
-import com.lewisesteban.paxos.paxosnode.MembershipGetter;
+import com.lewisesteban.paxos.paxosnode.ClusterHandle;
 import com.lewisesteban.paxos.paxosnode.StateMachine;
 import com.lewisesteban.paxos.paxosnode.proposer.RunningProposalManager;
 import com.lewisesteban.paxos.rpc.paxos.ListenerRPCHandle;
@@ -18,12 +18,12 @@ public class Listener implements ListenerRPCHandle {
     private long snapshotLastInstanceId = -1;
     private Map<Long, ExecutedCommand> executedCommands = new HashMap<>();
     private long lastInstanceId = -1;
-    private MembershipGetter memberList;
+    private ClusterHandle memberList;
     private StateMachine stateMachine;
     private RunningProposalManager runningProposalManager;
     private SnapshotManager snapshotManager;
 
-    public Listener(MembershipGetter memberList, StateMachine stateMachine,
+    public Listener(ClusterHandle memberList, StateMachine stateMachine,
                     RunningProposalManager runningProposalManager, SnapshotManager snapshotManager) {
         this.memberList = memberList;
         this.stateMachine = stateMachine;

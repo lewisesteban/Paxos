@@ -22,32 +22,32 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
     private Acceptor acceptor;
     private Listener listener;
     private Proposer proposer;
-    private Membership membership;
+    private Membership paxosCluster;
     private UnneededInstanceGossipper unneededInstanceGossipper;
     private boolean running = false;
 
     public PaxosNode(int myNodeId, List<RemotePaxosNode> members, StateMachine stateMachine, StorageUnit.Creator storage, FileAccessorCreator fileAccessorCreator) throws StorageException {
-        membership = new Membership(myNodeId, members);
+        paxosCluster = new Membership(myNodeId, members);
         RunningProposalManager runningProposalManager = new RunningProposalManager();
         SnapshotManager snapshotManager = new SnapshotManager(stateMachine);
-        ClientCommandContainer clientCommandContainer = new ClientCommandContainer(storage, fileAccessorCreator, membership.getMyNodeId());
+        ClientCommandContainer clientCommandContainer = new ClientCommandContainer(storage, fileAccessorCreator, paxosCluster.getMyNodeId());
         unneededInstanceGossipper = new UnneededInstanceGossipper(clientCommandContainer, snapshotManager);
-        acceptor = new Acceptor(membership, storage, fileAccessorCreator);
-        listener = new Listener(membership, stateMachine, runningProposalManager, snapshotManager);
-        proposer = new Proposer(membership, listener, storage.make("proposer" + membership.getMyNodeId(), null), runningProposalManager, snapshotManager, clientCommandContainer);
+        acceptor = new Acceptor(paxosCluster, storage, fileAccessorCreator);
+        listener = new Listener(paxosCluster, stateMachine, runningProposalManager, snapshotManager);
+        proposer = new Proposer(paxosCluster, listener, storage.make("proposer" + paxosCluster.getMyNodeId(), null), runningProposalManager, snapshotManager, clientCommandContainer);
         runningProposalManager.setup(proposer, listener);
         snapshotManager.setup(listener, acceptor, unneededInstanceGossipper);
     }
 
     public void start() {
-        membership.start();
-        unneededInstanceGossipper.setup(membership);
+        paxosCluster.start();
+        unneededInstanceGossipper.setup(paxosCluster);
         running = true;
     }
 
     public void stop() {
         running = false;
-        membership.stop();
+        paxosCluster.stop();
     }
 
     public long getNewInstanceId() throws IOException {
@@ -72,7 +72,7 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
     }
 
     public int getId() {
-        return membership.getMyNodeId();
+        return paxosCluster.getMyNodeId();
     }
 
     public AcceptorRPCHandle getAcceptor() {
@@ -84,6 +84,6 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
     }
 
     public MembershipRPCHandle getMembership() {
-        return membership;
+        return paxosCluster;
     }
 }

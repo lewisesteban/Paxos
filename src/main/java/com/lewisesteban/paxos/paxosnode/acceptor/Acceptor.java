@@ -1,6 +1,6 @@
 package com.lewisesteban.paxos.paxosnode.acceptor;
 
-import com.lewisesteban.paxos.paxosnode.MembershipGetter;
+import com.lewisesteban.paxos.paxosnode.ClusterHandle;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
 import com.lewisesteban.paxos.rpc.paxos.AcceptorRPCHandle;
 import com.lewisesteban.paxos.storage.FileAccessorCreator;
@@ -12,10 +12,10 @@ import java.util.concurrent.atomic.AtomicReference;
 public class Acceptor implements AcceptorRPCHandle {
 
     private InstanceContainer<AcceptDataInstance> instances;
-    private MembershipGetter memberList;
+    private ClusterHandle memberList;
     private StorageUnit.Creator storageCreator;
 
-    public Acceptor(MembershipGetter memberList, StorageUnit.Creator storageUnitCreator, FileAccessorCreator fileAccessorCreator) throws StorageException {
+    public Acceptor(ClusterHandle memberList, StorageUnit.Creator storageUnitCreator, FileAccessorCreator fileAccessorCreator) throws StorageException {
         this.memberList = memberList;
         this.storageCreator = storageUnitCreator;
         this.instances = new InstanceContainer<>(AcceptDataInstance::new,

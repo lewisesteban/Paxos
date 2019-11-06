@@ -28,4 +28,14 @@ class NodeConMembership implements MembershipRPCHandle {
             return true;
         });
     }
+
+    @Override
+    public int bullyElection(int instanceNb) throws IOException {
+        return parent.tryNetCall(() -> membershipHandle().bullyElection(instanceNb));
+    }
+
+    @Override
+    public BullyVictoryResponse bullyVictory(int senderId, int instanceNb) throws IOException {
+        return parent.tryNetCall(() -> membershipHandle().bullyVictory(senderId, instanceNb));
+    }
 }

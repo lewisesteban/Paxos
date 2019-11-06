@@ -1,6 +1,6 @@
 package com.lewisesteban.paxos.paxosnode.membership;
 
-import com.lewisesteban.paxos.paxosnode.MembershipGetter;
+import com.lewisesteban.paxos.paxosnode.ClusterHandle;
 
 import java.io.IOException;
 import java.util.Random;
@@ -8,21 +8,18 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class NodeStateSupervisor {
     public static int GOSSIP_FREQUENCY = 50;
-    public static int FAILURE_TIMEOUT = 400;
+    public static int FAILURE_TIMEOUT = 1000;
 
     private NodeState[] nodeStates;
     private NodeHeartbeat[] nodeHeartbeats; // updated only before sending
-    private MembershipGetter membership;
-    private Bully bully;
+    private ClusterHandle membership;
     private boolean keepGoing = false;
-    private Integer leader = null;
     private Random random = new Random();
     private AtomicLong heartbeatCounter = new AtomicLong(0);
     private long lastGossipTimestamp = 0;
 
-    NodeStateSupervisor(MembershipGetter membership) {
+    NodeStateSupervisor(ClusterHandle membership) {
         this.membership = membership;
-        this.bully = new Bully(membership);
     }
 
     void start() {
@@ -52,7 +49,7 @@ public class NodeStateSupervisor {
             long timeToWait = (lastGossipTimestamp + GOSSIP_FREQUENCY) - System.currentTimeMillis();
             if (timeToWait > 0) {
                 try {
-                    Thread.sleep(GOSSIP_FREQUENCY);
+                    Thread.sleep(timeToWait);
                 } catch (InterruptedException ignored) {
                 }
             }
@@ -76,8 +73,8 @@ public class NodeStateSupervisor {
     }
 
     private void checkForLeaderFailure() {
-        if (leader == null || nodeStates[leader].isFailed()) {
-            bully.startElection();
+        if (membership.getLeaderNodeId() == null || nodeStates[membership.getLeaderNodeId()].isFailed()) {
+            membership.setLeaderNodeId(null);
         }
     }
 

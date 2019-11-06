@@ -2,7 +2,7 @@ package com.lewisesteban.paxos.paxosnode.proposer;
 
 import com.lewisesteban.paxos.Logger;
 import com.lewisesteban.paxos.paxosnode.Command;
-import com.lewisesteban.paxos.paxosnode.MembershipGetter;
+import com.lewisesteban.paxos.paxosnode.ClusterHandle;
 import com.lewisesteban.paxos.paxosnode.acceptor.AcceptAnswer;
 import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
 import com.lewisesteban.paxos.paxosnode.listener.IsInSnapshotException;
@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class Proposer implements PaxosProposer {
 
-    private MembershipGetter memberList;
+    private ClusterHandle memberList;
     private ProposalFactory propFac;
     private ExecutorService executor = Executors.newCachedThreadPool();
     private Random random = new Random();
@@ -40,7 +40,7 @@ public class Proposer implements PaxosProposer {
     private SnapshotRequester snapshotRequester;
     private ClientCommandContainer clientCommandContainer;
 
-    public Proposer(MembershipGetter memberList, Listener listener, StorageUnit storage,
+    public Proposer(ClusterHandle memberList, Listener listener, StorageUnit storage,
                     RunningProposalManager runningProposalManager, SnapshotManager snapshotManager,
                     ClientCommandContainer clientCommandContainer) throws StorageException {
         this.memberList = memberList;
@@ -61,6 +61,10 @@ public class Proposer implements PaxosProposer {
 
     @Override
     public Result propose(Command command, long instanceId) throws StorageException {
+        Integer leaderNodeId = memberList.getLeaderNodeId();
+        if (leaderNodeId != null && leaderNodeId != memberList.getMyNodeId()) {
+            return new Result(instanceId, leaderNodeId);
+        }
         clientCommandContainer.putCommand(command, instanceId);
         return propose(command, instanceId, false);
     }

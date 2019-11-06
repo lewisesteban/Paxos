@@ -4,7 +4,7 @@ import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
 
 import java.util.List;
 
-public interface MembershipGetter {
+public interface ClusterHandle {
 
     /**
      * @return Unique identifier of the calling node.
@@ -17,4 +17,14 @@ public interface MembershipGetter {
     int getNbMembers();
 
     RemotePaxosNode getMyNode();
+
+    /**
+     * @return ID of the leader (dedicated proposer), or null if there is none
+     */
+    Integer getLeaderNodeId();
+
+    /**
+     * If nodeId is null and no election is currently ongoing, an election will start
+     */
+    void setLeaderNodeId(Integer nodeId);
 }

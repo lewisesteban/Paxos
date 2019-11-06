@@ -1,6 +1,6 @@
 package com.lewisesteban.paxos.paxosnode.proposer;
 
-import com.lewisesteban.paxos.paxosnode.MembershipGetter;
+import com.lewisesteban.paxos.paxosnode.ClusterHandle;
 import com.lewisesteban.paxos.paxosnode.StateMachine;
 import com.lewisesteban.paxos.paxosnode.listener.SnapshotManager;
 import sun.awt.Mutex;
@@ -11,9 +11,9 @@ import java.util.Random;
 class SnapshotRequester {
     private Mutex mutex = new Mutex();
     private SnapshotManager snapshotManager;
-    private MembershipGetter membership;
+    private ClusterHandle membership;
 
-    SnapshotRequester(SnapshotManager snapshotManager, MembershipGetter membership) {
+    SnapshotRequester(SnapshotManager snapshotManager, ClusterHandle membership) {
         this.snapshotManager = snapshotManager;
         this.membership = membership;
 
