@@ -6,6 +6,7 @@ import com.lewisesteban.paxos.client.BasicPaxosClient;
 import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
 import com.lewisesteban.paxos.paxosnode.listener.SnapshotManager;
 import com.lewisesteban.paxos.paxosnode.listener.UnneededInstanceGossipper;
+import com.lewisesteban.paxos.paxosnode.membership.Membership;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
@@ -33,6 +34,11 @@ public class SnapshotTest extends PaxosTestCase {
     // NOTE: Let I be the current instance. A waiting snapshot for an instance X will be applied only if:
     // (I + 1) % SNAPSHOT_FREQUENCY == 0 && globalUnneededInstance >= X
     // globalUnneededInstance will be equal to X only after X has been gossipped, which happens when instance X+1 ends
+
+    @Override
+    protected void setUp() {
+        Membership.LEADER_ELECTION = false;
+    }
 
     public void testLogRemovalAfterSnapshot() throws IOException, InterruptedException {
         Callable<StateMachine> stateMachine = basicStateMachine((val) -> null);

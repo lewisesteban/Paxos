@@ -3,6 +3,7 @@ package com.lewisesteban.paxos.paxosnode;
 import com.lewisesteban.paxos.NetworkFactory;
 import com.lewisesteban.paxos.PaxosTestCase;
 import com.lewisesteban.paxos.client.BasicPaxosClient;
+import com.lewisesteban.paxos.paxosnode.membership.Membership;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
@@ -16,6 +17,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static com.lewisesteban.paxos.NetworkFactory.*;
 
 public class HeavyPaxosTestNoDedicatedProposer extends PaxosTestCase {
+
+    @Override
+    protected void setUp() {
+        Membership.LEADER_ELECTION = false;
+    }
 
     public void testBasicClientsNoFailure() throws Exception {
         final int NB_NODES = 7;

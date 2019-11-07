@@ -2,6 +2,7 @@ package com.lewisesteban.paxos.paxosnode;
 
 import com.lewisesteban.paxos.PaxosTestCase;
 import com.lewisesteban.paxos.client.BasicPaxosClient;
+import com.lewisesteban.paxos.paxosnode.membership.Membership;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 import com.lewisesteban.paxos.virtualnet.Network;
@@ -23,6 +24,11 @@ import static com.lewisesteban.paxos.NetworkFactory.*;
  * Should be executed with no dedicated proposer.
  */
 public class BasicPaxosTest extends PaxosTestCase {
+
+    @Override
+    protected void setUp() {
+        Membership.LEADER_ELECTION = false;
+    }
 
     public void testTwoProposals() throws IOException {
         final int NB_NODES = 2;

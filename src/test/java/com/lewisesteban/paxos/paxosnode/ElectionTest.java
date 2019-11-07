@@ -110,7 +110,53 @@ public class ElectionTest extends PaxosTestCase {
         }
     }
 
-    // TODO partition test
+    public void testNetworkPartitioning() throws InterruptedException, IOException {
+        NodeStateSupervisor.GOSSIP_AVG_TIME_PER_NODE = 20;
+        NodeStateSupervisor.FAILURE_TIMEOUT = 100;
+        Bully.WAIT_AFTER_FAILURE = 100;
+        Bully.WAIT_FOR_VICTORY_TIMEOUT = 100;
 
-    // TODO for other tests: use client that doesn't respect elections + set very high gossip and bully times
+        // create the partitioned network
+        Network network = new Network();
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(7, 2, network, stateMachinesEmpty(7));
+        network.disconnectRack(0);
+        System.out.println(">>>>>>>>>> start (partitioned)");
+        Thread.sleep(200);
+
+        int majorityRack = network.getRacks()[0].length >= 4 ? 0 : 1;
+        int majorityRackLeader = 0;
+        for (int node = 0; node < nodes.size(); ++node) {
+            if (nodes.get(node).getRack() == majorityRack && node > majorityRackLeader)
+                majorityRackLeader = node;
+        }
+
+        // make sure majority rack has a fixed leader
+        for (int node = 0; node < 7; node++) {
+            if (nodes.get(node).getRack() == majorityRack) {
+                if (node != majorityRackLeader) {
+                    Result result = nodes.get(node).getPaxosSrv().propose(cmd1, 0);
+                    assertEquals(majorityRackLeader, result.getExtra().getLeaderId());
+                }
+            }
+        }
+
+        // make sure minority rack doesn't have a leader from the other rack
+        for (int node = 0; node < 7; node++) {
+            if (nodes.get(node).getRack() != majorityRack) {
+                Result result = nodes.get(node).getPaxosSrv().propose(cmd1, 0);
+                assertTrue(result.getExtra() == null
+                        || nodes.get(result.getExtra().getLeaderId()).getRack() != majorityRack);
+            }
+        }
+
+        // put them back together and make sure node 6 is the leader
+        System.out.println(">>>>>>>>>> reconnect rack");
+        network.reconnectRack(0);
+        Thread.sleep(300);
+        for (int node = 0; node < 6; node++) {
+            System.out.println("checking " + node);
+            Result result = nodes.get(node).getPaxosSrv().propose(cmd1, 0);
+            assertEquals(6, result.getExtra().getLeaderId());
+        }
+    }
 }

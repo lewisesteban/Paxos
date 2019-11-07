@@ -93,6 +93,36 @@ public class Network {
         isolatedRacks.remove(rack);
     }
 
+    public int[][] getRacks() {
+
+        int highestRack = 0;
+        for (VirtualNetNode node : nodes.values()) {
+            if (node.getRack() > highestRack)
+                highestRack = node.getRack();
+        }
+        int nbRacks = highestRack + 1;
+
+        int[][] racks = new int[nbRacks][];
+        for (int rackId =  0; rackId < nbRacks; rackId++) {
+            int rackSize = 0;
+            for (VirtualNetNode node : nodes.values()) {
+                if (node.getRack() == rackId)
+                    rackSize++;
+            }
+            racks[rackId] = new int[rackSize];
+
+            int counter = 0;
+            for (VirtualNetNode node : nodes.values()) {
+                if (node.getRack() == rackId) {
+                    racks[rackId][counter] = node.getAddress();
+                    counter++;
+                }
+            }
+        }
+
+        return racks;
+    }
+
     public <RT> RT tryNetCall(Callable<RT> callable, int callerAddr, int targetAddr) throws IOException {
         if (!canCommunicate(callerAddr, targetAddr))
             throw new InterruptedIOException();

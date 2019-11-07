@@ -6,6 +6,7 @@ import com.lewisesteban.paxos.paxosnode.PaxosNode;
 import com.lewisesteban.paxos.paxosnode.StateMachine;
 import com.lewisesteban.paxos.paxosnode.acceptor.AcceptAnswer;
 import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
+import com.lewisesteban.paxos.paxosnode.membership.Membership;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.AcceptorRPCHandle;
@@ -37,6 +38,11 @@ public class VirtualNetTest extends PaxosTestCase {
 
     private boolean slowPropose = false;
     private int slowAcceptorId = 0;
+
+    @Override
+    protected void setUp() {
+        Membership.LEADER_ELECTION = false;
+    }
 
     public void testCutRackConnection() throws IOException {
         Network network = new Network();

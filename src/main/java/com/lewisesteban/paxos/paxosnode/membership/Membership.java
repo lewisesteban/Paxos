@@ -7,6 +7,7 @@ import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
 import java.util.List;
 
 public class Membership implements ClusterHandle, MembershipRPCHandle {
+    public static boolean LEADER_ELECTION = true;
 
     private List<RemotePaxosNode> nodes;
     private int myNodeId;
@@ -26,12 +27,14 @@ public class Membership implements ClusterHandle, MembershipRPCHandle {
 
     public void start() {
         nbNodes = nodes.size();
-        supervisor.start();
+        if (LEADER_ELECTION)
+            supervisor.start();
         keepGoing = true;
     }
 
     public void stop() {
-        supervisor.stop();
+        if (LEADER_ELECTION)
+            supervisor.stop();
         keepGoing = false;
     }
 

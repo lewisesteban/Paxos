@@ -44,7 +44,8 @@ public class Bully {
     }
 
     synchronized MembershipRPCHandle.BullyVictoryResponse receiveVictoryMessage(int senderId, int msgInstanceNb) {
-        if (msgInstanceNb >= electionInstance.get() && lastElectionVoted.get() < msgInstanceNb) {
+        if (msgInstanceNb >= electionInstance.get() && lastElectionVoted.get() < msgInstanceNb && senderId > cluster.getMyNodeId()) {
+            Logger.println(cluster.getMyNodeId() + " received victory " + senderId);
             lastElectionVoted.set(msgInstanceNb);
             electionInstance.set(msgInstanceNb);
             cluster.setLeaderNodeId(senderId);
@@ -104,6 +105,7 @@ public class Bully {
     private void declareVictory() {
         cluster.setLeaderNodeId(cluster.getMyNodeId());
         electionIsOngoing.set(false);
+        AtomicBoolean failed = new AtomicBoolean(false);
 
         // vote for self
         AtomicInteger successfulNotifications = new AtomicInteger(1);
@@ -117,32 +119,40 @@ public class Bully {
                         MembershipRPCHandle.BullyVictoryResponse response = node.getMembership().bullyVictory(cluster.getMyNodeId(), electionInstance.get());
                         if (response.isVictoryAccepted())
                             successfulNotifications.incrementAndGet();
-                        else if (response.getInstanceNb() > electionInstance.get())
-                            electionInstance.set(response.getInstanceNb());
+                        else {
+                            failed.set(true);
+                            if (response.getInstanceNb() > electionInstance.get())
+                                electionInstance.set(response.getInstanceNb());
+                        }
                     } catch (IOException ignored) {
                     } finally {
                         synchronized (this) {
                             runningThreads.decrementAndGet();
                             notifyAll();
+                            if (failed.get())
+                                fail();
                         }
                     }
                 });
             }
         }
+
         synchronized (this) {
-            while (runningThreads.get() > 0 && successfulNotifications.get() <= cluster.getNbMembers() / 2) {
+            while (!failed.get() && runningThreads.get() > 0 && successfulNotifications.get() <= cluster.getNbMembers() / 2) {
                 try {
                     wait();
                 } catch (InterruptedException ignored) {
                 }
             }
+            if (!failed.get() && successfulNotifications.get() > cluster.getNbMembers() / 2) {
+                Logger.println("NEW LEADER: " + cluster.getMyNodeId());
+                return;
+            }
         }
+        fail();
+    }
 
-        if (successfulNotifications.get() > cluster.getNbMembers() / 2) {
-            Logger.println("NEW LEADER: " + cluster.getMyNodeId());
-            return;
-        }
-
+    private void fail() {
         try {
             Thread.sleep(WAIT_AFTER_FAILURE);
         } catch (InterruptedException ignored) {
