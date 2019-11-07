@@ -7,7 +7,7 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class NodeStateSupervisor {
-    public static int GOSSIP_FREQUENCY = 50;
+    public static int GOSSIP_AVG_TIME_PER_NODE = 200;
     public static int FAILURE_TIMEOUT = 1000;
 
     private NodeState[] nodeStates;
@@ -16,7 +16,6 @@ public class NodeStateSupervisor {
     private boolean keepGoing = false;
     private Random random = new Random();
     private AtomicLong heartbeatCounter = new AtomicLong(0);
-    private long lastGossipTimestamp = 0;
 
     NodeStateSupervisor(ClusterHandle membership) {
         this.membership = membership;
@@ -37,16 +36,26 @@ public class NodeStateSupervisor {
 
     synchronized void receiveMemberList(NodeHeartbeat[] memberList) {
         for (int node = 0; node < nodeStates.length; ++node) {
+            if (node == membership.getMyNodeId() && memberList[node] != null
+                    && memberList[node].getCounter() > heartbeatCounter.get()) {
+                heartbeatCounter.set(memberList[node].getCounter() + 1);
+            }
             nodeStates[node].updateHeartbeat(memberList[node]);
         }
     }
 
+    private int getTimeToWait() {
+        return GOSSIP_AVG_TIME_PER_NODE / (membership.getNbMembers() - 1) * 2;
+    }
+
     private void backGroundWork() {
+        int totalWaitTime = getTimeToWait();
         while (keepGoing) {
+            long start = System.currentTimeMillis();
             checkForTimeouts();
             checkForLeaderFailure();
             gossipMemberList();
-            long timeToWait = (lastGossipTimestamp + GOSSIP_FREQUENCY) - System.currentTimeMillis();
+            long timeToWait = totalWaitTime - (System.currentTimeMillis() - start);
             if (timeToWait > 0) {
                 try {
                     Thread.sleep(timeToWait);
@@ -89,8 +98,11 @@ public class NodeStateSupervisor {
         } catch (IOException ignored) { }
         try {
             membership.getMembers().get(node2).getMembership().gossipMemberList(nodeHeartbeats);
-        } catch (IOException ignored) { }
-        lastGossipTimestamp = System.currentTimeMillis();
+        } catch (IOException e) {
+            try {
+                membership.getMembers().get(getRandomNodeId(node2)).getMembership().gossipMemberList(nodeHeartbeats);
+            } catch (IOException ignored) { }
+        }
     }
 
     private int getRandomNodeId(int exceptThisOne) {
