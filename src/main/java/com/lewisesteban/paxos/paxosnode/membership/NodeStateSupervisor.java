@@ -44,6 +44,10 @@ public class NodeStateSupervisor {
         }
     }
 
+    synchronized void resetTimeout(int nodeId) {
+        nodeStates[nodeId].resetTimeout();
+    }
+
     private int getTimeToWait() {
         return GOSSIP_AVG_TIME_PER_NODE / (membership.getNbMembers() - 1) * 2;
     }

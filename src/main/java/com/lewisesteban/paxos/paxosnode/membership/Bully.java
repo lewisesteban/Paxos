@@ -55,7 +55,7 @@ public class Bully {
         return new MembershipRPCHandle.BullyVictoryResponse(false, electionInstance.get());
     }
 
-    int receiveElectionMessage(int instanceNb) {
+    synchronized int receiveElectionMessage(int instanceNb) {
         if (instanceNb > electionInstance.get()) {
             startElection();
         }
@@ -73,6 +73,7 @@ public class Bully {
                     } else {
                         // my election nb is late -- let Membership start a new election if necessary
                         electionInstance.set(remoteInstance);
+                        electionIsOngoing.set(false);
                         return;
                     }
                 } catch (IOException ignored) { }
@@ -93,9 +94,8 @@ public class Bully {
                     wait(timeLeft);
                 } catch (InterruptedException ignored) { }
             } else {
-                // timed out
+                // timed out - a new election will start automatically if necessary
                 electionIsOngoing.set(false);
-                startElection();
                 return;
             }
         }
@@ -137,17 +137,18 @@ public class Bully {
                 }
             }
         }
+
         if (successfulNotifications.get() > cluster.getNbMembers() / 2) {
             Logger.println("NEW LEADER: " + cluster.getMyNodeId());
             return;
         }
-        if (!(cluster.getLeaderNodeId() > cluster.getMyNodeId())) { // make sure I haven't already voted again
-            try {
-                Thread.sleep(WAIT_AFTER_FAILURE);
-            } catch (InterruptedException ignored) {
-            }
-            startElection();
+
+        try {
+            Thread.sleep(WAIT_AFTER_FAILURE);
+        } catch (InterruptedException ignored) {
         }
+        if (!(cluster.getLeaderNodeId() > cluster.getMyNodeId())) // make sure I haven't already voted again
+            cluster.setLeaderNodeId(null); // a new election will start automatically if necessary
     }
 
     // bully algorithm:

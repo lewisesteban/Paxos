@@ -48,8 +48,9 @@ class NodeState {
         return heartbeat == null;
     }
 
-    void setAlive() {
-        heartbeat.setFailed(false);
+    void resetTimeout() {
+        if (heartbeat != null)
+            heartbeat.setFailed(false);
         lastHeartbeatTimestamp = System.currentTimeMillis();
     }
 

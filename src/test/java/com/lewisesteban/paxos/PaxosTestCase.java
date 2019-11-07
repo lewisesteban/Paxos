@@ -96,6 +96,10 @@ public class PaxosTestCase extends TestCase {
         }
     }
 
+    protected Thread serialKiller(Network network, List<PaxosNetworkNode> nodes, int duration, int maxSleep) {
+        return serialKiller(network, nodes, duration, maxSleep, null);
+    }
+
     protected Thread serialKiller(Network network, List<PaxosNetworkNode> nodes, int duration, int maxSleep, KillController killController) {
         final int nbNodes = nodes.size();
 
@@ -119,7 +123,8 @@ public class PaxosTestCase extends TestCase {
             }
             if (nodes.get(node).isRunning()) {
                 System.out.println("--- killing " + node);
-                killController.kill(node);
+                if (killController != null)
+                    killController.kill(node);
                 network.kill(node);
             }
         };

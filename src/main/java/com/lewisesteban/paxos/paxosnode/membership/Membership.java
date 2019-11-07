@@ -15,6 +15,7 @@ public class Membership implements ClusterHandle, MembershipRPCHandle {
     private NodeStateSupervisor supervisor;
     private Bully bully;
     private Integer leader = null;
+    private boolean keepGoing = true;
 
     public Membership(int myNodeId, List<RemotePaxosNode> nodes) {
         this.nodes = nodes;
@@ -26,10 +27,12 @@ public class Membership implements ClusterHandle, MembershipRPCHandle {
     public void start() {
         nbNodes = nodes.size();
         supervisor.start();
+        keepGoing = true;
     }
 
     public void stop() {
         supervisor.stop();
+        keepGoing = false;
     }
 
     @Override
@@ -63,8 +66,13 @@ public class Membership implements ClusterHandle, MembershipRPCHandle {
     @Override
     public void setLeaderNodeId(Integer nodeId) {
         leader = nodeId;
-        if (leader == null)
-            bully.startElection();
+        if (keepGoing) {
+            if (leader == null) {
+                bully.startElection();
+            } else {
+                supervisor.resetTimeout(nodeId);
+            }
+        }
     }
 
     @Override
