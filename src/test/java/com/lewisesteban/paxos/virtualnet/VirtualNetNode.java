@@ -5,7 +5,7 @@ package com.lewisesteban.paxos.virtualnet;
  */
 public interface VirtualNetNode {
 
-    int getAddress();
+    Network.Address getAddress();
     int getRack();
     boolean isRunning();
     void shutDown();

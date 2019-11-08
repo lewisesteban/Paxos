@@ -35,11 +35,11 @@ public class ElectionTest extends PaxosTestCase {
         assertEquals((Integer)3, result.getExtra().getLeaderId());
 
         System.out.println("--- killing node");
-        network.kill(3);
+        network.kill(addr(3));
         Thread.sleep(200);
         assertEquals((Integer)2, proposer.propose(cmd3, 2).getExtra().getLeaderId());
         System.out.println("+++ restarting node");
-        network.start(3);
+        network.start(addr(3));
         Thread.sleep(200);
         assertEquals((Integer)3, proposer.propose(cmd4, 3).getExtra().getLeaderId());
     }
@@ -126,7 +126,7 @@ public class ElectionTest extends PaxosTestCase {
         System.out.println(">>>>>>>>>> start (partitioned)");
         Thread.sleep(200);
 
-        int majorityRack = network.getRacks()[0].length >= 4 ? 0 : 1;
+        int majorityRack = network.getRacks(nodes)[0].length >= 4 ? 0 : 1;
         int majorityRackLeader = 0;
         for (int node = 0; node < nodes.size(); ++node) {
             if (nodes.get(node).getRack() == majorityRack && node > majorityRackLeader)
@@ -195,9 +195,9 @@ public class ElectionTest extends PaxosTestCase {
 
         // kill a few servers and make sure it still works
         System.out.println(">>>>> test with three failed nodes");
-        network.kill(6);
-        network.kill(5);
-        network.kill(0);
+        network.kill(addr(6));
+        network.kill(addr(5));
+        network.kill(addr(0));
         for (int trial = 0; trial < 3; trial++) {
             PaxosClient client = new PaxosClient(proposers, "client" + trial);
             try {
@@ -210,7 +210,7 @@ public class ElectionTest extends PaxosTestCase {
         }
 
         // kill one server too much and make sure I get an exception
-        network.kill(1);
+        network.kill(addr(1));
         try {
             new PaxosClient(proposers, "client666").tryCommand(cmd4);
             fail();

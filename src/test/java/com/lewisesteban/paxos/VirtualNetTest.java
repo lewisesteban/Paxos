@@ -116,7 +116,7 @@ public class VirtualNetTest extends PaxosTestCase {
         Thread.sleep(100); // wait for the proposeNew/accept tasks to start
         System.out.println("Enough waiting. Kill the servers.");
 
-        network.kill(0);
+        network.kill(addr(0));
         for (Thread client : clients) {
             try {
                 client.join();
@@ -143,7 +143,7 @@ public class VirtualNetTest extends PaxosTestCase {
         System.out.println("Task started. Let's wait a bit...");
         Thread.sleep(100); // wait for the proposeNew/accept tasks to start
         System.out.println("Enough waiting. Kill the server.");
-        network.kill(slowAcceptorId);
+        network.kill(addr(slowAcceptorId));
         assertEquals((byte) client.get(), Result.NETWORK_ERROR);
     }
 
@@ -205,24 +205,43 @@ public class VirtualNetTest extends PaxosTestCase {
         System.out.println("Task started. Let's wait a bit...");
         Thread.sleep(100); // wait for the proposeNew/accept tasks to start
         System.out.println("Enough waiting. Kill the server.");
-        network.kill(slowAcceptorId);
+        network.kill(addr(slowAcceptorId));
         int killedSrvId = slowAcceptorId;
 
         slowAcceptorId = -1; // now no acceptor will be slow
         System.out.println("Now start again.");
         serverRestarted.set(true);
-        network.start(killedSrvId);
+        network.start(addr(killedSrvId));
 
         thread.join();
         assertTrue(success.get());
+    }
+
+    public void testTwoClusters() throws IOException {
+
+        Network network = new Network();
+        List<PaxosNetworkNode> cluster0 = NetworkFactory.initSimpleNetwork(3, network, PaxosNode::new, stateMachinesAppendOK(3), 0);
+        List<PaxosNetworkNode> cluster1 = NetworkFactory.initSimpleNetwork(2, network, PaxosNode::new, stateMachinesAppendOK(2), 1);
+        PaxosProposer proposer0 = cluster0.get(0).getPaxosSrv();
+        PaxosProposer proposer1 = cluster1.get(0).getPaxosSrv();
+
+        assertEquals(Result.CONSENSUS_ON_THIS_CMD, proposer0.propose(cmd1, 0).getStatus());
+        assertEquals(Result.CONSENSUS_ON_THIS_CMD, proposer1.propose(cmd1, 0).getStatus());
+
+        network.kill(new Network.Address(1, 0));
+        network.kill(new Network.Address(1, 1));
+        assertEquals(Result.CONSENSUS_ON_THIS_CMD, proposer0.propose(cmd2, 1).getStatus());
+        try {
+            assertEquals(Result.NETWORK_ERROR, proposer1.propose(cmd2, 1).getStatus());
+        } catch (IOException ignored) { }
     }
 
     private class SlowPaxosNode extends PaxosNode {
 
         private AcceptorRPCHandle acceptor;
 
-        SlowPaxosNode(int id, List<RemotePaxosNode> remotePaxosNodeList, StateMachine stateMachine, StorageUnit.Creator storage, FileAccessorCreator fileAccessorCreator) throws StorageException {
-            super(id, remotePaxosNodeList, stateMachine, storage, fileAccessorCreator);
+        SlowPaxosNode(int id, int fragment, List<RemotePaxosNode> remotePaxosNodeList, StateMachine stateMachine, StorageUnit.Creator storage, FileAccessorCreator fileAccessorCreator) throws StorageException {
+            super(id, fragment, remotePaxosNodeList, stateMachine, storage, fileAccessorCreator);
             acceptor = new SlowPaxosAcceptor(super.getAcceptor());
         }
 

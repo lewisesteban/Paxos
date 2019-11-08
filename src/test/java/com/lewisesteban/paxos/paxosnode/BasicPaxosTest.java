@@ -232,7 +232,7 @@ public class BasicPaxosTest extends PaxosTestCase {
 
         Network network = new Network();
         List<PaxosNetworkNode> nodes = initSimpleNetwork(3, network, stateMachines);
-        network.kill(1);
+        network.kill(addr(1));
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
         for (int i = 0; i < 10; ++i) {
             assertEquals(Result.CONSENSUS_ON_THIS_CMD, node0.propose(new Command(i, "", i), i).getStatus());
@@ -241,7 +241,7 @@ public class BasicPaxosTest extends PaxosTestCase {
         assertEquals(0, receivedAt1.get());
 
         System.out.println("+++++ start node 1");
-        network.start(1);
+        network.start(addr(1));
         PaxosServer node1 = nodes.get(1).getPaxosSrv();
         assertEquals(Result.CONSENSUS_ON_THIS_CMD, node1.propose(new Command(0, "", 0), 0).getStatus());
         assertEquals(Result.CONSENSUS_ON_ANOTHER_CMD, node1.propose(new Command(0, "", 0), 1).getStatus());
@@ -275,7 +275,7 @@ public class BasicPaxosTest extends PaxosTestCase {
 
         Network network = new Network();
         List<PaxosNetworkNode> nodes = initSimpleNetwork(3, network, stateMachines);
-        network.kill(1);
+        network.kill(addr(1));
         PaxosServer node0 = nodes.get(0).getPaxosSrv();
         for (int i = 0; i < 10; ++i) {
             assertEquals(Result.CONSENSUS_ON_THIS_CMD, node0.propose(new Command(i, "", i), i).getStatus());
@@ -284,7 +284,7 @@ public class BasicPaxosTest extends PaxosTestCase {
         assertEquals(0, receivedAt1.get());
 
         System.out.println("+++++ start node 1");
-        network.start(1);
+        network.start(addr(1));
         PaxosServer node1 = nodes.get(1).getPaxosSrv();
         assertEquals(Result.CONSENSUS_ON_THIS_CMD, node1.propose(new Command(10, "node1", 0), 10).getStatus());
         assertEquals(11, receivedAt1.get());

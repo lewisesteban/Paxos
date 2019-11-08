@@ -125,10 +125,10 @@ public class HeavyPaxosTestNoDedicatedProposer extends PaxosTestCase {
                 if (nodes.get(server).isRunning()) {
                     System.out.println("--- killing " + server);
                     TestStateMachine.stop(server);
-                    network.kill(server);
+                    network.kill(addr(server));
                 } else {
                     System.out.println("+++ restoring " + server);
-                    network.start(server);
+                    network.start(addr(server));
                 }
             }
         });

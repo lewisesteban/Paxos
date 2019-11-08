@@ -14,7 +14,6 @@ import com.lewisesteban.paxos.virtualnet.paxosnet.NodeConnection;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -25,7 +24,12 @@ import java.util.concurrent.Callable;
 @SuppressWarnings({"WeakerAccess", "unused"})
 public class NetworkFactory {
 
-    public static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network, PaxosFactory paxosFactory, Iterable<Callable<StateMachine>> stateMachineCreators) {
+    /**
+     * Creates paxos nodes, connects them and adds them to a network. All these nodes will be part of a single cluster
+     * (responsible for a single fragment).
+     * Returns the nodes of the cluster.
+     */
+    public static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network, PaxosFactory paxosFactory, Iterable<Callable<StateMachine>> stateMachineCreators, int fragmentNb) {
 
         List<List<RemotePaxosNode>> networkViews = new ArrayList<>();
         for (int i = 0; i < totalNbNodes; ++i) {
@@ -33,7 +37,7 @@ public class NetworkFactory {
         }
 
         int nodeId = 0;
-        List<PaxosNetworkNode> paxosNodes = new ArrayList<>();
+        List<PaxosNetworkNode> networkNodes = new ArrayList<>();
         Iterator<Callable<StateMachine>> executorIt = stateMachineCreators.iterator();
         for (List<RemotePaxosNode> networkView : networkViews) {
             final int thisNodeId = nodeId;
@@ -43,35 +47,43 @@ public class NetworkFactory {
             Callable<PaxosNode> paxosNodeCreator = () -> {
                 StateMachine stateMachine = stateMachineCreator.call();
                 stateMachine.setup(thisNodeId);
-                return paxosFactory.create(thisNodeId, networkView, stateMachine, storageUnitCreator, fileAccessorCreator);
+                return paxosFactory.create(thisNodeId, fragmentNb, networkView, stateMachine, storageUnitCreator, fileAccessorCreator);
             };
             PaxosServer srv = new PaxosServer(paxosNodeCreator);
             int rack = srv.getId() % nbRacks;
-            paxosNodes.add(new PaxosNetworkNode(srv, rack));
+            networkNodes.add(new PaxosNetworkNode(srv, rack));
             nodeId++;
         }
 
-        Iterator<PaxosNetworkNode> refNodeIt = paxosNodes.iterator();
+        Iterator<PaxosNetworkNode> refNodeIt = networkNodes.iterator();
         for (List<RemotePaxosNode> networkView : networkViews) {
             PaxosNetworkNode refNode = refNodeIt.next();
-            for (PaxosNetworkNode connectedNode : paxosNodes) {
+            for (PaxosNetworkNode connectedNode : networkNodes) {
                 networkView.add(new NodeConnection(connectedNode, refNode.getAddress(), network));
             }
         }
 
-        for (VirtualNetNode node : paxosNodes) {
+        for (VirtualNetNode node : networkNodes) {
             network.addNode(node);
         }
         network.startAll();
-        return paxosNodes;
+        return networkNodes;
     }
 
     public static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network, PaxosFactory paxosFactory, Iterable<Callable<StateMachine>> stateMachineCreators) {
-        return initSimpleNetwork(totalNbNodes, 1, network, paxosFactory, stateMachineCreators);
+        return initSimpleNetwork(totalNbNodes, 1, network, paxosFactory, stateMachineCreators, 0);
+    }
+
+    public static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network, PaxosFactory paxosFactory, Iterable<Callable<StateMachine>> stateMachineCreators, int fragmentNb) {
+        return initSimpleNetwork(totalNbNodes, 1, network, paxosFactory, stateMachineCreators, fragmentNb);
     }
 
     public static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network, Iterable<Callable<StateMachine>> stateMachineCreators) {
-        return initSimpleNetwork(totalNbNodes, nbRacks, network, PaxosNode::new, stateMachineCreators);
+        return initSimpleNetwork(totalNbNodes, nbRacks, network, PaxosNode::new, stateMachineCreators, 0);
+    }
+
+    public static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network, Iterable<Callable<StateMachine>> stateMachineCreators, int fragmentNb) {
+        return initSimpleNetwork(totalNbNodes, nbRacks, network, PaxosNode::new, stateMachineCreators, fragmentNb);
     }
 
     public static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network, Iterable<Callable<StateMachine>> stateMachineCreators) {
@@ -137,7 +149,7 @@ public class NetworkFactory {
     }
 
     interface PaxosFactory {
-        PaxosNode create(int nodeId, List<RemotePaxosNode> networkView, StateMachine stateMachine, StorageUnit.Creator storage, FileAccessorCreator fileAccessorCreator) throws StorageException;
+        PaxosNode create(int nodeId, int fragmentId, List<RemotePaxosNode> networkView, StateMachine stateMachine, StorageUnit.Creator storage, FileAccessorCreator fileAccessorCreator) throws StorageException;
     }
 
     public abstract static class BasicStateMachine implements StateMachine {
@@ -147,7 +159,7 @@ public class NetworkFactory {
         StorageUnit storage;
 
         @Override
-        public void setup(int nodeId) throws IOException {
+        public void setup(int nodeId) {
             this.nodeId = nodeId;
             try {
                 storage = new SafeSingleFileStorage("stateMachine" + nodeId, null, InterruptibleVirtualFileAccessor.creator(nodeId));

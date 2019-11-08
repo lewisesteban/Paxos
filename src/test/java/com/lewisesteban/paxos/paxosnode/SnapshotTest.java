@@ -100,7 +100,7 @@ public class SnapshotTest extends PaxosTestCase {
         SnapshotManager.SNAPSHOT_FREQUENCY = 2;
         proposer.propose(new Command("0", "client", 0), 0);
         proposer.propose(new Command("1", "client", 1), 1);
-        network.kill(2);
+        network.kill(addr(2));
         assertEquals(2, InterruptibleVirtualFileAccessor.creator(2).create("acceptor2", null).listFiles().length);
 
         // make the others do a snapshot
@@ -112,7 +112,7 @@ public class SnapshotTest extends PaxosTestCase {
         assertEquals(2, InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length);
 
         // proposal that will initiate snapshot downloading
-        network.start(2);
+        network.start(addr(2));
         assertEquals(2, InterruptibleVirtualFileAccessor.creator(2).create("acceptor2", null).listFiles().length);
         Result result;
         result = lateServer.propose(new Command("4", "anotherClient", 0), lateServer.getNewInstanceId());
@@ -190,8 +190,8 @@ public class SnapshotTest extends PaxosTestCase {
         server.propose(cmd4, 3);
         sleep(200); // wait for snapshot to finish
 
-        network.kill(0);
-        network.start(0);
+        network.kill(addr(0));
+        network.start(addr(0));
 
         // check recovery
         Result result;

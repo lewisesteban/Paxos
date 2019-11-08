@@ -8,12 +8,23 @@ public interface ClusterHandle {
 
     /**
      * @return Unique identifier of the calling node.
-     * This ID is the index of the current node in the list of nodes.
+     * This ID is the index of the current node in the list of nodes contained in the cluster.
      */
     int getMyNodeId();
 
+    /**
+     * Returns the ID of the fragment corresponding to this cluster.
+     */
+    int getFragmentId();
+
+    /**
+     * Returns the nodes contained in the cluster
+     */
     List<RemotePaxosNode> getMembers();
 
+    /**
+     * Returns the number of nodes contained in the cluster
+     */
     int getNbMembers();
 
     RemotePaxosNode getMyNode();

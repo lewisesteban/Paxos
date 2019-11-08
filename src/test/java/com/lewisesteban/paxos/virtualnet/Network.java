@@ -1,5 +1,7 @@
 package com.lewisesteban.paxos.virtualnet;
 
+import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
+
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.util.*;
@@ -8,7 +10,7 @@ import java.util.concurrent.Callable;
 @SuppressWarnings({"BooleanMethodIsAlwaysInverted", "unused", "WeakerAccess"})
 public class Network {
 
-    private Map<Integer, VirtualNetNode> nodes = new HashMap<>();
+    private Map<Address, VirtualNetNode> nodes = new HashMap<>();
     private Set<Integer> isolatedRacks = new TreeSet<>();
 
     private int waitTimeMin = 0;
@@ -27,27 +29,29 @@ public class Network {
         this.nodes.put(node.getAddress(), node);
     }
 
-    public void start(int address) {
+    public void start(Address address) {
         nodes.get(address).start();
     }
 
-    public void stop(int address) {
+    public void stop(Address address) {
         nodes.get(address).shutDown();
     }
 
-    public void kill(int address) {
+    public void kill(Address address) {
         nodes.get(address).kill();
     }
 
     public void startAll() {
         for (VirtualNetNode node : nodes.values()) {
-            node.start();
+            if (!node.isRunning())
+                node.start();
         }
     }
 
     public void stopAll() {
         for (VirtualNetNode node : nodes.values()) {
-            node.shutDown();
+            if (node.isRunning())
+                node.shutDown();
         }
     }
 
@@ -93,10 +97,10 @@ public class Network {
         isolatedRacks.remove(rack);
     }
 
-    public int[][] getRacks() {
+    public int[][] getRacks(List<PaxosNetworkNode> nodes) {
 
         int highestRack = 0;
-        for (VirtualNetNode node : nodes.values()) {
+        for (PaxosNetworkNode node : nodes) {
             if (node.getRack() > highestRack)
                 highestRack = node.getRack();
         }
@@ -105,16 +109,16 @@ public class Network {
         int[][] racks = new int[nbRacks][];
         for (int rackId =  0; rackId < nbRacks; rackId++) {
             int rackSize = 0;
-            for (VirtualNetNode node : nodes.values()) {
+            for (PaxosNetworkNode node : nodes) {
                 if (node.getRack() == rackId)
                     rackSize++;
             }
             racks[rackId] = new int[rackSize];
 
             int counter = 0;
-            for (VirtualNetNode node : nodes.values()) {
+            for (PaxosNetworkNode node : nodes) {
                 if (node.getRack() == rackId) {
-                    racks[rackId][counter] = node.getAddress();
+                    racks[rackId][counter] = node.getPaxosSrv().getId();
                     counter++;
                 }
             }
@@ -123,7 +127,7 @@ public class Network {
         return racks;
     }
 
-    public <RT> RT tryNetCall(Callable<RT> callable, int callerAddr, int targetAddr) throws IOException {
+    public <RT> RT tryNetCall(Callable<RT> callable, Address callerAddr, Address targetAddr) throws IOException {
         if (!canCommunicate(callerAddr, targetAddr))
             throw new InterruptedIOException();
         waitNetworkDelay();
@@ -142,7 +146,7 @@ public class Network {
         }
     }
 
-    public void tryNetCall(Runnable runnable, int callerAddr, int targetAddr) throws IOException {
+    public void tryNetCall(Runnable runnable, Address callerAddr, Address targetAddr) throws IOException {
         if (!canCommunicate(callerAddr, targetAddr))
             throw new InterruptedIOException();
         waitNetworkDelay();
@@ -155,7 +159,7 @@ public class Network {
         }
     }
 
-    private boolean canCommunicate(int nodeId1, int nodeId2) {
+    private boolean canCommunicate(Address nodeId1, Address nodeId2) {
         VirtualNetNode node1 = nodes.get(nodeId1);
         VirtualNetNode node2 = nodes.get(nodeId2);
         if (Thread.interrupted() || !node1.isRunning() || !node2.isRunning())
@@ -180,5 +184,37 @@ public class Network {
         try {
             Thread.sleep(wait);
         } catch (InterruptedException ignored) { }
+    }
+
+    public static class Address {
+        private int clusterId;
+        private int nodeIdInCluster;
+
+        public Address(int clusterId, int nodeIdInCluster) {
+            this.clusterId = clusterId;
+            this.nodeIdInCluster = nodeIdInCluster;
+        }
+
+        public int getClusterId() {
+            return clusterId;
+        }
+
+        public int getNodeIdInCluster() {
+            return nodeIdInCluster;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj instanceof Address) {
+                Address other = (Address) obj;
+                return this.clusterId == other.clusterId && this.nodeIdInCluster == other.nodeIdInCluster;
+            }
+            return super.equals(obj);
+        }
+
+        @Override
+        public int hashCode() {
+            return nodeIdInCluster + (clusterId >> 16);
+        }
     }
 }

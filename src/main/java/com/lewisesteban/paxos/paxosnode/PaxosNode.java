@@ -26,8 +26,8 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
     private UnneededInstanceGossipper unneededInstanceGossipper;
     private boolean running = false;
 
-    public PaxosNode(int myNodeId, List<RemotePaxosNode> members, StateMachine stateMachine, StorageUnit.Creator storage, FileAccessorCreator fileAccessorCreator) throws StorageException {
-        paxosCluster = new Membership(myNodeId, members);
+    public PaxosNode(int myNodeId, int fragmentId, List<RemotePaxosNode> members, StateMachine stateMachine, StorageUnit.Creator storage, FileAccessorCreator fileAccessorCreator) throws StorageException {
+        paxosCluster = new Membership(myNodeId, fragmentId, members);
         RunningProposalManager runningProposalManager = new RunningProposalManager();
         SnapshotManager snapshotManager = new SnapshotManager(stateMachine);
         ClientCommandContainer clientCommandContainer = new ClientCommandContainer(storage, fileAccessorCreator, paxosCluster.getMyNodeId());
@@ -50,6 +50,7 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
         paxosCluster.stop();
     }
 
+    @Override
     public long getNewInstanceId() throws IOException {
         if (!running) {
             throw new IOException("not started");
@@ -58,6 +59,7 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
         }
     }
 
+    @Override
     public Result propose(Command command, long inst) throws IOException {
         if (!running) {
             throw new IOException("not started");
@@ -71,18 +73,27 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
         proposer.endClient(clientId);
     }
 
+    @Override
     public int getId() {
         return paxosCluster.getMyNodeId();
     }
 
+    @Override
+    public int getFragmentId() {
+        return paxosCluster.getFragmentId();
+    }
+
+    @Override
     public AcceptorRPCHandle getAcceptor() {
         return acceptor;
     }
 
+    @Override
     public ListenerRPCHandle getListener() {
         return listener;
     }
 
+    @Override
     public MembershipRPCHandle getMembership() {
         return paxosCluster;
     }

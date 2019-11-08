@@ -17,10 +17,12 @@ public class Membership implements ClusterHandle, MembershipRPCHandle {
     private Bully bully;
     private Integer leader = null;
     private boolean keepGoing = true;
+    private int fragmentId;
 
-    public Membership(int myNodeId, List<RemotePaxosNode> nodes) {
+    public Membership(int myNodeId, int fragmentId, List<RemotePaxosNode> nodes) {
         this.nodes = nodes;
         this.myNodeId = myNodeId;
+        this.fragmentId = fragmentId;
         this.bully = new Bully(this);
         this.supervisor = new NodeStateSupervisor(this);
     }
@@ -41,6 +43,11 @@ public class Membership implements ClusterHandle, MembershipRPCHandle {
     @Override
     public int getMyNodeId() {
         return myNodeId;
+    }
+
+    @Override
+    public int getFragmentId() {
+        return fragmentId;
     }
 
     @Override

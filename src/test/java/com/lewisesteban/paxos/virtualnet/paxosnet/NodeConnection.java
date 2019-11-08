@@ -17,9 +17,9 @@ public class NodeConnection implements RemotePaxosNode, VirtualConnection {
     private NodeConAcceptor acceptor;
     private NodeConListener listener;
     private NodeConMembership membership;
-    private int callerAddr;
+    private Network.Address callerAddr;
 
-    public NodeConnection(PaxosNetworkNode targetPaxosNode, int callerAddr, final Network network) {
+    public NodeConnection(PaxosNetworkNode targetPaxosNode, Network.Address callerAddr, final Network network) {
         this.targetNode = targetPaxosNode;
         this.callerAddr = callerAddr;
         this.network = network;
@@ -33,18 +33,27 @@ public class NodeConnection implements RemotePaxosNode, VirtualConnection {
         return network.tryNetCall(callable, callerAddr, targetNode.getAddress());
     }
 
+    @Override
     public int getId() {
         return targetNode.getPaxosSrv().getId();
     }
 
+    @Override
+    public int getFragmentId() {
+        return targetNode.getPaxosSrv().getFragmentId();
+    }
+
+    @Override
     public AcceptorRPCHandle getAcceptor() {
         return acceptor;
     }
 
+    @Override
     public ListenerRPCHandle getListener() {
         return listener;
     }
 
+    @Override
     public MembershipRPCHandle getMembership() {
         return membership;
     }

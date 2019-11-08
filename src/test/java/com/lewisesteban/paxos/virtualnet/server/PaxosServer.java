@@ -85,6 +85,11 @@ public class PaxosServer implements PaxosProposer, RemotePaxosNode {
     }
 
     @Override
+    public int getFragmentId() {
+        return paxosNode.getFragmentId();
+    }
+
+    @Override
     public AcceptorRPCHandle getAcceptor() {
         return acceptor;
     }

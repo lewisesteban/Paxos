@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Callable;
 
+@SuppressWarnings("SameParameterValue")
 public class PaxosTestCase extends TestCase {
 
     protected static final Command cmd1 = new Command("ONE", "client", 1);
@@ -21,7 +22,6 @@ public class PaxosTestCase extends TestCase {
     protected static final Command cmd3 = new Command("THREE", "client", 3);
     protected static final Command cmd4 = new Command("FOUR", "client", 4);
     protected static final Command cmd5 = new Command("FIVE", "client", 5);
-    protected static final Command cmd6 = new Command("SIX", "client", 6);
 
     protected Random random = new Random();
 
@@ -76,6 +76,7 @@ public class PaxosTestCase extends TestCase {
         UnneededInstanceGossipper.GOSSIP_FREQUENCY = 100;
     }
 
+    @SuppressWarnings({"WeakerAccess", "unused"})
     protected static boolean isCause(Class<? extends Throwable> expected, Throwable exc) {
         return expected.isInstance(exc) || (exc != null && isCause(expected, exc.getCause()));
     }
@@ -125,7 +126,7 @@ public class PaxosTestCase extends TestCase {
                 System.out.println("--- killing " + node);
                 if (killController != null)
                     killController.kill(node);
-                network.kill(node);
+                network.kill(addr(node));
             }
         };
 
@@ -140,7 +141,7 @@ public class PaxosTestCase extends TestCase {
             }
             if (!nodes.get(node).isRunning()) {
                 System.out.println("+++ restoring " + node);
-                network.start(node);
+                network.start(addr(node));
             }
         };
 
@@ -173,6 +174,10 @@ public class PaxosTestCase extends TestCase {
                 e.printStackTrace();
             }
         });
+    }
+
+    protected Network.Address addr(int nodeId) {
+        return new Network.Address(0, nodeId);
     }
 
     protected interface KillController {
