@@ -1,6 +1,8 @@
 package com.lewisesteban.paxos.paxosnode;
 
 import com.lewisesteban.paxos.PaxosTestCase;
+import com.lewisesteban.paxos.client.ClientCommandSender;
+import com.lewisesteban.paxos.client.PaxosClient;
 import com.lewisesteban.paxos.paxosnode.membership.Bully;
 import com.lewisesteban.paxos.paxosnode.membership.NodeStateSupervisor;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
@@ -9,10 +11,11 @@ import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.List;
+import java.util.stream.Collectors;
 
-import static com.lewisesteban.paxos.NetworkFactory.initSimpleNetwork;
-import static com.lewisesteban.paxos.NetworkFactory.stateMachinesEmpty;
+import static com.lewisesteban.paxos.NetworkFactory.*;
 
 public class ElectionTest extends PaxosTestCase {
 
@@ -29,16 +32,16 @@ public class ElectionTest extends PaxosTestCase {
         assertNull(nodes.get(3).getPaxosSrv().propose(cmd1, 0).getExtra());
         Result result = proposer.propose(cmd2, 1);
         assertEquals(Result.BAD_PROPOSAL, result.getStatus());
-        assertEquals(3, result.getExtra().getLeaderId());
+        assertEquals((Integer)3, result.getExtra().getLeaderId());
 
         System.out.println("--- killing node");
         network.kill(3);
         Thread.sleep(200);
-        assertEquals(2, proposer.propose(cmd3, 2).getExtra().getLeaderId());
+        assertEquals((Integer)2, proposer.propose(cmd3, 2).getExtra().getLeaderId());
         System.out.println("+++ restarting node");
         network.start(3);
         Thread.sleep(200);
-        assertEquals(3, proposer.propose(cmd4, 3).getExtra().getLeaderId());
+        assertEquals((Integer)3, proposer.propose(cmd4, 3).getExtra().getLeaderId());
     }
 
     public void testElectionRandom() throws InterruptedException {
@@ -48,7 +51,7 @@ public class ElectionTest extends PaxosTestCase {
         Bully.WAIT_FOR_VICTORY_TIMEOUT = 100;
 
         final int NB_NODES = 5;
-        final int NB_ROUNDS = 100;
+        final int NB_ROUNDS = 20;
 
         Network network = new Network();
         List<PaxosNetworkNode> nodes = initSimpleNetwork(NB_NODES, network, stateMachinesEmpty(NB_NODES));
@@ -100,7 +103,7 @@ public class ElectionTest extends PaxosTestCase {
                     if (nodes.get(node).isRunning()) {
                         //System.out.println("checking " + node + "...");
                         result = nodes.get(node).getPaxosSrv().propose(cmd1, 0);
-                        assertEquals(leaderId, result.getExtra().getLeaderId());
+                        assertEquals((Integer)leaderId, result.getExtra().getLeaderId());
                     }
                 }
             } catch (IOException e) {
@@ -135,7 +138,7 @@ public class ElectionTest extends PaxosTestCase {
             if (nodes.get(node).getRack() == majorityRack) {
                 if (node != majorityRackLeader) {
                     Result result = nodes.get(node).getPaxosSrv().propose(cmd1, 0);
-                    assertEquals(majorityRackLeader, result.getExtra().getLeaderId());
+                    assertEquals((Integer)majorityRackLeader, result.getExtra().getLeaderId());
                 }
             }
         }
@@ -156,7 +159,61 @@ public class ElectionTest extends PaxosTestCase {
         for (int node = 0; node < 6; node++) {
             System.out.println("checking " + node);
             Result result = nodes.get(node).getPaxosSrv().propose(cmd1, 0);
-            assertEquals(6, result.getExtra().getLeaderId());
+            assertEquals((Integer)6, result.getExtra().getLeaderId());
         }
+    }
+
+    public void testClientRedirection() throws IOException, InterruptedException {
+        NodeStateSupervisor.GOSSIP_AVG_TIME_PER_NODE = 20;
+        NodeStateSupervisor.FAILURE_TIMEOUT = 100;
+
+        Network network = new Network();
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(7, 2, network, stateMachinesMirror(7));
+        Thread.sleep(200); // wait for consensus
+
+        // test failure of request on wrong server and success of request on correct server
+        Result res = nodes.get(0).getPaxosSrv().propose(cmd1, nodes.get(0).getPaxosSrv().getNewInstanceId());
+        int leader = res.getExtra().getLeaderId();
+        res = nodes.get(leader).getPaxosSrv().propose(cmd1, nodes.get(leader).getPaxosSrv().getNewInstanceId());
+        assertEquals(0, res.getInstanceId());
+        assertEquals(Result.CONSENSUS_ON_THIS_CMD, res.getStatus());
+        assertNull(res.getExtra());
+
+        // test client
+        System.out.println(">>>>> test with good network");
+        List<PaxosProposer> proposers = nodes.stream().map(PaxosNetworkNode::getPaxosSrv).collect(Collectors.toList());
+        for (int trial = 0; trial < 3; trial++) {
+            PaxosClient client = new PaxosClient(proposers, "client" + trial);
+            try {
+                Serializable resData = client.tryCommand(cmd2);
+                assertEquals(cmd2.getData().toString(), resData.toString());
+            } catch (ClientCommandSender.CommandException e) {
+                e.printStackTrace();
+                fail();
+            }
+        }
+
+        // kill a few servers and make sure it still works
+        System.out.println(">>>>> test with three failed nodes");
+        network.kill(6);
+        network.kill(5);
+        network.kill(0);
+        for (int trial = 0; trial < 3; trial++) {
+            PaxosClient client = new PaxosClient(proposers, "client" + trial);
+            try {
+                Serializable resData = client.tryCommand(cmd3);
+                assertEquals(cmd3.getData().toString(), resData.toString());
+            } catch (ClientCommandSender.CommandException e) {
+                e.printStackTrace();
+                fail();
+            }
+        }
+
+        // kill one server too much and make sure I get an exception
+        network.kill(1);
+        try {
+            new PaxosClient(proposers, "client666").tryCommand(cmd4);
+            fail();
+        } catch (ClientCommandSender.CommandException ignored) { }
     }
 }

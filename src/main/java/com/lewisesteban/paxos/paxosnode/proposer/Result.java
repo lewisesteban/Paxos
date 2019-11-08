@@ -67,13 +67,13 @@ public class Result {
     }
 
     public class ExtraData {
-        int leaderId;
+        Integer leaderId = null;
 
         ExtraData(int leaderId) {
             this.leaderId = leaderId;
         }
 
-        public int getLeaderId() {
+        public Integer getLeaderId() {
             return leaderId;
         }
     }

@@ -1,6 +1,6 @@
 package com.lewisesteban.paxos;
 
-import com.lewisesteban.paxos.client.BasicPaxosClient;
+import com.lewisesteban.paxos.client.BasicTestClient;
 import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.PaxosNode;
 import com.lewisesteban.paxos.paxosnode.StateMachine;
@@ -180,7 +180,7 @@ public class VirtualNetTest extends PaxosTestCase {
         AtomicBoolean success = new AtomicBoolean(false);
         AtomicBoolean serverRestarted = new AtomicBoolean(false);
         slowPropose = false;
-        BasicPaxosClient client = new BasicPaxosClient(server.getPaxosSrv(), "");
+        BasicTestClient client = new BasicTestClient(server.getPaxosSrv(), "");
         Thread thread = new Thread(() -> {
             try {
                 Serializable res = client.tryDoCommand("hi");

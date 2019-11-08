@@ -2,7 +2,7 @@ package com.lewisesteban.paxos.paxosnode;
 
 import com.lewisesteban.paxos.NetworkFactory;
 import com.lewisesteban.paxos.PaxosTestCase;
-import com.lewisesteban.paxos.client.BasicPaxosClient;
+import com.lewisesteban.paxos.client.BasicTestClient;
 import com.lewisesteban.paxos.paxosnode.membership.Membership;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 import com.lewisesteban.paxos.virtualnet.Network;
@@ -38,7 +38,7 @@ public class HeavyPaxosTestNoDedicatedProposer extends PaxosTestCase {
             final int thisClientsId = clientId;
             clients[clientId] = new Thread(() -> {
                 PaxosProposer paxosServer = nodes.get(new Random().nextInt(nodes.size())).getPaxosSrv();
-                BasicPaxosClient paxosHandle = new BasicPaxosClient(paxosServer, "client" + thisClientsId);
+                BasicTestClient paxosHandle = new BasicTestClient(paxosServer, "client" + thisClientsId);
                 for (int cmdId = 0; cmdId < NB_REQUESTS; cmdId++) {
                     TestCommand cmdData = new TestCommand(thisClientsId, cmdId);
                     try {
@@ -80,7 +80,7 @@ public class HeavyPaxosTestNoDedicatedProposer extends PaxosTestCase {
             final int thisClientsId = clientId;
             clients[clientId] = new Thread(() -> {
                 PaxosProposer paxosServer = nodes.get(new Random().nextInt(nodes.size())).getPaxosSrv();
-                BasicPaxosClient paxosHandle = new BasicPaxosClient(paxosServer, "client" + thisClientsId);
+                BasicTestClient paxosHandle = new BasicTestClient(paxosServer, "client" + thisClientsId);
                 for (int cmdId = 0; cmdId < NB_REQUESTS; cmdId++) {
                     TestCommand cmdData = new TestCommand(thisClientsId, cmdId);
                     try {
@@ -138,7 +138,7 @@ public class HeavyPaxosTestNoDedicatedProposer extends PaxosTestCase {
             final int thisClientsId = clientId;
             final int nodeId = new Random().nextInt(nodes.size());
             final PaxosProposer paxosServer = nodes.get(nodeId).getPaxosSrv();
-            final BasicPaxosClient paxosHandle = new BasicPaxosClient(paxosServer, "client" + thisClientsId);
+            final BasicTestClient paxosHandle = new BasicTestClient(paxosServer, "client" + thisClientsId);
             clients[clientId] = new Thread(() -> {
                 int cmdId = 0;
                 while (keepGoing.get() && !error.get()) {

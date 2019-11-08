@@ -10,13 +10,13 @@ import java.io.Serializable;
 /**
  * Responsible for sending a single command to Paxos and getting its result
  */
-class ClientCommandSender {
+public class ClientCommandSender {
 
-    Serializable doCommand(PaxosProposer paxosNode, Command command) throws CommandException {
+    Serializable doCommand(PaxosProposer paxosNode, Command command) throws CommandException, DedicatedProposerRedirection {
         return doCommand(paxosNode, command, null);
     }
 
-    Serializable doCommand(PaxosProposer paxosNode, Command command, Long instance) throws CommandException {
+    Serializable doCommand(PaxosProposer paxosNode, Command command, Long instance) throws CommandException, DedicatedProposerRedirection {
         Serializable commandReturn = null;
         boolean success = false;
         if (instance == null)
@@ -37,7 +37,11 @@ class ClientCommandSender {
                     instance = getNewInstanceId(paxosNode, instance);
                     break;
                 case Result.NETWORK_ERROR:
-                    break; // for now, just try again on the same server
+                    throw new CommandException(instance, null);
+                case Result.BAD_PROPOSAL:
+                    if (result.getExtra().getLeaderId() != null) {
+                        throw new DedicatedProposerRedirection(result.getExtra().getLeaderId(), instance);
+                    }
             }
         }
         return commandReturn;
@@ -51,12 +55,36 @@ class ClientCommandSender {
         }
     }
 
-    class CommandException extends IOException {
-        Long instanceThatMayHaveBeenInitiated;
+    private class CommandSenderExceptionBase extends Throwable {
+        private Long instanceThatMayHaveBeenInitiated;
 
-        CommandException(Long instanceThatMayHaveBeenInitiated, Throwable cause) {
+        CommandSenderExceptionBase(Long instanceThatMayHaveBeenInitiated, Throwable cause) {
             super(cause);
             this.instanceThatMayHaveBeenInitiated = instanceThatMayHaveBeenInitiated;
+        }
+
+        Long getInstanceThatMayHaveBeenInitiated() {
+            return instanceThatMayHaveBeenInitiated;
+        }
+    }
+
+    public class CommandException extends CommandSenderExceptionBase {
+
+        CommandException(Long instanceThatMayHaveBeenInitiated, Throwable cause) {
+            super(instanceThatMayHaveBeenInitiated, cause);
+        }
+    }
+
+    class DedicatedProposerRedirection extends CommandSenderExceptionBase {
+        private int dedicatedProposerId;
+
+        DedicatedProposerRedirection(int dedicatedProposerId, Long instance) {
+            super(instance, null);
+            this.dedicatedProposerId = dedicatedProposerId;
+        }
+
+        int getDedicatedProposerId() {
+            return dedicatedProposerId;
         }
     }
 }

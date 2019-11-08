@@ -3,7 +3,10 @@ package com.lewisesteban.paxos;
 import com.lewisesteban.paxos.paxosnode.PaxosNode;
 import com.lewisesteban.paxos.paxosnode.StateMachine;
 import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
-import com.lewisesteban.paxos.storage.*;
+import com.lewisesteban.paxos.storage.FileAccessorCreator;
+import com.lewisesteban.paxos.storage.SafeSingleFileStorage;
+import com.lewisesteban.paxos.storage.StorageException;
+import com.lewisesteban.paxos.storage.StorageUnit;
 import com.lewisesteban.paxos.storage.virtual.InterruptibleVirtualFileAccessor;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.VirtualNetNode;
@@ -95,6 +98,14 @@ public class NetworkFactory {
         List<Callable<StateMachine>> stateMachines = new LinkedList<>();
         for (int i = 0; i < nb; ++i) {
             stateMachines.add(basicStateMachine((data) -> data.toString() + "OK"));
+        }
+        return stateMachines;
+    }
+
+    public static Iterable<Callable<StateMachine>> stateMachinesMirror(int nb) {
+        List<Callable<StateMachine>> stateMachines = new LinkedList<>();
+        for (int i = 0; i < nb; ++i) {
+            stateMachines.add(basicStateMachine((data) -> data));
         }
         return stateMachines;
     }

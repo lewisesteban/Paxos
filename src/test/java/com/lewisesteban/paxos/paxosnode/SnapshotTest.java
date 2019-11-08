@@ -2,7 +2,7 @@ package com.lewisesteban.paxos.paxosnode;
 
 import com.lewisesteban.paxos.NetworkFactory;
 import com.lewisesteban.paxos.PaxosTestCase;
-import com.lewisesteban.paxos.client.BasicPaxosClient;
+import com.lewisesteban.paxos.client.BasicTestClient;
 import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
 import com.lewisesteban.paxos.paxosnode.listener.SnapshotManager;
 import com.lewisesteban.paxos.paxosnode.listener.UnneededInstanceGossipper;
@@ -315,7 +315,7 @@ public class SnapshotTest extends PaxosTestCase {
             final int thisClientsId = clientId;
             final int nodeId = new Random().nextInt(nodes.size());
             final PaxosProposer paxosServer = nodes.get(nodeId).getPaxosSrv();
-            final BasicPaxosClient paxosHandle = new BasicPaxosClient(paxosServer, "client" + thisClientsId);
+            final BasicTestClient paxosHandle = new BasicTestClient(paxosServer, "client" + thisClientsId);
             clients[clientId] = new Thread(() -> {
                 int cmdId = 0;
                 while (keepGoing.get() && error.get() == null) {

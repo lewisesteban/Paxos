@@ -1,7 +1,7 @@
 package com.lewisesteban.paxos.paxosnode;
 
 import com.lewisesteban.paxos.PaxosTestCase;
-import com.lewisesteban.paxos.client.BasicPaxosClient;
+import com.lewisesteban.paxos.client.BasicTestClient;
 import com.lewisesteban.paxos.paxosnode.membership.Membership;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
@@ -245,7 +245,7 @@ public class BasicPaxosTest extends PaxosTestCase {
         PaxosServer node1 = nodes.get(1).getPaxosSrv();
         assertEquals(Result.CONSENSUS_ON_THIS_CMD, node1.propose(new Command(0, "", 0), 0).getStatus());
         assertEquals(Result.CONSENSUS_ON_ANOTHER_CMD, node1.propose(new Command(0, "", 0), 1).getStatus());
-        BasicPaxosClient basicPaxosClient = new BasicPaxosClient(node1, "client");
+        BasicTestClient basicPaxosClient = new BasicTestClient(node1, "client");
         basicPaxosClient.doCommand("hi");
         assertEquals(11, node1.getNewInstanceId());
         assertEquals(11, receivedAt1.get());

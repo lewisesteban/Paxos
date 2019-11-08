@@ -6,13 +6,16 @@ import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 import java.io.IOException;
 import java.io.Serializable;
 
-public class BasicPaxosClient {
+/**
+ * Does not handle fragmentation and dedicated proposer redirection
+ */
+public class BasicTestClient {
 
     private PaxosProposer paxosNode;
     private Command.Factory commandFactory;
     private ClientCommandSender sender;
 
-    public BasicPaxosClient(PaxosProposer paxosNode, String clientId) {
+    public BasicTestClient(PaxosProposer paxosNode, String clientId) {
         this.paxosNode = paxosNode;
         this.commandFactory = new Command.Factory(clientId);
         this.sender = new ClientCommandSender();
@@ -24,7 +27,11 @@ public class BasicPaxosClient {
      */
     public Serializable tryDoCommand(Serializable commandData) throws IOException {
         Command command = commandFactory.make(commandData);
-        return sender.doCommand(paxosNode, command);
+        try {
+            return sender.doCommand(paxosNode, command);
+        } catch (ClientCommandSender.DedicatedProposerRedirection | ClientCommandSender.CommandException e) {
+            throw new IOException(e);
+        }
     }
 
     /**
@@ -42,8 +49,11 @@ public class BasicPaxosClient {
                     return sender.doCommand(paxosNode, command, instance);
                 }
             } catch (ClientCommandSender.CommandException e) { // change error handling in the future
-                if (e.instanceThatMayHaveBeenInitiated != null)
-                    instance = e.instanceThatMayHaveBeenInitiated;
+                if (e.getInstanceThatMayHaveBeenInitiated() != null)
+                    instance = e.getInstanceThatMayHaveBeenInitiated();
+            } catch (ClientCommandSender.DedicatedProposerRedirection e) {
+                // not handled
+                e.printStackTrace();
             }
         }
     }
