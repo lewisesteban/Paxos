@@ -78,6 +78,10 @@ public class NetworkFactory {
         return initSimpleNetwork(totalNbNodes, 1, network, paxosFactory, stateMachineCreators, fragmentNb);
     }
 
+    public static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, Network network, Iterable<Callable<StateMachine>> stateMachineCreators, int fragmentNb) {
+        return initSimpleNetwork(totalNbNodes, 1, network, stateMachineCreators, fragmentNb);
+    }
+
     public static List<PaxosNetworkNode> initSimpleNetwork(int totalNbNodes, int nbRacks, Network network, Iterable<Callable<StateMachine>> stateMachineCreators) {
         return initSimpleNetwork(totalNbNodes, nbRacks, network, PaxosNode::new, stateMachineCreators, 0);
     }

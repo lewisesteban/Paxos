@@ -1,8 +1,8 @@
 package com.lewisesteban.paxos.paxosnode;
 
 import com.lewisesteban.paxos.PaxosTestCase;
-import com.lewisesteban.paxos.client.ClientCommandSender;
-import com.lewisesteban.paxos.client.PaxosClient;
+import com.lewisesteban.paxos.client.CommandException;
+import com.lewisesteban.paxos.client.SingleFragmentClient;
 import com.lewisesteban.paxos.paxosnode.membership.Bully;
 import com.lewisesteban.paxos.paxosnode.membership.NodeStateSupervisor;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
@@ -183,11 +183,11 @@ public class ElectionTest extends PaxosTestCase {
         System.out.println(">>>>> test with good network");
         List<PaxosProposer> proposers = nodes.stream().map(PaxosNetworkNode::getPaxosSrv).collect(Collectors.toList());
         for (int trial = 0; trial < 3; trial++) {
-            PaxosClient client = new PaxosClient(proposers, "client" + trial);
+            SingleFragmentClient client = new SingleFragmentClient(proposers, "client" + trial);
             try {
                 Serializable resData = client.tryCommand(cmd2);
                 assertEquals(cmd2.getData().toString(), resData.toString());
-            } catch (ClientCommandSender.CommandException e) {
+            } catch (CommandException e) {
                 e.printStackTrace();
                 fail();
             }
@@ -199,11 +199,11 @@ public class ElectionTest extends PaxosTestCase {
         network.kill(addr(5));
         network.kill(addr(0));
         for (int trial = 0; trial < 3; trial++) {
-            PaxosClient client = new PaxosClient(proposers, "client" + trial);
+            SingleFragmentClient client = new SingleFragmentClient(proposers, "client" + trial);
             try {
                 Serializable resData = client.tryCommand(cmd3);
                 assertEquals(cmd3.getData().toString(), resData.toString());
-            } catch (ClientCommandSender.CommandException e) {
+            } catch (CommandException e) {
                 e.printStackTrace();
                 fail();
             }
@@ -212,8 +212,8 @@ public class ElectionTest extends PaxosTestCase {
         // kill one server too much and make sure I get an exception
         network.kill(addr(1));
         try {
-            new PaxosClient(proposers, "client666").tryCommand(cmd4);
+            new SingleFragmentClient(proposers, "client666").tryCommand(cmd4);
             fail();
-        } catch (ClientCommandSender.CommandException ignored) { }
+        } catch (CommandException ignored) { }
     }
 }

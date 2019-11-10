@@ -19,7 +19,8 @@ import static com.lewisesteban.paxos.NetworkFactory.*;
 public class HeavyPaxosTestNoDedicatedProposer extends PaxosTestCase {
 
     @Override
-    protected void setUp() {
+    protected void setUp() throws Exception {
+        super.setUp();
         Membership.LEADER_ELECTION = false;
     }
 
@@ -167,6 +168,7 @@ public class HeavyPaxosTestNoDedicatedProposer extends PaxosTestCase {
             fail();
     }
 
+    @SuppressWarnings("SameParameterValue")
     static class TestStateMachine extends BasicStateMachine {
         int[] lastReceived;
         AtomicBoolean error;

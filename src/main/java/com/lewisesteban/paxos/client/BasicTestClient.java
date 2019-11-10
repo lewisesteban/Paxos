@@ -29,7 +29,7 @@ public class BasicTestClient {
         Command command = commandFactory.make(commandData);
         try {
             return sender.doCommand(paxosNode, command);
-        } catch (ClientCommandSender.DedicatedProposerRedirection | ClientCommandSender.CommandException e) {
+        } catch (ClientCommandSender.DedicatedProposerRedirection | ClientCommandSender.CommandFailedException e) {
             throw new IOException(e);
         }
     }
@@ -48,7 +48,7 @@ public class BasicTestClient {
                 } else {
                     return sender.doCommand(paxosNode, command, instance);
                 }
-            } catch (ClientCommandSender.CommandException e) { // change error handling in the future
+            } catch (ClientCommandSender.CommandFailedException e) { // change error handling in the future
                 if (e.getInstanceThatMayHaveBeenInitiated() != null)
                     instance = e.getInstanceThatMayHaveBeenInitiated();
             } catch (ClientCommandSender.DedicatedProposerRedirection e) {

@@ -12,11 +12,11 @@ import java.io.Serializable;
  */
 public class ClientCommandSender {
 
-    Serializable doCommand(PaxosProposer paxosNode, Command command) throws CommandException, DedicatedProposerRedirection {
+    Serializable doCommand(PaxosProposer paxosNode, Command command) throws CommandFailedException, DedicatedProposerRedirection {
         return doCommand(paxosNode, command, null);
     }
 
-    Serializable doCommand(PaxosProposer paxosNode, Command command, Long instance) throws CommandException, DedicatedProposerRedirection {
+    Serializable doCommand(PaxosProposer paxosNode, Command command, Long instance) throws CommandFailedException, DedicatedProposerRedirection {
         Serializable commandReturn = null;
         boolean success = false;
         if (instance == null)
@@ -26,7 +26,7 @@ public class ClientCommandSender {
             try {
                 result = paxosNode.propose(command, instance);
             } catch (IOException e) {
-                throw new CommandException(instance, e);
+                throw new CommandFailedException(instance, e);
             }
             switch (result.getStatus()) {
                 case Result.CONSENSUS_ON_THIS_CMD:
@@ -37,7 +37,7 @@ public class ClientCommandSender {
                     instance = getNewInstanceId(paxosNode, instance);
                     break;
                 case Result.NETWORK_ERROR:
-                    throw new CommandException(instance, null);
+                    throw new CommandFailedException(instance, null);
                 case Result.BAD_PROPOSAL:
                     if (result.getExtra().getLeaderId() != null) {
                         throw new DedicatedProposerRedirection(result.getExtra().getLeaderId(), instance);
@@ -47,35 +47,22 @@ public class ClientCommandSender {
         return commandReturn;
     }
 
-    private long getNewInstanceId(PaxosProposer paxosNode, Long startedInstance) throws CommandException {
+    private long getNewInstanceId(PaxosProposer paxosNode, Long startedInstance) throws CommandFailedException {
         try {
             return paxosNode.getNewInstanceId();
         } catch (IOException e) {
-            throw new CommandException(startedInstance, e);
+            throw new CommandFailedException(startedInstance, e);
         }
     }
 
-    private class CommandSenderExceptionBase extends Throwable {
-        private Long instanceThatMayHaveBeenInitiated;
+    class CommandFailedException extends CommandException {
 
-        CommandSenderExceptionBase(Long instanceThatMayHaveBeenInitiated, Throwable cause) {
-            super(cause);
-            this.instanceThatMayHaveBeenInitiated = instanceThatMayHaveBeenInitiated;
-        }
-
-        Long getInstanceThatMayHaveBeenInitiated() {
-            return instanceThatMayHaveBeenInitiated;
-        }
-    }
-
-    public class CommandException extends CommandSenderExceptionBase {
-
-        CommandException(Long instanceThatMayHaveBeenInitiated, Throwable cause) {
+        CommandFailedException(Long instanceThatMayHaveBeenInitiated, Throwable cause) {
             super(instanceThatMayHaveBeenInitiated, cause);
         }
     }
 
-    class DedicatedProposerRedirection extends CommandSenderExceptionBase {
+    class DedicatedProposerRedirection extends CommandException {
         private int dedicatedProposerId;
 
         DedicatedProposerRedirection(int dedicatedProposerId, Long instance) {

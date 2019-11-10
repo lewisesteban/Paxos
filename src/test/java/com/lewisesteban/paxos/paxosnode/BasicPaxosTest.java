@@ -1,7 +1,10 @@
 package com.lewisesteban.paxos.paxosnode;
 
+import com.lewisesteban.paxos.NetworkFactory;
 import com.lewisesteban.paxos.PaxosTestCase;
 import com.lewisesteban.paxos.client.BasicTestClient;
+import com.lewisesteban.paxos.client.CommandException;
+import com.lewisesteban.paxos.client.PaxosClient;
 import com.lewisesteban.paxos.paxosnode.membership.Membership;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
@@ -17,6 +20,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static com.lewisesteban.paxos.NetworkFactory.*;
 
@@ -382,5 +386,28 @@ public class BasicPaxosTest extends PaxosTestCase {
         assertEquals(Result.CONSENSUS_ON_THIS_CMD, res2.getStatus());
         assertEquals(2, res2.getInstanceId());
         assertFalse(error.get());
+    }
+
+    public void testFragmentation() throws CommandException, IOException, InterruptedException {
+        Network network = new Network();
+        List<PaxosNetworkNode> cluster0 = NetworkFactory.initSimpleNetwork(3, network, stateMachinesMirror(3), 0);
+        List<PaxosNetworkNode> cluster1 = NetworkFactory.initSimpleNetwork(2, network, stateMachinesMirror(2), 1);
+
+        List<PaxosNetworkNode> wholeNet = new ArrayList<>();
+        wholeNet.addAll(cluster0);
+        wholeNet.addAll(cluster1);
+        List<PaxosServer> nodes = wholeNet.stream().map(PaxosNetworkNode::getPaxosSrv).collect(Collectors.toList());
+        PaxosClient<PaxosServer> client = new PaxosClient<>(nodes, "client");
+        client.tryCommand("1", 0);
+        client.tryCommand("2", 0);
+        client.tryCommand("3", 1);
+
+        Thread.sleep(100); // wait for scatter to finish, otherwise "getNewInstanceId" might return an old inst
+        PaxosProposer proposer0 = cluster0.get(0).getPaxosSrv();
+        assertEquals(2, proposer0.getNewInstanceId());
+        assertEquals("2", proposer0.propose(cmd4, 1).getReturnData());
+        PaxosProposer proposer1 = cluster1.get(0).getPaxosSrv();
+        assertEquals(1, proposer1.getNewInstanceId());
+        assertEquals("3", proposer1.propose(cmd4, 0).getReturnData());
     }
 }

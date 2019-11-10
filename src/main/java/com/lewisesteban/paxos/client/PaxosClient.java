@@ -1,112 +1,53 @@
 package com.lewisesteban.paxos.client;
 
-import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
+import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
+import java.util.stream.Collectors;
 
-/**
- * Does not handle fragmentation and dedicated proposer redirection
- */
-public class PaxosClient {
+public class PaxosClient<NODE extends RemotePaxosNode & PaxosProposer> {
+    private List<SingleFragmentClient> fragments = new ArrayList<>();
+    private int nbFragments;
 
-    private List<PaxosProposer> nodes;
-    private Command.Factory commandFactory;
-    private ClientCommandSender sender;
-    private Integer dedicatedProposer = null;
-    private List<PaxosProposer> nodesTried = new ArrayList<>();
-    private Random random = new Random();
-
-    public PaxosClient(List<PaxosProposer> nodes, String clientId) {
-        this.nodes = nodes;
-        this.commandFactory = new Command.Factory(clientId);
-        this.sender = new ClientCommandSender();
+    public PaxosClient(List<NODE> allNodes, String clientId) {
+        //noinspection OptionalGetWithoutIsPresent
+        nbFragments = allNodes.stream()
+                .mapToInt(RemotePaxosNode::getFragmentId).max().getAsInt() + 1;
+        allNodes.stream()
+                .collect(Collectors.groupingBy(RemotePaxosNode::getFragmentId))
+                .forEach((fragmentNb, fragmentNodes) -> fragments.add(new SingleFragmentClient(fragmentNodes.stream().map(node -> (PaxosProposer) node).collect(Collectors.toList()), clientId)));
     }
 
     /**
      * Sends a command and tries again until it succeeds.
+     *
+     * @param keyHash Hash of the key corresponding to the command. Used for fragmenting.
      */
-    public Serializable doCommand(Serializable commandData) {
-        try {
-            return doCommand(commandData, true);
-        } catch (ClientCommandSender.CommandException e) {
-            // should not happen
-            e.printStackTrace();
-            return null;
-        }
+    public Serializable tryCommand(Serializable commandData, int keyHash) throws CommandException {
+        return fragments.get(keyHash % nbFragments).tryCommand(commandData);
     }
 
     /**
      * Tries to send a command. Will throw only if the network state is such that consensus cannot be reached.
      * In that case, a CommandException is thrown, containing the instance that may have been initiated.
+     *
+     * @param keyHash Hash of the key corresponding to the command. Used for fragmenting.
      */
-    public Serializable tryCommand(Serializable commandData) throws ClientCommandSender.CommandException {
-        return doCommand(commandData, false);
+    public Serializable doCommand(Serializable commandData, int keyHash) {
+        return fragments.get(keyHash % nbFragments).doCommand(commandData);
     }
 
-    private Serializable doCommand(Serializable commandData, boolean repeatUntilSuccess) throws ClientCommandSender.CommandException {
-        Command command = commandFactory.make(commandData);
-        nodesTried.clear();
-        PaxosProposer node = getPaxosNode(false);
-        long instance = -1;
-        while (true) {
-            try {
-                if (instance == -1) {
-                    return sender.doCommand(node, command);
-                } else {
-                    return sender.doCommand(node, command, instance);
-                }
-            } catch (ClientCommandSender.DedicatedProposerRedirection e) {
-                if (e.getInstanceThatMayHaveBeenInitiated() != null)
-                    instance = e.getInstanceThatMayHaveBeenInitiated();
-                dedicatedProposer = e.getDedicatedProposerId();
-                node = getPaxosNode(false);
-            } catch (ClientCommandSender.CommandException e) {
-                if (e.getInstanceThatMayHaveBeenInitiated() != null)
-                    instance = e.getInstanceThatMayHaveBeenInitiated();
-                backOff();
-                node = getPaxosNode(true);
-                if (node == null) {
-                    if (repeatUntilSuccess) {
-                        nodesTried.clear();
-                        node = getPaxosNode(true);
-                    } else {
-                        throw e;
-                    }
-                }
-            }
-        }
-    }
-
-    private void backOff() {
-        if (nodesTried.size() >= 3) {
-            try {
-                Thread.sleep(50);
-            } catch (InterruptedException ignored) {
-            }
-        }
-    }
-    
-    private PaxosProposer getPaxosNode(boolean change) {
-        if (dedicatedProposer == null) {
-            dedicatedProposer = random.nextInt(nodes.size());
-            return nodes.get(dedicatedProposer);
-        }
-        if (change) {
-            dedicatedProposer = null;
-            for (PaxosProposer node : nodes) {
-                if (!nodesTried.contains(node)) {
-                    nodesTried.add(node);
-                    return node;
-                }
-            }
-            nodesTried.clear();
-            return null;
-        } else {
-            return nodes.get(dedicatedProposer);
-        }
+    /**
+     * Tries to send a command. Will throw only if the network state is such that consensus cannot be reached.
+     * In that case, a CommandException is thrown, containing the instance that may have been initiated.
+     *
+     * @param paxosInstance Paxos instance on which to try the command. Should only be used to resume a failed command.
+     * @param keyHash Hash of the key corresponding to the command. Used for fragmenting.
+     */
+    public Serializable tryCommand(Serializable commandData, Long paxosInstance, int keyHash) throws CommandException {
+        return fragments.get(keyHash % nbFragments).tryCommand(commandData, paxosInstance);
     }
 }
