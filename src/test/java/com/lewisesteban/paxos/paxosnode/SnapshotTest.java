@@ -469,8 +469,7 @@ public class SnapshotTest extends PaxosTestCase {
             waitingSnapshot = new Snapshot(idOfLastExecutedInstance, Arrays.copyOf(lastReceived, lastReceived.length));
         }
 
-        @Override
-        public Snapshot getWaitingSnapshot() {
+        Snapshot getWaitingSnapshot() {
             return waitingSnapshot;
         }
 

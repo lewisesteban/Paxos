@@ -26,12 +26,8 @@ public interface StateMachine {
     void createWaitingSnapshot(long idOfLastExecutedInstance);
 
     /**
-     * Returns the waiting snapshot created by "createWaitingSnapshot"
-     */
-    Snapshot getWaitingSnapshot();
-
-    /**
-     * Returns the last applied snapshot (see "applySnapshot")
+     * Returns the last applied snapshot (see "applySnapshot").
+     * The data contained in the snapshot must be the de-serialized, directly usable data.
      */
     Snapshot getAppliedSnapshot() throws StorageException;
 
@@ -42,6 +38,7 @@ public interface StateMachine {
 
     /**
      * Returns the last instance included within the applied snapshot.
+     * Must return -1 if there is no applied snapshot.
      */
     long getAppliedSnapshotLastInstance() throws StorageException;
 
@@ -57,6 +54,7 @@ public interface StateMachine {
     /**
      * Similar to "applyCurrentWaitingSnapshot", except the snapshot to be applied is the one given as parameter,
      * and the whole state of the state machine must be set to that of the snapshot.
+     * The data contained in the snapshot must be the de-serialized, directly usable data.
      */
     void applySnapshot(Snapshot snapshot) throws StorageException;
 

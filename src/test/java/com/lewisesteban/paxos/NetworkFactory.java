@@ -38,10 +38,10 @@ public class NetworkFactory {
 
         int nodeId = 0;
         List<PaxosNetworkNode> networkNodes = new ArrayList<>();
-        Iterator<Callable<StateMachine>> executorIt = stateMachineCreators.iterator();
+        Iterator<Callable<StateMachine>> stateMachineIt = stateMachineCreators.iterator();
         for (List<RemotePaxosNode> networkView : networkViews) {
             final int thisNodeId = nodeId;
-            final Callable<StateMachine> stateMachineCreator = executorIt.next();
+            final Callable<StateMachine> stateMachineCreator = stateMachineIt.next();
             final StorageUnit.Creator storageUnitCreator = (file, dir) -> new SafeSingleFileStorage(file, dir, InterruptibleVirtualFileAccessor.creator(thisNodeId));
             final FileAccessorCreator fileAccessorCreator = InterruptibleVirtualFileAccessor.creator(thisNodeId);
             Callable<PaxosNode> paxosNodeCreator = () -> {
@@ -175,13 +175,6 @@ public class NetworkFactory {
         @Override
         public void createWaitingSnapshot(long idOfLastExecutedInstance) {
             waitingSnapshot = idOfLastExecutedInstance;
-        }
-
-        @Override
-        public Snapshot getWaitingSnapshot() {
-            if (waitingSnapshot == null)
-                return null;
-            return new Snapshot(waitingSnapshot, waitingSnapshot);
         }
 
         @Override
