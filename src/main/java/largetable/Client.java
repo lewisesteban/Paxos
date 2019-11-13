@@ -3,15 +3,19 @@ package largetable;
 import com.lewisesteban.paxos.client.PaxosClient;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
+import com.lewisesteban.paxos.storage.FileAccessorCreator;
+import com.lewisesteban.paxos.storage.SafeSingleFileStorage;
+import com.lewisesteban.paxos.storage.StorageException;
 
 import java.util.List;
 
-// TODO failure management: higher in hierarchy, with instance id and all (have  a start method in client, that checks for file)
 public class Client<NODE extends PaxosProposer & RemotePaxosNode> {
     private PaxosClient<NODE> paxosClient;
 
-    public Client(List<NODE> allNodes, String clientId) {
-        paxosClient = new PaxosClient<>(allNodes, clientId);
+    public Client(List<NODE> allNodes, String clientId, FileAccessorCreator fileAccessorCreator) throws StorageException {
+        paxosClient = new PaxosClient<>(allNodes, clientId,
+                (name, dir) -> new SafeSingleFileStorage(name, dir, fileAccessorCreator));
+        paxosClient.recover();
     }
 
     public String get(String key) {

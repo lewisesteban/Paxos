@@ -18,7 +18,7 @@ public class BasicTestClient {
     public BasicTestClient(PaxosProposer paxosNode, String clientId) {
         this.paxosNode = paxosNode;
         this.commandFactory = new Command.Factory(clientId);
-        this.sender = new ClientCommandSender();
+        this.sender = new ClientCommandSender(null);
     }
 
     /**

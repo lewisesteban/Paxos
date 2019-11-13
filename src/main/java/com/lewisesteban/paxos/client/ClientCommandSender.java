@@ -8,9 +8,15 @@ import java.io.IOException;
 import java.io.Serializable;
 
 /**
- * Responsible for sending a single command to Paxos and getting its result
+ * Responsible for sending a single command to Paxos and getting its result.
  */
-public class ClientCommandSender {
+class ClientCommandSender {
+    private long lastSentInstance = -1;
+    private FailureManager failureManager;
+
+    ClientCommandSender(FailureManager failureManager) {
+        this.failureManager = failureManager;
+    }
 
     Serializable doCommand(PaxosProposer paxosNode, Command command) throws CommandFailedException, DedicatedProposerRedirection {
         return doCommand(paxosNode, command, null);
@@ -24,13 +30,15 @@ public class ClientCommandSender {
         while (!success) {
             Result result;
             try {
-                result = paxosNode.propose(command, instance);
+                result = sendCommand(paxosNode, command, instance);
             } catch (IOException e) {
                 throw new CommandFailedException(instance, e);
             }
             switch (result.getStatus()) {
                 case Result.CONSENSUS_ON_THIS_CMD:
                     success = true;
+                    if (failureManager != null)
+                        failureManager.endCommand();
                     commandReturn = result.getReturnData();
                     break;
                 case Result.CONSENSUS_ON_ANOTHER_CMD:
@@ -45,6 +53,16 @@ public class ClientCommandSender {
             }
         }
         return commandReturn;
+    }
+
+    private Result sendCommand(PaxosProposer paxosNode, Command command, long instance) throws IOException {
+        if (failureManager != null) {
+            if (instance != lastSentInstance) {
+                failureManager.startInstance(instance);
+                lastSentInstance = instance;
+            }
+        }
+        return paxosNode.propose(command, instance);
     }
 
     private long getNewInstanceId(PaxosProposer paxosNode, Long startedInstance) throws CommandFailedException {

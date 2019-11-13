@@ -1,7 +1,5 @@
 package com.lewisesteban.paxos.virtualnet;
 
-import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
-
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.util.*;
@@ -95,36 +93,6 @@ public class Network {
 
     public void reconnectRack(int rack) {
         isolatedRacks.remove(rack);
-    }
-
-    public int[][] getRacks(List<PaxosNetworkNode> nodes) {
-
-        int highestRack = 0;
-        for (PaxosNetworkNode node : nodes) {
-            if (node.getRack() > highestRack)
-                highestRack = node.getRack();
-        }
-        int nbRacks = highestRack + 1;
-
-        int[][] racks = new int[nbRacks][];
-        for (int rackId =  0; rackId < nbRacks; rackId++) {
-            int rackSize = 0;
-            for (PaxosNetworkNode node : nodes) {
-                if (node.getRack() == rackId)
-                    rackSize++;
-            }
-            racks[rackId] = new int[rackSize];
-
-            int counter = 0;
-            for (PaxosNetworkNode node : nodes) {
-                if (node.getRack() == rackId) {
-                    racks[rackId][counter] = node.getPaxosSrv().getId();
-                    counter++;
-                }
-            }
-        }
-
-        return racks;
     }
 
     public <RT> RT tryNetCall(Callable<RT> callable, Address callerAddr, Address targetAddr) throws IOException {

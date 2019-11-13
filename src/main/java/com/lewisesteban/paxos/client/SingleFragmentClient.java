@@ -20,10 +20,10 @@ public class SingleFragmentClient {
     private List<PaxosProposer> nodesTried = new ArrayList<>();
     private Random random = new Random();
 
-    public SingleFragmentClient(List<PaxosProposer> fragmentNodes, String clientId) {
+    public SingleFragmentClient(List<PaxosProposer> fragmentNodes, String clientId, FailureManager failureManager) {
         this.nodes = fragmentNodes;
         this.commandFactory = new Command.Factory(clientId);
-        this.sender = new ClientCommandSender();
+        this.sender = new ClientCommandSender(failureManager);
     }
 
     /**
@@ -32,6 +32,21 @@ public class SingleFragmentClient {
     public Serializable doCommand(Serializable commandData) {
         try {
             return doCommand(commandData, true, null);
+        } catch (CommandException e) {
+            // should not happen
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * Sends a command and tries again until it succeeds.
+     *
+     * @param paxosInstance Paxos instance on which to try the command. Should only be used to resume a failed command.
+     */
+    public Serializable doCommand(Serializable commandData, long paxosInstance) {
+        try {
+            return doCommand(commandData, true, paxosInstance);
         } catch (CommandException e) {
             // should not happen
             e.printStackTrace();

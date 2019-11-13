@@ -35,7 +35,7 @@ public class Command implements Serializable {
                 table.put(data[0], data[1]);
                 break;
             case APPEND:
-                table.put(data[0], table.get(data[0]).concat(data[1]));
+                table.merge(data[0], data[1], String::concat);
                 break;
         }
         return null;

@@ -8,6 +8,7 @@ import com.lewisesteban.paxos.client.PaxosClient;
 import com.lewisesteban.paxos.paxosnode.membership.Membership;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
+import com.lewisesteban.paxos.storage.virtual.InterruptibleVirtualFileAccessor;
 import com.lewisesteban.paxos.virtualnet.Network;
 import com.lewisesteban.paxos.virtualnet.paxosnet.PaxosNetworkNode;
 import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
@@ -388,7 +389,7 @@ public class BasicPaxosTest extends PaxosTestCase {
         assertFalse(error.get());
     }
 
-    public void testFragmentation() throws CommandException, IOException, InterruptedException {
+    public void testFragmentation() throws CommandException, Exception {
         Network network = new Network();
         List<PaxosNetworkNode> cluster0 = NetworkFactory.initSimpleNetwork(3, network, stateMachinesMirror(3), 0);
         List<PaxosNetworkNode> cluster1 = NetworkFactory.initSimpleNetwork(2, network, stateMachinesMirror(2), 1);
@@ -397,7 +398,7 @@ public class BasicPaxosTest extends PaxosTestCase {
         wholeNet.addAll(cluster0);
         wholeNet.addAll(cluster1);
         List<PaxosServer> nodes = wholeNet.stream().map(PaxosNetworkNode::getPaxosSrv).collect(Collectors.toList());
-        PaxosClient<PaxosServer> client = new PaxosClient<>(nodes, "client");
+        PaxosClient<PaxosServer> client = new PaxosClient<>(nodes, "client", InterruptibleVirtualFileAccessor.storageUnitCreator(-1));
         client.tryCommand("1", 0);
         client.tryCommand("2", 0);
         client.tryCommand("3", 1);

@@ -49,6 +49,8 @@ public class NodeStateSupervisor {
     }
 
     private int getTimeToWait() {
+        if (membership.getNbMembers() <= 2)
+            return GOSSIP_AVG_TIME_PER_NODE;
         return GOSSIP_AVG_TIME_PER_NODE / (membership.getNbMembers() - 1) * 2;
     }
 

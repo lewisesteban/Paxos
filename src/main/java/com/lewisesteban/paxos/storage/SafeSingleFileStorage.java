@@ -20,6 +20,12 @@ public class SafeSingleFileStorage implements StorageUnit {
     }
 
     @Override
+    public StorageUnit overwriteMode() {
+        content = new TreeMap<>();
+        return this;
+    }
+
+    @Override
     public synchronized Iterator<Map.Entry<String, String>> startReadAll() throws StorageException {
         if (content == null) {
             try {

@@ -159,4 +159,8 @@ public class InterruptibleVirtualFileAccessor implements FileAccessor, Interrupt
     public static FileAccessorCreator creator(int nodeId) {
         return (fileName, dir) -> new InterruptibleVirtualFileAccessor(fileName, dir, nodeId);
     }
+
+    public static StorageUnit.Creator storageUnitCreator(int nodeId) {
+        return (fileName, dir) -> new SafeSingleFileStorage(fileName, dir, creator(nodeId));
+    }
 }

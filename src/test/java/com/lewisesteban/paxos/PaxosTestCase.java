@@ -176,6 +176,36 @@ public class PaxosTestCase extends TestCase {
         });
     }
 
+    public static int[][] getRacks(List<PaxosNetworkNode> nodes) {
+
+        int highestRack = 0;
+        for (PaxosNetworkNode node : nodes) {
+            if (node.getRack() > highestRack)
+                highestRack = node.getRack();
+        }
+        int nbRacks = highestRack + 1;
+
+        int[][] racks = new int[nbRacks][];
+        for (int rackId =  0; rackId < nbRacks; rackId++) {
+            int rackSize = 0;
+            for (PaxosNetworkNode node : nodes) {
+                if (node.getRack() == rackId)
+                    rackSize++;
+            }
+            racks[rackId] = new int[rackSize];
+
+            int counter = 0;
+            for (PaxosNetworkNode node : nodes) {
+                if (node.getRack() == rackId) {
+                    racks[rackId][counter] = node.getPaxosSrv().getId();
+                    counter++;
+                }
+            }
+        }
+
+        return racks;
+    }
+
     protected Network.Address addr(int nodeId) {
         return new Network.Address(0, nodeId);
     }

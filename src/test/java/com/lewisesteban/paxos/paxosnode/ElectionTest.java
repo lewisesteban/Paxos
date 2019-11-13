@@ -126,7 +126,7 @@ public class ElectionTest extends PaxosTestCase {
         System.out.println(">>>>>>>>>> start (partitioned)");
         Thread.sleep(200);
 
-        int majorityRack = network.getRacks(nodes)[0].length >= 4 ? 0 : 1;
+        int majorityRack = getRacks(nodes)[0].length >= 4 ? 0 : 1;
         int majorityRackLeader = 0;
         for (int node = 0; node < nodes.size(); ++node) {
             if (nodes.get(node).getRack() == majorityRack && node > majorityRackLeader)
@@ -183,7 +183,7 @@ public class ElectionTest extends PaxosTestCase {
         System.out.println(">>>>> test with good network");
         List<PaxosProposer> proposers = nodes.stream().map(PaxosNetworkNode::getPaxosSrv).collect(Collectors.toList());
         for (int trial = 0; trial < 3; trial++) {
-            SingleFragmentClient client = new SingleFragmentClient(proposers, "client" + trial);
+            SingleFragmentClient client = new SingleFragmentClient(proposers, "client" + trial, null);
             try {
                 Serializable resData = client.tryCommand(cmd2);
                 assertEquals(cmd2.getData().toString(), resData.toString());
@@ -199,7 +199,7 @@ public class ElectionTest extends PaxosTestCase {
         network.kill(addr(5));
         network.kill(addr(0));
         for (int trial = 0; trial < 3; trial++) {
-            SingleFragmentClient client = new SingleFragmentClient(proposers, "client" + trial);
+            SingleFragmentClient client = new SingleFragmentClient(proposers, "client" + trial, null);
             try {
                 Serializable resData = client.tryCommand(cmd3);
                 assertEquals(cmd3.getData().toString(), resData.toString());
@@ -212,7 +212,7 @@ public class ElectionTest extends PaxosTestCase {
         // kill one server too much and make sure I get an exception
         network.kill(addr(1));
         try {
-            new SingleFragmentClient(proposers, "client666").tryCommand(cmd4);
+            new SingleFragmentClient(proposers, "client666", null).tryCommand(cmd4);
             fail();
         } catch (CommandException ignored) { }
     }

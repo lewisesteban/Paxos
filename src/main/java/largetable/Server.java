@@ -82,7 +82,7 @@ public class Server implements StateMachine {
 
     @Override
     public void applyCurrentWaitingSnapshot() throws StorageException {
-        StorageUnit storageUnit = createStorage();
+        StorageUnit storageUnit = createStorage().overwriteMode();
         storageUnit.put(KEY_INST, Long.toString(waitingSnapshot.getLastIncludedInstance()));
         try {
             //noinspection unchecked
@@ -97,7 +97,7 @@ public class Server implements StateMachine {
 
     @Override
     public void applySnapshot(Snapshot snapshot) throws StorageException {
-        StorageUnit storageUnit = createStorage();
+        StorageUnit storageUnit = createStorage().overwriteMode();
         //noinspection unchecked
         TreeMap<String, String> snapshotData = (TreeMap<String, String>) snapshot.getData();
 
