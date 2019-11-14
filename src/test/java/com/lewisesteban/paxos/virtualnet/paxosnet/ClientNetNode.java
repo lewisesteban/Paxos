@@ -49,4 +49,8 @@ public class ClientNetNode implements VirtualNetNode {
         isRunning = false;
         InterruptibleAccessorContainer.interrupt(clientNodeId);
     }
+
+    public static Network.Address address(int nodeId) {
+        return new Network.Address(CLIENT_CLUSTER, nodeId);
+    }
 }

@@ -19,10 +19,14 @@ class ClientCommandSender {
     }
 
     Serializable doCommand(PaxosProposer paxosNode, Command command) throws CommandFailedException, DedicatedProposerRedirection {
-        return doCommand(paxosNode, command, null);
+        return doCommand(paxosNode, command, null, false);
     }
 
     Serializable doCommand(PaxosProposer paxosNode, Command command, Long instance) throws CommandFailedException, DedicatedProposerRedirection {
+        return doCommand(paxosNode, command, instance, false);
+    }
+
+    Serializable doCommand(PaxosProposer paxosNode, Command command, Long instance, boolean onlyThisInstance) throws CommandFailedException, DedicatedProposerRedirection {
         Serializable commandReturn = null;
         boolean success = false;
         if (instance == null)
@@ -42,6 +46,8 @@ class ClientCommandSender {
                     commandReturn = result.getReturnData();
                     break;
                 case Result.CONSENSUS_ON_ANOTHER_CMD:
+                    if (onlyThisInstance)
+                        return null;
                     instance = getNewInstanceId(paxosNode, instance);
                     break;
                 case Result.NETWORK_ERROR:

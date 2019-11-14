@@ -21,7 +21,7 @@ public class Server implements StateMachine {
     private Snapshot waitingSnapshot = null;
     private TreeMap<String, String> table = new TreeMap<>();
 
-    public Server(FileAccessorCreator fileAccessorCreator) {
+    Server(FileAccessorCreator fileAccessorCreator) {
         this.fileAccessorCreator = fileAccessorCreator;
     }
 
