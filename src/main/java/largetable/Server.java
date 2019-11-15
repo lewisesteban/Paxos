@@ -47,11 +47,7 @@ public class Server implements StateMachine {
 
     @Override
     public void createWaitingSnapshot(long idOfLastExecutedInstance) {
-        try {
-            waitingSnapshot = new Snapshot(idOfLastExecutedInstance, serializeData(table));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        waitingSnapshot = new Snapshot(idOfLastExecutedInstance, table);
     }
 
     @Override
@@ -97,6 +93,9 @@ public class Server implements StateMachine {
 
     @Override
     public void applySnapshot(Snapshot snapshot) throws StorageException {
+        if (snapshot == null)
+            return;
+
         StorageUnit storageUnit = createStorage().overwriteMode();
         //noinspection unchecked
         TreeMap<String, String> snapshotData = (TreeMap<String, String>) snapshot.getData();

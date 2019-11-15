@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.io.Serializable;
 
 /**
- * Responsible for sending a single command to Paxos and getting its result.
+ * Responsible for sending a single command to a single Paxos and getting its result.
  */
 class ClientCommandSender {
     private long lastSentInstance = -1;
@@ -23,7 +23,8 @@ class ClientCommandSender {
     }
 
     Serializable doCommand(PaxosProposer paxosNode, Command command, Long instance) throws CommandFailedException, DedicatedProposerRedirection {
-        failureManager.setOngoingCmdNb(command.getClientCmdNb());
+        if (failureManager != null)
+            failureManager.setOngoingCmdNb(command.getClientCmdNb());
         Serializable commandReturn = null;
         boolean success = false;
         if (instance == null)

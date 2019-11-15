@@ -11,6 +11,7 @@ import java.io.*;
 import java.util.Map;
 import java.util.TreeMap;
 
+// TODO commands that are too old should time out and delete automatically
 public class ClientCommandContainer {
     private Map<String, ClientCommand> clientCommands = new TreeMap<>();
     private StorageUnit.Creator storageCreator;

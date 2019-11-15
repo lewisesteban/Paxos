@@ -3,6 +3,7 @@ package com.lewisesteban.paxos.client;
 import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,15 +17,18 @@ public class SingleFragmentClient {
 
     private List<PaxosProposer> nodes;
     private Command.Factory commandFactory;
+    private String clientId;
     private ClientCommandSender sender;
-    private Integer dedicatedProposer = null;
+    private PaxosProposer dedicatedProposer = null;
     private List<PaxosProposer> nodesTried = new ArrayList<>();
     private Random random = new Random();
+    private List<PaxosProposer> nonEndedServers = new ArrayList<>();
 
     public SingleFragmentClient(List<PaxosProposer> fragmentNodes, String clientId, FailureManager failureManager) {
         this.nodes = fragmentNodes;
         this.commandFactory = new Command.Factory(clientId);
         this.sender = new ClientCommandSender(failureManager);
+        this.clientId = clientId;
     }
 
     /**
@@ -74,6 +78,7 @@ public class SingleFragmentClient {
     }
 
     private Serializable doCommand(Serializable commandData, boolean repeatUntilSuccess, Long instance, Long commandNb) throws CommandException {
+        tryEndAll(dedicatedProposer);
         Command command;
         if (commandNb == null)
             command = commandFactory.make(commandData);
@@ -93,8 +98,7 @@ public class SingleFragmentClient {
             } catch (ClientCommandSender.DedicatedProposerRedirection e) {
                 if (e.getInstanceThatMayHaveBeenInitiated() != null)
                     instance = e.getInstanceThatMayHaveBeenInitiated();
-                dedicatedProposer = e.getDedicatedProposerId();
-                node = getPaxosNode(false);
+                node = changeProposer(nodes.get(e.getDedicatedProposerId()));
             } catch (ClientCommandSender.CommandFailedException e) {
                 if (e.getInstanceThatMayHaveBeenInitiated() != null)
                     instance = e.getInstanceThatMayHaveBeenInitiated();
@@ -123,21 +127,59 @@ public class SingleFragmentClient {
     
     private PaxosProposer getPaxosNode(boolean change) {
         if (dedicatedProposer == null) {
-            dedicatedProposer = random.nextInt(nodes.size());
-            return nodes.get(dedicatedProposer);
+            return changeProposer(nodes.get(random.nextInt(nodes.size())));
         }
         if (change) {
             dedicatedProposer = null;
             for (PaxosProposer node : nodes) {
                 if (!nodesTried.contains(node)) {
                     nodesTried.add(node);
-                    return node;
+                    return changeProposer(node);
                 }
             }
             nodesTried.clear();
             return null;
         } else {
-            return nodes.get(dedicatedProposer);
+            return dedicatedProposer;
         }
+    }
+
+    private PaxosProposer changeProposer(PaxosProposer newProposer) {
+        if (dedicatedProposer != null)
+            tryEndServer(dedicatedProposer);
+        dedicatedProposer = newProposer;
+        nonEndedServers.add(newProposer);
+        return newProposer;
+    }
+
+    private boolean tryEndServer(PaxosProposer server) {
+        if (nonEndedServers.contains(server)) {
+            try {
+                server.endClient(clientId);
+                nonEndedServers.remove(server);
+                return true;
+            } catch (IOException e) {
+                return false;
+            }
+        } else {
+            return true;
+        }
+    }
+
+    private boolean tryEndAll(PaxosProposer exceptThisOne) {
+        if (nonEndedServers.isEmpty() || (nonEndedServers.size() == 1 && nonEndedServers.get(0).equals(exceptThisOne)))
+            return true;
+        boolean success = true;
+        for (PaxosProposer proposer : nodes) {
+            if (proposer != exceptThisOne) {
+                if (!tryEndServer(proposer))
+                    success = false;
+            }
+        }
+        return success;
+    }
+
+    boolean endClient() {
+        return tryEndAll(null);
     }
 }

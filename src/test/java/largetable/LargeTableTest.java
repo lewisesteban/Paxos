@@ -67,6 +67,35 @@ public class LargeTableTest extends PaxosTestCase {
         network.startAll();
 
         assertEquals("valA", client.get("keyA"));
+        assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length < 6);
+    }
+
+    public void testEndClientSnapshot() throws Exception {
+        SnapshotManager.SNAPSHOT_FREQUENCY = 2;
+
+        Network network = new Network();
+        List<PaxosNetworkNode> cluster = initSimpleNetwork(3, network, stateMachineList(3));
+        largetable.Client<PaxosServer> clientA = new Client<>(
+                cluster.stream().map(PaxosNetworkNode::getPaxosSrv).collect(Collectors.toList()),
+                "clientA", InterruptibleVirtualFileAccessor.creator(-1));
+        largetable.Client<PaxosServer> clientB = new Client<>(
+                cluster.stream().map(PaxosNetworkNode::getPaxosSrv).collect(Collectors.toList()),
+                "clientB", InterruptibleVirtualFileAccessor.creator(-1));
+        clientA.put("keyA", "valA");
+        clientB.get("keyA");
+        clientB.get("keyA");
+        clientB.get("keyA");
+        Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 50);
+        clientB.get("keyA");
+        Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 50);
+        assertEquals(5, InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length);
+
+        clientA.close();
+        clientB.get("keyA");
+        Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 50);
+        clientB.get("keyA");
+        Thread.sleep(500);
+        assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length < 7);
     }
 
     public void testClientRecovery() throws Exception {

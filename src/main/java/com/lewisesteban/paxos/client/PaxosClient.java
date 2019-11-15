@@ -8,6 +8,11 @@ import com.lewisesteban.paxos.storage.StorageUnit;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 /**
@@ -20,6 +25,7 @@ public class PaxosClient<NODE extends RemotePaxosNode & PaxosProposer> {
     private List<SingleFragmentClient> fragments = new ArrayList<>();
     private int nbFragments;
     private FailureManager failureManager;
+    private ExecutorService executorService = Executors.newCachedThreadPool();
 
     public PaxosClient(List<NODE> allNodes, String clientId, StorageUnit.Creator storage) {
         failureManager = new FailureManager(storage, clientId);
@@ -100,5 +106,33 @@ public class PaxosClient<NODE extends RemotePaxosNode & PaxosProposer> {
      */
     public Serializable tryCommandAgain(CommandException e, int keyHash) throws CommandException {
         return fragments.get(keyHash % nbFragments).tryCommand(e.getCommandData(), e.getCommandNb(), e.getInstanceThatMayHaveBeenInitiated());
+    }
+
+    /**
+     * Call this after you stop sending commands, even temporarily, to let Paxos know that you have received the sult of
+     * the last command.
+     *
+     * @return Whether or not the operation was successful.
+     */
+    public boolean end() {
+        AtomicBoolean success = new AtomicBoolean(true);
+        for (SingleFragmentClient fragmentClient : fragments) {
+            executorService.submit(fragmentClient::endClient);
+        }
+        try {
+            executorService.invokeAll(fragments.stream()
+                    .map(fragment -> (Callable<Boolean>) fragment::endClient).collect(Collectors.toList()))
+                    .forEach(future -> {
+                        try {
+                            if (!future.get())
+                                success.set(false);
+                        } catch (InterruptedException | ExecutionException e) {
+                            success.set(false);
+                        }
+                    });
+            return success.get();
+        } catch (InterruptedException e) {
+            return false;
+        }
     }
 }

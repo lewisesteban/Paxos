@@ -30,7 +30,9 @@ public class Client<NODE extends PaxosProposer & RemotePaxosNode> {
         doCommand(new Command(Command.APPEND, new String[] { key, value }));
     }
 
-    //TODO end client
+    public void close() {
+        paxosClient.end();
+    }
 
     private String doCommand(Command command) {
         return (String) paxosClient.doCommand(command, command.getData()[0].hashCode());
