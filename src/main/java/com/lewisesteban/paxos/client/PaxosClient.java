@@ -35,40 +35,47 @@ public class PaxosClient<NODE extends RemotePaxosNode & PaxosProposer> {
     }
 
     /**
-     * Call this method after creating the client instance in order to guarantee that any ongoing command (started
-     * before the client crashed for instance) finishes, before starting any new command.
+     * Call this method after creating the client instance in order to guarantee that a command that has been started
+     * but not finished finishes, before starting any new command.
+     * Returns the last executed command.
      *
      * @throws StorageException There is a problem with stable storage. Please fix it and try again.
      */
-    public void recover() throws StorageException {
+    public ExecutedCommand recover() throws StorageException {
         FailureManager.ClientOperation failedOp = failureManager.getFailedOperation();
         if (failedOp != null) {
-            doInstanceRecory(failedOp.getCmdData(), failedOp.getInst(), failedOp.getKeyHash());
+            Serializable result = fragments.get(failedOp.getKeyHash() % nbFragments).doCommand(failedOp.getCmdData(), failedOp.getCmdNb(), failedOp.getInst());
+            return new ExecutedCommand(failedOp.getCmdData(), result);
         }
+        return null;
     }
 
     /**
-     * Call this method after creating the client instance in order to guarantee that any ongoing command (started
-     * before the client crashed for instance) finishes, before starting any new command.
+     * Call this method after creating the client instance in order to guarantee that a command that has been started
+     * but not finished finishes, before starting any new command.
      * Call this method until it succeeds (doesn't throw).
+     * Returns the last executed command.
      *
      * @throws StorageException There is a problem with stable storage. Please fix it and try again.
      */
-    public void tryRecover() throws CommandException, StorageException {
+    public ExecutedCommand tryRecover() throws CommandException, StorageException {
         FailureManager.ClientOperation failedOp = failureManager.getFailedOperation();
         if (failedOp != null) {
-            tryInstanceRecorey(failedOp.getCmdData(), failedOp.getInst(), failedOp.getKeyHash());
+            Serializable result = fragments.get(failedOp.getKeyHash() % nbFragments).tryCommand(failedOp.getCmdData(), failedOp.getCmdNb(), failedOp.getInst());
+            return new ExecutedCommand(failedOp.getCmdData(), result);
         }
+        return null;
     }
 
     /**
      * Tries to send a command. Will throw only if the network state is such that consensus cannot be reached.
-     * In that case, a CommandException is thrown, containing the instance that may have been initiated.
+     * In that case, a CommandException is thrown, which is needed to try the command again.
      *
      * @param keyHash Hash of the key corresponding to the command. Used for fragmenting.
      */
     public Serializable tryCommand(Serializable commandData, int keyHash) throws CommandException {
-        failureManager.startCommand(commandData, keyHash);
+        failureManager.setOngoingCmdData(commandData);
+        failureManager.setOngoingCmdKeyHash(keyHash);
         return fragments.get(keyHash % nbFragments).tryCommand(commandData);
     }
 
@@ -78,27 +85,20 @@ public class PaxosClient<NODE extends RemotePaxosNode & PaxosProposer> {
      * @param keyHash Hash of the key corresponding to the command. Used for fragmenting.
      */
     public Serializable doCommand(Serializable commandData, int keyHash) {
-        failureManager.startCommand(commandData, keyHash);
+        failureManager.setOngoingCmdData(commandData);
+        failureManager.setOngoingCmdKeyHash(keyHash);
         return fragments.get(keyHash % nbFragments).doCommand(commandData);
     }
 
     /**
      * Tries to send a command. Will throw only if the network state is such that consensus cannot be reached.
-     * In that case, a CommandException is thrown, containing the instance that may have been initiated.
+     * In that case, a CommandException is thrown, which is needed to try the command again.
      * Call this method only to try a failed command again, using the instance returned in the CommandException.
      *
-     * @param paxosInstance Paxos instance on which to try the command. Should only be used to resume a failed command.
+     * @param e The exception thrown during the last attempt to send this command
      * @param keyHash Hash of the key corresponding to the command. Used for fragmenting.
      */
-    public Serializable tryCommand(Serializable commandData, Long paxosInstance, int keyHash) throws CommandException {
-        return fragments.get(keyHash % nbFragments).tryCommand(commandData, paxosInstance);
-    }
-
-    private void doInstanceRecory(Serializable commandData, Long paxosInstance, int keyHash) {
-        fragments.get(keyHash % nbFragments).finishInstance(commandData, paxosInstance);
-    }
-
-    private void tryInstanceRecorey(Serializable commandData, Long paxosInstance, int keyHash) throws CommandException {
-        fragments.get(keyHash % nbFragments).tryFinishInstance(commandData, paxosInstance);
+    public Serializable tryCommandAgain(CommandException e, int keyHash) throws CommandException {
+        return fragments.get(keyHash % nbFragments).tryCommand(e.getCommandData(), e.getCommandNb(), e.getInstanceThatMayHaveBeenInitiated());
     }
 }

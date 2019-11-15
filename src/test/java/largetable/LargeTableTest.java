@@ -59,9 +59,9 @@ public class LargeTableTest extends PaxosTestCase {
         client.get("keyA");
         client.get("keyA");
         client.get("keyA");
-        Thread.sleep(100);
+        Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 50);
         client.get("keyA");
-        Thread.sleep(100);
+        Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 50);
 
         network.killAll();
         network.startAll();
@@ -112,11 +112,11 @@ public class LargeTableTest extends PaxosTestCase {
     }
 
     public void testClientCrashStress() throws InterruptedException {
-        testClientCrashStress(false, 3000);
+        testClientCrashStress(false, 5000);
     }
 
     public void testClientServerCrashStress() throws InterruptedException {
-        testClientCrashStress(true, 2000); // when a client starts just before a node is killed, it will wait a long time
+        testClientCrashStress(true, 2000); // TODO when a client starts just before a node is killed, it will wait a long time
     }
 
     private void testClientCrashStress(boolean serverFailures, int time) throws InterruptedException {
@@ -214,6 +214,7 @@ public class LargeTableTest extends PaxosTestCase {
         // clients don't crash, servers do
         // clients do random operations on a number of entries, but mostly appends
         // clients have their own entries, and don't overlap
+        // clients check results of gets
         // servers write executed operation on disk
         // at the end, check serialized execution of ops of each client equals the state of the server
     }

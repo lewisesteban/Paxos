@@ -40,9 +40,4 @@ public class Command implements Serializable {
         }
         return null;
     }
-
-    @Override
-    public String toString() {
-        return "val" + data[1];
-    }
 }

@@ -79,6 +79,10 @@ public class Command implements Serializable {
             return new Command(data, clientId, clientCmdNb++);
         }
 
+        public synchronized  Command make(Serializable data, long cmdNb) {
+            return new Command(data, clientId, cmdNb);
+        }
+
         public static Command makeRandom(Serializable data) {
             return new Command(data, "", new Random().nextLong());
         }

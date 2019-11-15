@@ -27,26 +27,12 @@ public class SingleFragmentClient {
         this.sender = new ClientCommandSender(failureManager);
     }
 
-    public Serializable finishInstance(Serializable commandData, long instance) {
-        try {
-            return doCommand(commandData, true, instance, true);
-        } catch (CommandException e) {
-            // should not happen
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    public Serializable tryFinishInstance(Serializable commandData, long instance) throws CommandException {
-        return doCommand(commandData, false, instance, true);
-    }
-
     /**
      * Sends a command and tries again until it succeeds.
      */
     public Serializable doCommand(Serializable commandData) {
         try {
-            return doCommand(commandData, true, null, false);
+            return doCommand(commandData, true, null, null);
         } catch (CommandException e) {
             // should not happen
             e.printStackTrace();
@@ -59,7 +45,22 @@ public class SingleFragmentClient {
      * In that case, a CommandException is thrown, containing the instance that may have been initiated.
      */
     public Serializable tryCommand(Serializable commandData) throws CommandException {
-        return doCommand(commandData, false, null, false);
+        return doCommand(commandData, false, null, null);
+    }
+
+    /**
+     * Sends a command and tries again until it succeeds.
+     *
+     * @param paxosInstance Paxos instance on which to try the command. Should only be used to resume a failed command.
+     */
+    public Serializable doCommand(Serializable commandData, long cmdNb, Long paxosInstance) {
+        try {
+            return doCommand(commandData, true, paxosInstance, cmdNb);
+        } catch (CommandException e) {
+            // should not happen
+            e.printStackTrace();
+            return null;
+        }
     }
 
     /**
@@ -68,12 +69,16 @@ public class SingleFragmentClient {
      *
      * @param paxosInstance Paxos instance on which to try the command. Should only be used to resume a failed command.
      */
-    public Serializable tryCommand(Serializable commandData, Long paxosInstance) throws CommandException {
-        return doCommand(commandData, false, paxosInstance, false);
+    public Serializable tryCommand(Serializable commandData, long cmdNb, Long paxosInstance) throws CommandException {
+        return doCommand(commandData, false, paxosInstance, cmdNb);
     }
 
-    private Serializable doCommand(Serializable commandData, boolean repeatUntilSuccess, Long instance, boolean onlyThisInstance) throws CommandException {
-        Command command = commandFactory.make(commandData);
+    private Serializable doCommand(Serializable commandData, boolean repeatUntilSuccess, Long instance, Long commandNb) throws CommandException {
+        Command command;
+        if (commandNb == null)
+            command = commandFactory.make(commandData);
+        else
+            command = commandFactory.make(commandData, commandNb);
         nodesTried.clear();
         PaxosProposer node = getPaxosNode(false);
         if (instance == null)
@@ -83,7 +88,7 @@ public class SingleFragmentClient {
                 if (instance == -1) {
                     return sender.doCommand(node, command);
                 } else {
-                    return sender.doCommand(node, command, instance, onlyThisInstance);
+                    return sender.doCommand(node, command, instance);
                 }
             } catch (ClientCommandSender.DedicatedProposerRedirection e) {
                 if (e.getInstanceThatMayHaveBeenInitiated() != null)

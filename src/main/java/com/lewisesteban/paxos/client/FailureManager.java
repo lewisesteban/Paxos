@@ -10,10 +10,13 @@ class FailureManager {
     private static final String KEY_HASH = "h";
     private static final String KEY_CMD = "c";
     private static final String KEY_INST = "i";
+    private static final String KEY_NB = "n";
+
     private String fileName;
     private StorageUnit.Creator storage;
     private Serializable ongoingCmdData;
     private int ongoingCmdKeyHash;
+    private long ongoingCmdNb;
 
     FailureManager(StorageUnit.Creator storageCreator, String clientId) {
         fileName = "clientOngoingCommand_" + clientId;
@@ -32,19 +35,25 @@ class FailureManager {
             throw new StorageException(e);
         }
         clientOperation.inst = Long.parseLong(file.read(KEY_INST));
+        clientOperation.cmdNb = Long.parseLong(file.read(KEY_NB));
         return clientOperation;
     }
 
-    /**
-     * Called when starting a new command on the client (before startInstance).
-     */
-    void startCommand(Serializable cmdData, int keyHash) {
+    void setOngoingCmdData(Serializable cmdData) {
         this.ongoingCmdData = cmdData;
-        this.ongoingCmdKeyHash = keyHash;
+    }
+
+    void setOngoingCmdKeyHash(int ongoingCmdKeyHash) {
+        this.ongoingCmdKeyHash = ongoingCmdKeyHash;
+    }
+
+    void setOngoingCmdNb(long ongoingCmdNb) {
+        this.ongoingCmdNb = ongoingCmdNb;
     }
 
     /**
-     * Called directly before a propose() on a new instance
+     * Called directly before a propose() on a new instance, after the key hash, cmd data and cmd number have been set
+     * properly.
      */
     void startInstance(long instance) throws StorageException {
         StorageUnit file = storage.make(fileName, null).overwriteMode();
@@ -55,18 +64,8 @@ class FailureManager {
             throw new StorageException(e);
         }
         file.put(KEY_HASH, Integer.toString(ongoingCmdKeyHash));
+        file.put(KEY_NB, Long.toString(ongoingCmdNb));
         file.flush();
-    }
-
-    /**
-     * Called after receiving a positive response from Paxos
-     */
-    void endCommand() {
-        try {
-            storage.make(fileName, null).delete();
-        } catch (StorageException e) {
-            e.printStackTrace();
-        }
     }
 
     private String serializeData(Serializable data) throws IOException {
@@ -91,6 +90,7 @@ class FailureManager {
     class ClientOperation {
         private int keyHash;
         private Serializable cmdData;
+        private long cmdNb;
         private Long inst;
 
         int getKeyHash() {
@@ -103,6 +103,10 @@ class FailureManager {
 
         Long getInst() {
             return inst;
+        }
+
+        long getCmdNb() {
+            return cmdNb;
         }
     }
 }

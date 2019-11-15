@@ -19,42 +19,35 @@ class ClientCommandSender {
     }
 
     Serializable doCommand(PaxosProposer paxosNode, Command command) throws CommandFailedException, DedicatedProposerRedirection {
-        return doCommand(paxosNode, command, null, false);
+        return doCommand(paxosNode, command, null);
     }
 
     Serializable doCommand(PaxosProposer paxosNode, Command command, Long instance) throws CommandFailedException, DedicatedProposerRedirection {
-        return doCommand(paxosNode, command, instance, false);
-    }
-
-    Serializable doCommand(PaxosProposer paxosNode, Command command, Long instance, boolean onlyThisInstance) throws CommandFailedException, DedicatedProposerRedirection {
+        failureManager.setOngoingCmdNb(command.getClientCmdNb());
         Serializable commandReturn = null;
         boolean success = false;
         if (instance == null)
-            instance = getNewInstanceId(paxosNode, null);
+            instance = getNewInstanceId(paxosNode, command, null);
         while (!success) {
             Result result;
             try {
                 result = sendCommand(paxosNode, command, instance);
             } catch (IOException e) {
-                throw new CommandFailedException(instance, e);
+                throw new CommandFailedException(instance, command, e);
             }
             switch (result.getStatus()) {
                 case Result.CONSENSUS_ON_THIS_CMD:
                     success = true;
-                    if (failureManager != null)
-                        failureManager.endCommand();
                     commandReturn = result.getReturnData();
                     break;
                 case Result.CONSENSUS_ON_ANOTHER_CMD:
-                    if (onlyThisInstance)
-                        return null;
-                    instance = getNewInstanceId(paxosNode, instance);
+                    instance = getNewInstanceId(paxosNode, command, instance);
                     break;
                 case Result.NETWORK_ERROR:
-                    throw new CommandFailedException(instance, null);
+                    throw new CommandFailedException(instance, command, null);
                 case Result.BAD_PROPOSAL:
                     if (result.getExtra().getLeaderId() != null) {
-                        throw new DedicatedProposerRedirection(result.getExtra().getLeaderId(), instance);
+                        throw new DedicatedProposerRedirection(result.getExtra().getLeaderId(), command, instance);
                     }
             }
         }
@@ -71,26 +64,26 @@ class ClientCommandSender {
         return paxosNode.propose(command, instance);
     }
 
-    private long getNewInstanceId(PaxosProposer paxosNode, Long startedInstance) throws CommandFailedException {
+    private long getNewInstanceId(PaxosProposer paxosNode, Command command, Long startedInstance) throws CommandFailedException {
         try {
             return paxosNode.getNewInstanceId();
         } catch (IOException e) {
-            throw new CommandFailedException(startedInstance, e);
+            throw new CommandFailedException(startedInstance, command, e);
         }
     }
 
     class CommandFailedException extends CommandException {
 
-        CommandFailedException(Long instanceThatMayHaveBeenInitiated, Throwable cause) {
-            super(instanceThatMayHaveBeenInitiated, cause);
+        CommandFailedException(Long instanceThatMayHaveBeenInitiated, Command command, Throwable cause) {
+            super(instanceThatMayHaveBeenInitiated, command.getData(), command.getClientCmdNb(), cause);
         }
     }
 
     class DedicatedProposerRedirection extends CommandException {
         private int dedicatedProposerId;
 
-        DedicatedProposerRedirection(int dedicatedProposerId, Long instance) {
-            super(instance, null);
+        DedicatedProposerRedirection(int dedicatedProposerId, Command command, Long instance) {
+            super(instance, command.getData(), command.getClientCmdNb(), null);
             this.dedicatedProposerId = dedicatedProposerId;
         }
 
