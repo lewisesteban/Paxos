@@ -23,7 +23,7 @@ public interface StateMachine {
      * this method was called. In other words, it is the last instance included within the snapshot that will be creatd.
      * It should be kept along with the snapshot.
      */
-    void createWaitingSnapshot(long idOfLastExecutedInstance);
+    void createWaitingSnapshot(long idOfLastExecutedInstance) throws StorageException;
 
     /**
      * Returns the last applied snapshot (see "applySnapshot").
@@ -54,7 +54,6 @@ public interface StateMachine {
     /**
      * Similar to "applyCurrentWaitingSnapshot", except the snapshot to be applied is the one given as parameter,
      * and the whole state of the state machine must be set to that of the snapshot.
-     * The data contained in the snapshot must be the de-serialized, directly usable data.
      */
     void applySnapshot(Snapshot snapshot) throws StorageException;
 

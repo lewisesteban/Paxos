@@ -118,18 +118,18 @@ public class Listener implements ListenerRPCHandle {
         return snapshotManager.getSnapshotLastInstance();
     }
 
-    synchronized void setSnapshotUpTo(long instanceId, boolean replay) {
-        if (snapshotLastInstanceId > instanceId)
-            instanceId = snapshotLastInstanceId + 1;
-        for (long i = snapshotLastInstanceId; i <= instanceId; ++i) {
+    synchronized void setSnapshotUpTo(long newSnapshotLastInst, boolean replay) {
+        if (snapshotLastInstanceId > newSnapshotLastInst)
+            return;
+        for (long i = snapshotLastInstanceId; i <= newSnapshotLastInst; ++i) {
             executedCommands.remove(i);
         }
         if (replay) {
-            for (long i = instanceId + 1; i <= lastInstanceId; ++i) {
+            for (long i = newSnapshotLastInst + 1; i <= lastInstanceId; ++i) {
                 stateMachine.execute(executedCommands.get(i).getCommand().getData());
             }
         }
-        this.snapshotLastInstanceId = instanceId;
+        this.snapshotLastInstanceId = newSnapshotLastInst;
         if (snapshotLastInstanceId > lastInstanceId)
             lastInstanceId = snapshotLastInstanceId;
     }

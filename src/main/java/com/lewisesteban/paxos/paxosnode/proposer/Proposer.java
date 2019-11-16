@@ -8,6 +8,7 @@ import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
 import com.lewisesteban.paxos.paxosnode.listener.IsInSnapshotException;
 import com.lewisesteban.paxos.paxosnode.listener.Listener;
 import com.lewisesteban.paxos.paxosnode.listener.SnapshotManager;
+import com.lewisesteban.paxos.paxosnode.membership.Membership;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
 import com.lewisesteban.paxos.storage.StorageException;
@@ -61,9 +62,11 @@ public class Proposer implements PaxosProposer {
 
     @Override
     public Result propose(Command command, long instanceId) throws StorageException {
-        Integer leaderNodeId = memberList.getLeaderNodeId();
-        if (leaderNodeId != null && leaderNodeId != memberList.getMyNodeId()) {
-            return new Result(instanceId, leaderNodeId);
+        if (!command.isNoOp() && Membership.LEADER_ELECTION) {
+            Integer leaderNodeId = memberList.getLeaderNodeId();
+            if (leaderNodeId != null && leaderNodeId != memberList.getMyNodeId()) {
+                return new Result(instanceId, leaderNodeId);
+            }
         }
         clientCommandContainer.putCommand(command, instanceId);
         return propose(command, instanceId, false);
@@ -76,6 +79,8 @@ public class Proposer implements PaxosProposer {
             } catch (RunningProposalManager.InstanceAlreadyRunningException e) {
                 listener.waitForConsensusOn(instanceId);
                 Listener.ExecutedCommand consensusCmd = listener.tryGetExecutedCommand(instanceId);
+                if (consensusCmd == null)
+                    return new Result(Result.NETWORK_ERROR, instanceId);
                 if (consensusCmd.getCommand().equals(command))
                     return new Result(Result.CONSENSUS_ON_THIS_CMD, instanceId, consensusCmd.getResult());
                 else
@@ -90,6 +95,12 @@ public class Proposer implements PaxosProposer {
     }
 
     private Result tryAgain(Command command, long instanceId, int attempt, boolean badNetworkState) throws StorageException {
+        if (!command.isNoOp() && Membership.LEADER_ELECTION) {
+            Integer leaderNodeId = memberList.getLeaderNodeId();
+            if (leaderNodeId != null && leaderNodeId != memberList.getMyNodeId()) {
+                return new Result(instanceId, leaderNodeId);
+            }
+        }
         Logger.println("tryAgain node=" + memberList.getMyNodeId() + " inst=" + instanceId + " cmd=" + command +  " attempt=" + attempt + " badnetworkState=" + badNetworkState);
         if (badNetworkState) {
             if (attempt < 3) {

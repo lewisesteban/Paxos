@@ -4,9 +4,9 @@ import java.io.Serializable;
 import java.util.Map;
 
 public class Command implements Serializable {
-    static final byte GET = 0;
-    static final byte PUT = 1;
-    static final byte APPEND = 2;
+    static final transient byte GET = 0;
+    static final transient byte PUT = 1;
+    static final transient byte APPEND = 2;
 
     private byte type;
     private String[] data;
@@ -39,5 +39,10 @@ public class Command implements Serializable {
                 break;
         }
         return null;
+    }
+
+    @Override
+    public String toString() {
+        return "key" + data[0] + (data.length == 2 ? ("val" + data[1]) : "");
     }
 }

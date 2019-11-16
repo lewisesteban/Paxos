@@ -13,4 +13,8 @@ public class Logger {
     public static boolean isOn() {
         return ON;
     }
+
+    public static void set(boolean ON) {
+        Logger.ON = ON;
+    }
 }

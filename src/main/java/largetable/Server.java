@@ -18,6 +18,7 @@ public class Server implements StateMachine {
     private FileAccessorCreator fileAccessorCreator;
     private int nodeId;
     private Long appliedSnapshotLastInstance = null;
+    // note: data contained in snapshots is always serialized (String)
     private Snapshot waitingSnapshot = null;
     private TreeMap<String, String> table = new TreeMap<>();
 
@@ -31,7 +32,7 @@ public class Server implements StateMachine {
         StorageUnit storageUnit = createStorage();
         if (!storageUnit.isEmpty()) {
             long inst = Long.parseLong(storageUnit.read(KEY_INST));
-            TreeMap<String, String> data = deserializeData(storageUnit.read(KEY_DATA));
+            String data = storageUnit.read(KEY_DATA);
             applySnapshot(new Snapshot(inst, data));
         }
     }
@@ -46,8 +47,12 @@ public class Server implements StateMachine {
     }
 
     @Override
-    public void createWaitingSnapshot(long idOfLastExecutedInstance) {
-        waitingSnapshot = new Snapshot(idOfLastExecutedInstance, table);
+    public void createWaitingSnapshot(long idOfLastExecutedInstance) throws StorageException {
+        try {
+            waitingSnapshot = new Snapshot(idOfLastExecutedInstance, serializeData(table));
+        } catch (IOException e) {
+            throw new StorageException(e);
+        }
     }
 
     @Override
@@ -55,12 +60,7 @@ public class Server implements StateMachine {
         StorageUnit storageUnit = createStorage();
         if (!storageUnit.isEmpty()) {
             long inst = Long.parseLong(storageUnit.read(KEY_INST));
-            TreeMap<String, String> data;
-            try {
-                data = deserializeData(storageUnit.read(KEY_DATA));
-            } catch (IOException e) {
-                throw new StorageException(e);
-            }
+            String data = storageUnit.read(KEY_DATA);
             return new Snapshot(inst, data);
         }
         return null;
@@ -81,8 +81,7 @@ public class Server implements StateMachine {
         StorageUnit storageUnit = createStorage().overwriteMode();
         storageUnit.put(KEY_INST, Long.toString(waitingSnapshot.getLastIncludedInstance()));
         try {
-            //noinspection unchecked
-            storageUnit.put(KEY_DATA, serializeData((TreeMap<String, String>) waitingSnapshot.getData()));
+            storageUnit.put(KEY_DATA, (String) waitingSnapshot.getData());
         } catch (IOException e) {
             throw new StorageException(e);
         }
@@ -97,18 +96,21 @@ public class Server implements StateMachine {
             return;
 
         StorageUnit storageUnit = createStorage().overwriteMode();
-        //noinspection unchecked
-        TreeMap<String, String> snapshotData = (TreeMap<String, String>) snapshot.getData();
-
         storageUnit.put(KEY_INST, Long.toString(snapshot.getLastIncludedInstance()));
         try {
-            storageUnit.put(KEY_DATA, serializeData(snapshotData));
+            storageUnit.put(KEY_DATA, (String) snapshot.getData());
         } catch (IOException e) {
             throw new StorageException(e);
         }
         storageUnit.flush();
 
-        table = snapshotData;
+        TreeMap<String, String> deserializedTable;
+        try {
+            deserializedTable = deserializeData((String) snapshot.getData());
+        } catch (IOException e) {
+            throw new StorageException(e);
+        }
+        table = deserializedTable;
         appliedSnapshotLastInstance = snapshot.getLastIncludedInstance();
         waitingSnapshot = null;
     }

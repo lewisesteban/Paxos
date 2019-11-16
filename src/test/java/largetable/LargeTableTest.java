@@ -1,9 +1,11 @@
 package largetable;
 
 import com.lewisesteban.paxos.PaxosTestCase;
+import com.lewisesteban.paxos.client.ClientCommandSender;
 import com.lewisesteban.paxos.paxosnode.StateMachine;
 import com.lewisesteban.paxos.paxosnode.listener.SnapshotManager;
 import com.lewisesteban.paxos.paxosnode.listener.UnneededInstanceGossipper;
+import com.lewisesteban.paxos.paxosnode.membership.Membership;
 import com.lewisesteban.paxos.paxosnode.membership.NodeStateSupervisor;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.*;
@@ -17,9 +19,7 @@ import com.lewisesteban.paxos.virtualnet.server.PaxosServer;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -239,13 +239,109 @@ public class LargeTableTest extends PaxosTestCase {
         assertFalse(error.get());
     }
 
-    public void testSerialization() {
-        // clients don't crash, servers do
-        // clients do random operations on a number of entries, but mostly appends
-        // clients have their own entries, and don't overlap
-        // clients check results of gets
-        // servers write executed operation on disk
-        // at the end, check serialized execution of ops of each client equals the state of the server
+    // TODO error
+    //  client6 key client6_key0 is 18585548 but should be 185548
+    //  client5 key client5_key0 is 60886369 but should be 6086369
+    //  server 4 key=client2_key0 val=437544981883754498188 but should be 43754498188
+    public void testSerialization() throws StorageException, InterruptedException {
+        SnapshotManager.SNAPSHOT_FREQUENCY = 15;
+        UnneededInstanceGossipper.GOSSIP_FREQUENCY = 60;
+        NodeStateSupervisor.GOSSIP_AVG_TIME_PER_NODE = 80;
+        NodeStateSupervisor.FAILURE_TIMEOUT = 400;
+
+        final int NB_CLIENTS = 10;
+        final int NB_SERVERS = 5;
+        final int NB_ENTRIES_PER_CLIENT = 1;
+        final int TIME = 5000;
+
+        // init network
+        Map<Integer, Runnable> stateMachinesKillSwitches = new TreeMap<>();
+        Map<Integer, StateMachine> stateMachines = new TreeMap<>();
+        List<Callable<StateMachine>> stateMachineCreators = new ArrayList<>();
+        for (int i = 0; i < NB_SERVERS; i++) {
+            final int nodeId = i;
+            stateMachineCreators.add(() -> new Server(InterruptibleVirtualFileAccessor.creator(nodeId)) {
+                boolean keepGoing = true;
+
+                @Override
+                public void setup(int nodeId) throws IOException {
+                    stateMachines.put(nodeId, this);
+                    stateMachinesKillSwitches.put(nodeId, () -> {
+                        synchronized (this) {
+                            keepGoing = false;
+                        }
+                    });
+                    super.setup(nodeId);
+                }
+
+                @Override
+                public void applySnapshot(Snapshot snapshot) throws StorageException {
+                    synchronized (this) {
+                        if (keepGoing)
+                            super.applySnapshot(snapshot);
+                    }
+                }
+
+                @Override
+                public void applyCurrentWaitingSnapshot() throws StorageException {
+                    synchronized (this) {
+                        if (keepGoing)
+                            super.applyCurrentWaitingSnapshot();
+                    }
+                }
+            });
+        }
+        Network network = new Network();
+        List<PaxosNetworkNode> cluster = initSimpleNetwork(NB_SERVERS, network, stateMachineCreators);
+        List<PaxosServer> paxosServers = cluster.stream().map(PaxosNetworkNode::getPaxosSrv).collect(Collectors.toList());
+
+        // init clients
+        AtomicBoolean clientError = new AtomicBoolean(false);
+        List<TestClient> clients = new ArrayList<>();
+        for (int i = 0; i < NB_CLIENTS; ++i) {
+            clients.add(new TestClient("client" + i, paxosServers, NB_ENTRIES_PER_CLIENT, clientError));
+        }
+
+        // start
+        Thread serverKiller = serialKiller(network, cluster, TIME, 500, (node) -> stateMachinesKillSwitches.get(node).run());
+        serverKiller.start();
+        clients.forEach(TestClient::start);
+        serverKiller.join();
+
+        // finish
+        System.out.println("finish");
+        cluster.forEach(node -> { if (!node.isRunning()) network.start(node.getAddress()); });
+        clients.forEach(TestClient::stop);
+        //Logger.set(true);
+        long start = System.currentTimeMillis();
+        clients.forEach(TestClient::join);
+        System.out.println("join: " + (System.currentTimeMillis() - start) + " ms");
+        assertFalse(clientError.get());
+
+        // make sure everybody is up to date
+        Membership.LEADER_ELECTION = false;
+        cluster.forEach(node -> {
+            try {
+                System.out.println("sending request to " + node.getPaxosSrv().getId());
+                new ClientCommandSender(null).doCommand(node.getPaxosSrv(),
+                        new com.lewisesteban.paxos.paxosnode.Command(new Command(Command.GET, new String[] { "key" }), "lastClient", 0));
+            } catch (Throwable e) {
+                e.printStackTrace(); // TODO CommandFailedException (may be related to the proposer having a runing command, which, after waiting for its end, has no entry in Listener.ExecutedCommand)
+                fail();
+            }
+        });
+
+        // check server states
+        System.out.println("checking...");
+        Map<String, String> globalData = new TreeMap<>();
+        clients.forEach(client -> client.getData().forEach(globalData::put));
+        stateMachines.forEach((nodeId, sm) -> globalData.forEach((key, val) -> {
+            String smVal = (String) sm.execute(new Command(Command.GET, new String[] { key }));
+            if ((val != null || smVal != null) && (val == null || !val.equals(smVal))) {
+                System.err.println("server " + nodeId + " key=" + key + " val=" + smVal + " but should be " + val);
+                fail();
+            }
+        }));
     }
 
     private List<Callable<StateMachine>> stateMachineList(int size) {
@@ -255,6 +351,75 @@ public class LargeTableTest extends PaxosTestCase {
             list.add(() -> new Server(InterruptibleVirtualFileAccessor.creator(nodeId)));
         }
         return list;
+    }
+
+    private class TestClient {
+        private Random random = new Random();
+        private Thread thread;
+        private Client<PaxosServer> client;
+        private Map<String, String> data = new TreeMap<>();
+        private int nbEntries;
+        private String clientId;
+        private AtomicBoolean error;
+        private boolean keepGoing = true;
+
+        TestClient(String id, List<PaxosServer> servers, int nbEntries, AtomicBoolean error) throws StorageException {
+            client = new Client<>(servers, id, InterruptibleVirtualFileAccessor.creator(-1));
+            this.nbEntries = nbEntries;
+            this.clientId = id;
+            this.error = error;
+        }
+
+        void stop() {
+            keepGoing = false;
+        }
+
+        void start() {
+            thread = new Thread(() -> {
+                while (keepGoing) {
+                    String key = clientId + "_key" + random.nextInt(nbEntries);
+                    String val = Integer.toString(random.nextInt(10));
+                    if (random.nextInt(10) > 3) {
+                        // append
+                        if (data.get(key) == null)
+                            data.put(key, val);
+                        else
+                            data.put(key, data.get(key).concat(val));
+                        client.append(key, val);
+                        System.out.println("client " + clientId + " append key " + key + " val " + val + " success");
+                    } else {
+                        if (random.nextInt(3) > 0) {
+                            // get (and check)
+                            val = client.get(key);
+                            String myVal = data.get(key);
+                            if ((val != null || myVal != null) && (val == null || !val.equals(myVal))) {
+                                System.err.println("error: client " + clientId + " key " + key + " is " + val + " but should be " + data.get(key));
+                                error.set(true);
+                            }
+                            System.out.println("client " + clientId + " get " + key + " val=" + val + " OK");
+                        } else {
+                            // put
+                            data.put(key, val);
+                            client.put(key, val);
+                            System.out.println("client " + clientId + " put key " + key + " val " + val + " success");
+                        }
+                    }
+                }
+            });
+            thread.start();
+        }
+
+        void join() {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        Map<String, String> getData() {
+            return data;
+        }
     }
 
     private class ClientToSrvConnection implements PaxosProposer, RemotePaxosNode {

@@ -10,15 +10,15 @@ import java.io.Serializable;
 /**
  * Responsible for sending a single command to a single Paxos and getting its result.
  */
-class ClientCommandSender {
+public class ClientCommandSender {
     private long lastSentInstance = -1;
     private FailureManager failureManager;
 
-    ClientCommandSender(FailureManager failureManager) {
+    public ClientCommandSender(FailureManager failureManager) {
         this.failureManager = failureManager;
     }
 
-    Serializable doCommand(PaxosProposer paxosNode, Command command) throws CommandFailedException, DedicatedProposerRedirection {
+    public Serializable doCommand(PaxosProposer paxosNode, Command command) throws CommandFailedException, DedicatedProposerRedirection {
         return doCommand(paxosNode, command, null);
     }
 
