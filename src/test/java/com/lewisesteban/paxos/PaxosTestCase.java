@@ -3,6 +3,7 @@ package com.lewisesteban.paxos;
 import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.listener.SnapshotManager;
 import com.lewisesteban.paxos.paxosnode.listener.UnneededInstanceGossipper;
+import com.lewisesteban.paxos.paxosnode.proposer.ClientCommandContainer;
 import com.lewisesteban.paxos.storage.InterruptibleAccessorContainer;
 import com.lewisesteban.paxos.storage.virtual.VirtualFileSystem;
 import com.lewisesteban.paxos.virtualnet.Network;
@@ -24,6 +25,7 @@ public class PaxosTestCase extends TestCase {
     protected static final Command cmd5 = new Command("FIVE", "client", 5);
 
     protected Random random = new Random();
+    protected Network network = null;
 
     private static void deleteFolder(File folder) {
         File[] files = folder.listFiles();
@@ -66,14 +68,23 @@ public class PaxosTestCase extends TestCase {
     @Override
     public void tearDown() {
         cleanup();
+        SnapshotManager.SNAPSHOT_FREQUENCY = 1000;
+        UnneededInstanceGossipper.GOSSIP_FREQUENCY = 100;
+        ClientCommandContainer.TIMEOUT = 1000 * 60 * 60 * 2;
+        ClientCommandContainer.TIMEOUT_CHECK_FREQUENCY = 1000;
+        if (network != null)
+            network.killAll();
         try {
-            Thread.sleep(50);
+            Thread.sleep(200);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        VirtualFileSystem.clear();
-        SnapshotManager.SNAPSHOT_FREQUENCY = 1000;
-        UnneededInstanceGossipper.GOSSIP_FREQUENCY = 100;
+    }
+
+    @Override
+    protected void setUp() throws Exception {
+        super.setUp();
+        network = new Network();
     }
 
     @SuppressWarnings({"WeakerAccess", "unused"})

@@ -30,7 +30,7 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
         paxosCluster = new Membership(myNodeId, fragmentId, members);
         RunningProposalManager runningProposalManager = new RunningProposalManager();
         SnapshotManager snapshotManager = new SnapshotManager(stateMachine);
-        ClientCommandContainer clientCommandContainer = new ClientCommandContainer(storage, fileAccessorCreator, paxosCluster.getMyNodeId());
+        ClientCommandContainer clientCommandContainer = new ClientCommandContainer(storage, fileAccessorCreator, fragmentId + "_" + paxosCluster.getMyNodeId());
         unneededInstanceGossipper = new UnneededInstanceGossipper(clientCommandContainer, snapshotManager);
         acceptor = new Acceptor(paxosCluster, storage, fileAccessorCreator);
         listener = new Listener(paxosCluster, stateMachine, runningProposalManager, snapshotManager);

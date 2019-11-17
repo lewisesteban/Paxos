@@ -21,9 +21,11 @@ public class InterruptibleAccessorContainer {
 
     public static void interrupt(int nodeId) {
         synchronized (map) {
-            map.get(nodeId).interrupt();
-            map.remove(nodeId);
-            interrupted.add(nodeId);
+            if (map.containsKey(nodeId)) {
+                map.get(nodeId).interrupt();
+                map.remove(nodeId);
+                interrupted.add(nodeId);
+            }
         }
     }
 

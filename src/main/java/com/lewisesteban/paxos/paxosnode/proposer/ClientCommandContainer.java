@@ -19,25 +19,23 @@ public class ClientCommandContainer {
     private Map<String, ClientCommand> clientCommands = new TreeMap<>();
     private StorageUnit.Creator storageCreator;
     private long lastTimeoutCheck = 0;
-    private int nodeId;
+    private String dirName;
 
-    public ClientCommandContainer(StorageUnit.Creator storageCreator, FileAccessorCreator fileAccessorCreator, int nodeId)
+    public ClientCommandContainer(StorageUnit.Creator storageCreator, FileAccessorCreator fileAccessorCreator, String nodeName)
             throws StorageException {
         this.storageCreator = storageCreator;
-        this.nodeId = nodeId;
+        this.dirName = "commandManager_" + nodeName;
 
-        FileAccessor dir = fileAccessorCreator.create("commandManager" + nodeId, null);
-        if (dir.exists()) {
-            FileAccessor[] files = dir.listFiles();
-            if (files != null) {
-                for (FileAccessor file : files) {
-                    String clientId = file.getName();
-                    if (clientId.endsWith("_tmp"))
-                        clientId = clientId.substring(0, clientId.length() - 4);
-                    if (!clientCommands.containsKey(clientId)) {
-                        ClientCommand clientCommand = new ClientCommand(clientId);
-                        clientCommands.put(clientId, clientCommand);
-                    }
+        FileAccessor dir = fileAccessorCreator.create(dirName, null);
+        FileAccessor[] files = dir.listFiles();
+        if (files != null) {
+            for (FileAccessor file : files) {
+                String clientId = file.getName();
+                if (clientId.endsWith("_tmp"))
+                    clientId = clientId.substring(0, clientId.length() - 4);
+                if (!clientCommands.containsKey(clientId)) {
+                    ClientCommand clientCommand = new ClientCommand(clientId);
+                    clientCommands.put(clientId, clientCommand);
                 }
             }
         }
@@ -104,7 +102,7 @@ public class ClientCommandContainer {
         private boolean isDeleted = false;
 
         private ClientCommand(String clientId) throws StorageException {
-            this.storageUnit = storageCreator.make(clientId, "commandManager" + nodeId);
+            this.storageUnit = storageCreator.make(clientId, dirName);
             if (!storageUnit.isEmpty()) {
                 this.instance = Long.parseLong(storageUnit.read(KEY_INSTANCE));
                 long cmdNb = Long.parseLong(storageUnit.read(KEY_CMD_NB));

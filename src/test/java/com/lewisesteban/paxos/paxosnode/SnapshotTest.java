@@ -37,13 +37,14 @@ public class SnapshotTest extends PaxosTestCase {
     // globalUnneededInstance will be equal to X only after X has been gossipped, which happens when instance X+1 ends
 
     @Override
-    protected void setUp() {
+    protected void setUp() throws Exception {
+        super.setUp();
         Membership.LEADER_ELECTION = false;
     }
 
     public void testLogRemovalAfterSnapshot() throws IOException, InterruptedException {
         Callable<StateMachine> stateMachine = basicStateMachine((val) -> null);
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(1, new Network(), stateMachinesSingle(stateMachine, 1));
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(1, network, stateMachinesSingle(stateMachine, 1));
         PaxosProposer proposer = nodes.get(0).getPaxosSrv();
         SnapshotManager.SNAPSHOT_FREQUENCY = 2;
         proposer.propose(cmd1, proposer.getNewInstanceId());
@@ -92,7 +93,7 @@ public class SnapshotTest extends PaxosTestCase {
         };
 
         // init network
-        Network network = new Network();
+        network = new Network();
         List<PaxosNetworkNode> nodes = initSimpleNetwork(3, network, stateMachinesSame(stateMachine, 3));
         PaxosProposer proposer = nodes.get(0).getPaxosSrv();
         PaxosServer lateServer = nodes.get(2).getPaxosSrv();
@@ -177,7 +178,7 @@ public class SnapshotTest extends PaxosTestCase {
             }
             return data;
         });
-        Network network = new Network();
+        network = new Network();
         List<PaxosNetworkNode> nodes = initSimpleNetwork(1, network, stateMachinesSame(stateMachine, 1));
         PaxosServer server = nodes.get(0).getPaxosSrv();
         SnapshotManager.SNAPSHOT_FREQUENCY = 2;
@@ -245,7 +246,7 @@ public class SnapshotTest extends PaxosTestCase {
             }
         };
 
-        Network network = new Network();
+        network = new Network();
         List<PaxosNetworkNode> nodes = initSimpleNetwork(1, network, stateMachinesSingle(stateMachine, 1));
         PaxosServer server = nodes.get(0).getPaxosSrv();
         SnapshotManager.SNAPSHOT_FREQUENCY = 2;
@@ -269,7 +270,7 @@ public class SnapshotTest extends PaxosTestCase {
     }
 
     public void testEndClient() throws IOException, InterruptedException {
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(1, new Network(), stateMachinesEmpty(1));
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(1, network, stateMachinesEmpty(1));
         PaxosServer server = nodes.get(0).getPaxosSrv();
         SnapshotManager.SNAPSHOT_FREQUENCY = 2;
         UnneededInstanceGossipper.GOSSIP_FREQUENCY = 1;
@@ -293,6 +294,31 @@ public class SnapshotTest extends PaxosTestCase {
         assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length <= 4);
     }
 
+    public void testNeededInstanceRecovery() throws IOException, InterruptedException {
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(1, network, stateMachinesEmpty(1));
+        PaxosServer server = nodes.get(0).getPaxosSrv();
+        SnapshotManager.SNAPSHOT_FREQUENCY = 2;
+        UnneededInstanceGossipper.GOSSIP_FREQUENCY = 1;
+
+        server.propose(new Command(0, "client1", 0), server.getNewInstanceId());
+        server.propose(new Command(0, "client2", 0), server.getNewInstanceId());
+        Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
+        server.propose(new Command(1, "client2", 1), server.getNewInstanceId());
+        Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
+        server.propose(new Command(2, "client2", 2), server.getNewInstanceId());
+        Thread.sleep(200);
+        int nbFiles = InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length;
+
+        network.kill(addr(0));
+        network.start(addr(0));
+
+        server.propose(new Command(3, "client2", 3), 4);
+        Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
+        server.propose(new Command(4, "client2", 4), 5);
+        Thread.sleep(200);
+        assertEquals(nbFiles + 2, InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length);
+    }
+
     public void testClientTimeout() throws IOException, InterruptedException {
         List<PaxosNetworkNode> nodes = initSimpleNetwork(1, new Network(), stateMachinesEmpty(1));
         PaxosServer server = nodes.get(0).getPaxosSrv();
@@ -306,7 +332,6 @@ public class SnapshotTest extends PaxosTestCase {
         Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
         server.propose(new Command(2, "client2", 2), server.getNewInstanceId());
         Thread.sleep(200);
-        assertEquals(4, InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length);
 
         // make client timeout and sure there is a snapshot
         ClientCommandContainer.TIMEOUT = 1;
@@ -331,7 +356,7 @@ public class SnapshotTest extends PaxosTestCase {
         AtomicBoolean keepGoing = new AtomicBoolean(true);
         AtomicReference<Exception> error = new AtomicReference<>(null);
 
-        final Network network = new Network();
+        network = new Network();
         Iterable<Callable<StateMachine>> stateMachines = stateMachinesSame(SnapshotTestStateMachine.creator(NB_CLIENTS, error), NB_NODES);
         List<PaxosNetworkNode> nodes = NetworkFactory.initSimpleNetwork(NB_NODES, network, stateMachines);
 
