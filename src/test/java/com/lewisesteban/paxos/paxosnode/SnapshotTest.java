@@ -7,6 +7,7 @@ import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
 import com.lewisesteban.paxos.paxosnode.listener.SnapshotManager;
 import com.lewisesteban.paxos.paxosnode.listener.UnneededInstanceGossipper;
 import com.lewisesteban.paxos.paxosnode.membership.Membership;
+import com.lewisesteban.paxos.paxosnode.proposer.ClientCommandContainer;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
@@ -285,6 +286,32 @@ public class SnapshotTest extends PaxosTestCase {
         // end client and make sure there is a snapshot
         server.endClient("client1");
         Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
+        server.propose(new Command(3, "client2", 3), server.getNewInstanceId());
+        Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
+        server.propose(new Command(4, "client2", 4), server.getNewInstanceId());
+        Thread.sleep(200);
+        assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length <= 4);
+    }
+
+    public void testClientTimeout() throws IOException, InterruptedException {
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(1, new Network(), stateMachinesEmpty(1));
+        PaxosServer server = nodes.get(0).getPaxosSrv();
+        SnapshotManager.SNAPSHOT_FREQUENCY = 2;
+        UnneededInstanceGossipper.GOSSIP_FREQUENCY = 1;
+
+        server.propose(new Command(0, "client1", 0), server.getNewInstanceId());
+        server.propose(new Command(0, "client2", 0), server.getNewInstanceId());
+        Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
+        server.propose(new Command(1, "client2", 1), server.getNewInstanceId());
+        Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
+        server.propose(new Command(2, "client2", 2), server.getNewInstanceId());
+        Thread.sleep(200);
+        assertEquals(4, InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length);
+
+        // make client timeout and sure there is a snapshot
+        ClientCommandContainer.TIMEOUT = 1;
+        ClientCommandContainer.TIMEOUT_CHECK_FREQUENCY = 1;
+        Thread.sleep(2);
         server.propose(new Command(3, "client2", 3), server.getNewInstanceId());
         Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
         server.propose(new Command(4, "client2", 4), server.getNewInstanceId());
