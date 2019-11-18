@@ -23,6 +23,7 @@ import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static com.lewisesteban.paxos.NetworkFactory.initSimpleNetwork;
@@ -145,7 +146,7 @@ public class LargeTableTest extends PaxosTestCase {
     }
 
     public void testClientServerCrashStress() throws InterruptedException {
-        testClientCrashStress(true, 2000); // TODO when a client starts just before a node is killed, it will wait a long time
+        testClientCrashStress(true, 3000);
     }
 
     private void testClientCrashStress(boolean serverFailures, int time) throws InterruptedException {
@@ -197,11 +198,11 @@ public class LargeTableTest extends PaxosTestCase {
                 network.start(ClientNetNode.address(clientIdInt.get()));
                 client = new Client<>(paxosServers, "client", InterruptibleVirtualFileAccessor.creator(clientIdInt.get()));
                 Thread clientWorkingThread = new Thread(() -> {
-                    while (true) {
+                    while (netNode.isRunning()) {
                         lastCmdId.incrementAndGet();
-                        System.out.println("client trying " + lastCmdId.get());
+                        System.out.println("client " + netNode.getAddress().getNodeIdInCluster() + " trying " + lastCmdId.get());
                         client.put("key", Integer.toString(lastCmdId.get()));
-                        System.out.println("client success: " + lastCmdId.get());
+                        System.out.println("client " + netNode.getAddress().getNodeIdInCluster() + " finished: " + lastCmdId.get());
                     }
                 });
                 clientWorkingThread.start();
@@ -220,7 +221,9 @@ public class LargeTableTest extends PaxosTestCase {
                     Thread.sleep(random.nextInt(300));
                     network.kill(ClientNetNode.address(clientIdInt.get()));
                     Thread.sleep(200);
+                    System.out.println("starting client...");
                     startClient.run();
+                    System.out.println("client finished");
                 } catch (InterruptedException ignored) { }
             }
         });
@@ -236,13 +239,9 @@ public class LargeTableTest extends PaxosTestCase {
                 network.start(addr(srv));
         }
         clientKiller.join();
-        assertFalse(error.get());
+        assertFalse(error.get()); // TODO error (with server failures)
     }
 
-    // TODO error
-    //  client6 key client6_key0 is 18585548 but should be 185548
-    //  client5 key client5_key0 is 60886369 but should be 6086369
-    //  server 4 key=client2_key0 val=437544981883754498188 but should be 43754498188
     public void testSerialization() throws StorageException, InterruptedException {
         SnapshotManager.SNAPSHOT_FREQUENCY = 15;
         UnneededInstanceGossipper.GOSSIP_FREQUENCY = 60;
@@ -447,13 +446,16 @@ public class LargeTableTest extends PaxosTestCase {
 
         @Override
         public void endClient(String clientId) throws IOException {
+            AtomicReference<IOException> exception = new AtomicReference<>(null);
             network.tryNetCall(() -> {
                 try {
                     paxosServer.endClient(clientId);
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    exception.set(e);
                 }
             }, address, targetAddress);
+            if (exception.get() != null)
+                throw exception.get();
         }
 
         @Override

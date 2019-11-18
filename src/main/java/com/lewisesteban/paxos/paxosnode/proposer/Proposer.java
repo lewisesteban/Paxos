@@ -1,8 +1,8 @@
 package com.lewisesteban.paxos.paxosnode.proposer;
 
 import com.lewisesteban.paxos.Logger;
-import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.ClusterHandle;
+import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.acceptor.AcceptAnswer;
 import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
 import com.lewisesteban.paxos.paxosnode.listener.IsInSnapshotException;
@@ -12,7 +12,6 @@ import com.lewisesteban.paxos.paxosnode.membership.Membership;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
 import com.lewisesteban.paxos.storage.StorageException;
-import com.lewisesteban.paxos.storage.StorageUnit;
 
 import java.io.IOException;
 import java.util.Queue;
@@ -41,11 +40,11 @@ public class Proposer implements PaxosProposer {
     private SnapshotRequester snapshotRequester;
     private ClientCommandContainer clientCommandContainer;
 
-    public Proposer(ClusterHandle memberList, Listener listener, StorageUnit storage,
+    public Proposer(ClusterHandle memberList, Listener listener,
                     RunningProposalManager runningProposalManager, SnapshotManager snapshotManager,
-                    ClientCommandContainer clientCommandContainer) throws StorageException {
+                    ClientCommandContainer clientCommandContainer) {
         this.memberList = memberList;
-        this.propFac = new ProposalFactory(memberList.getMyNodeId(), storage);
+        this.propFac = new ProposalFactory(memberList.getMyNodeId());
         this.listener = listener;
         this.runningProposalManager = runningProposalManager;
         this.snapshotRequester = new SnapshotRequester(snapshotManager, memberList);
@@ -190,8 +189,10 @@ public class Proposer implements PaxosProposer {
                     } else {
                         if (answer.isSnapshotRequestRequired()) {
                             snapshotRequestRequired.set(true);
+                        } else {
+                            // proposal nb is too low
+                            propFac.updateProposalNumber(answer.getHighestProposalNumber() + 1);
                         }
-                        // Someone else is proposing or snapshot is required: abandon proposal
                         anyThread.release(memberList.getNbMembers());
                     }
                 } catch (IOException ignored) {

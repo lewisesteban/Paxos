@@ -295,7 +295,62 @@ public class SnapshotTest extends PaxosTestCase {
     }
 
     public void testNeededInstanceRecovery() throws IOException, InterruptedException {
-        List<PaxosNetworkNode> nodes = initSimpleNetwork(1, network, stateMachinesEmpty(1));
+        AtomicBoolean error = new AtomicBoolean(false);
+        Callable<StateMachine> stateMachine = () -> new StateMachine() {
+            @Override
+            public void setup(int nodeId) {
+
+            }
+
+            @Override
+            public Serializable execute(Serializable data) {
+                return null;
+            }
+
+            @Override
+            public void createWaitingSnapshot(long idOfLastExecutedInstance) {
+                System.out.println("waiting snapshot created " + idOfLastExecutedInstance);
+            }
+
+            @Override
+            public Snapshot getAppliedSnapshot() {
+                return null;
+            }
+
+            @Override
+            public long getWaitingSnapshotLastInstance() {
+                return 0;
+            }
+
+            @Override
+            public long getAppliedSnapshotLastInstance() {
+                return 0;
+            }
+
+            @Override
+            public void applyCurrentWaitingSnapshot() {
+                System.out.println("waiting snapshot applied");
+                error.set(true);
+            }
+
+            @Override
+            public void applySnapshot(Snapshot snapshot) {
+                System.out.println("snapshot loaded");
+                error.set(true);
+            }
+
+            @Override
+            public boolean hasWaitingSnapshot() {
+                return false;
+            }
+
+            @Override
+            public boolean hasAppliedSnapshot() {
+                return false;
+            }
+        };
+
+        List<PaxosNetworkNode> nodes = initSimpleNetwork(1, network, stateMachinesSame(stateMachine, 1));
         PaxosServer server = nodes.get(0).getPaxosSrv();
         SnapshotManager.SNAPSHOT_FREQUENCY = 2;
         UnneededInstanceGossipper.GOSSIP_FREQUENCY = 1;
@@ -307,7 +362,6 @@ public class SnapshotTest extends PaxosTestCase {
         Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
         server.propose(new Command(2, "client2", 2), server.getNewInstanceId());
         Thread.sleep(200);
-        int nbFiles = InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length;
 
         network.kill(addr(0));
         network.start(addr(0));
@@ -316,7 +370,8 @@ public class SnapshotTest extends PaxosTestCase {
         Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
         server.propose(new Command(4, "client2", 4), 5);
         Thread.sleep(200);
-        assertEquals(nbFiles + 2, InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length);
+
+        assertFalse(error.get());
     }
 
     public void testClientTimeout() throws IOException, InterruptedException {

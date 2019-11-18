@@ -24,15 +24,16 @@ public class Acceptor implements AcceptorRPCHandle {
 
     public PrepareAnswer reqPrepare(long instanceNb, Proposal.ID propId) throws StorageException {
         AcceptDataInstance thisInstance = instances.get(instanceNb);
-        if (thisInstance == null)
+        if (thisInstance == null) {
             return new PrepareAnswer(false, null, true);
+        }
         synchronized (thisInstance) {
             if (propId.isGreaterThan(thisInstance.getLastPreparedPropId())) {
                 thisInstance.setLastPreparedPropId(propId);
                 thisInstance.saveToStorage(memberList.getMyNodeId(), instanceNb, storageCreator);
                 return new PrepareAnswer(true, thisInstance.getLastAcceptedProp());
             } else {
-                return new PrepareAnswer(false, null);
+                return new PrepareAnswer(false, null, thisInstance.getLastPreparedPropId().getNodePropNb());
             }
         }
     }

@@ -9,10 +9,17 @@ public class PrepareAnswer implements Serializable {
     private boolean prepareOK;
     private Proposal alreadyAccepted;
     private boolean snapshotRequestRequired = false;
+    private long highestProposalNumber = Integer.MIN_VALUE;
 
     PrepareAnswer(boolean prepareOK, Proposal alreadyAccepted) {
         this.prepareOK = prepareOK;
         this.alreadyAccepted = alreadyAccepted;
+    }
+
+    PrepareAnswer(boolean prepareOK, Proposal alreadyAccepted, long highestProposalNumber) {
+        this.prepareOK = prepareOK;
+        this.alreadyAccepted = alreadyAccepted;
+        this.highestProposalNumber = highestProposalNumber;
     }
 
     PrepareAnswer(boolean prepareOK, Proposal alreadyAccepted, boolean snapshotRequestRequired) {
@@ -27,6 +34,10 @@ public class PrepareAnswer implements Serializable {
 
     public Proposal getAlreadyAccepted() {
         return alreadyAccepted;
+    }
+
+    public long getHighestProposalNumber() {
+        return highestProposalNumber;
     }
 
     public boolean isSnapshotRequestRequired() {

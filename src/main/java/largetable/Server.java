@@ -92,9 +92,6 @@ public class Server implements StateMachine {
 
     @Override
     public void applySnapshot(Snapshot snapshot) throws StorageException {
-        if (snapshot == null)
-            return;
-
         StorageUnit storageUnit = createStorage().overwriteMode();
         storageUnit.put(KEY_INST, Long.toString(snapshot.getLastIncludedInstance()));
         try {

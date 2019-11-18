@@ -23,9 +23,9 @@ public class Proposal implements java.io.Serializable {
     public static class ID implements java.io.Serializable {
 
         private int nodeId;
-        private int nodePropNb;
+        private long nodePropNb;
 
-        public ID(int nodeId, int nodeReqNb) {
+        public ID(int nodeId, long nodeReqNb) {
             this.nodeId = nodeId;
             this.nodePropNb = nodeReqNb;
         }
@@ -34,7 +34,7 @@ public class Proposal implements java.io.Serializable {
             return nodeId;
         }
 
-        public int getNodePropNb() {
+        public long getNodePropNb() {
             return nodePropNb;
         }
 

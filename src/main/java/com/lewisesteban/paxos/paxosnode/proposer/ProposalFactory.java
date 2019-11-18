@@ -1,34 +1,28 @@
 package com.lewisesteban.paxos.paxosnode.proposer;
 
 import com.lewisesteban.paxos.paxosnode.Command;
-import com.lewisesteban.paxos.storage.StorageException;
-import com.lewisesteban.paxos.storage.StorageUnit;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 class ProposalFactory {
 
-    private AtomicInteger proposalNumber = new AtomicInteger(0);
+    private AtomicLong proposalNumber = new AtomicLong(0);
     private int myNodeId;
-    private StorageUnit storage;
 
-    private static final String STORAGE_KEY_PROPOSAL_NB = "proposalNb";
-
-    ProposalFactory(int myNodeId, StorageUnit storage) throws StorageException {
+    ProposalFactory(int myNodeId) {
         this.myNodeId = myNodeId;
-        this.storage = storage;
-        String propNbStr = storage.read(STORAGE_KEY_PROPOSAL_NB);
-        if (propNbStr != null) {
-            proposalNumber.set(Integer.parseInt(propNbStr));
-        }
     }
 
-    Proposal make(Command command) throws StorageException {
-        int commandsProposalNb = proposalNumber.getAndIncrement();
-        synchronized (this) {
-            storage.put(STORAGE_KEY_PROPOSAL_NB, String.valueOf(proposalNumber.get()));
-            storage.flush();
-        }
+    Proposal make(Command command) {
+        long commandsProposalNb = proposalNumber.getAndIncrement();
         return new Proposal(command, new Proposal.ID(myNodeId, commandsProposalNb));
+    }
+
+    void updateProposalNumber(long newVal) {
+        long oldVal = proposalNumber.get();
+        while (newVal > oldVal) {
+            proposalNumber.compareAndSet(oldVal, newVal);
+            oldVal = proposalNumber.get();
+        }
     }
 }

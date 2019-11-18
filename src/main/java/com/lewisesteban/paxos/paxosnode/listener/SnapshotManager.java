@@ -57,6 +57,8 @@ public class SnapshotManager {
     }
 
     public void loadSnapshot(StateMachine.Snapshot snapshot) throws StorageException {
+        if (snapshot == null)
+            return;
         //noinspection SynchronizeOnNonFinalField
         synchronized (listener) { // prevent execution of commands
             synchronized (stateMachine) {
