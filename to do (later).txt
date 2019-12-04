@@ -1,0 +1,9 @@
+configuration parameters (instead of public static variables)
+
+when starting: ask another server for last instance, and catch up
+
+stateMachine snapshot: divide into several files (but beware of failures)
+
+acceptor data saving: only save if modified
+
+combine prepare or accept requests

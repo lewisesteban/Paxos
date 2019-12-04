@@ -1,5 +1,6 @@
 package largetable;
 
+import com.lewisesteban.paxos.client.ExecutedCommand;
 import com.lewisesteban.paxos.client.PaxosClient;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
@@ -9,13 +10,20 @@ import com.lewisesteban.paxos.storage.StorageException;
 
 import java.util.List;
 
-public class Client<NODE extends PaxosProposer & RemotePaxosNode> {
+/**
+ * Client that tries again until it succeeds, instead of throwing exceptions.
+ */
+public class LoopingClient<NODE extends PaxosProposer & RemotePaxosNode> {
     private PaxosClient<NODE> paxosClient;
 
-    public Client(List<NODE> allNodes, String clientId, FileAccessorCreator fileAccessorCreator) throws StorageException {
+    public LoopingClient(List<NODE> allNodes, String clientId, FileAccessorCreator fileAccessorCreator) throws StorageException {
         paxosClient = new PaxosClient<>(allNodes, clientId,
                 (name, dir) -> new SafeSingleFileStorage(name, dir, fileAccessorCreator));
         paxosClient.recover();
+    }
+
+    public ExecutedCommand getLastExecutedCommand() throws StorageException {
+        return paxosClient.recover();
     }
 
     public String get(String key) {

@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Client for a single fragment
+ * LoopingClient for a single fragment
  */
 @SuppressWarnings("WeakerAccess")
 public class SingleFragmentClient {

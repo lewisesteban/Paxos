@@ -23,7 +23,7 @@ class FailureManager {
         this.storage = storageCreator;
     }
 
-    ClientOperation getFailedOperation() throws StorageException {
+    ClientOperation getLastStartedOperation() throws StorageException {
         StorageUnit file = storage.make(fileName, null);
         if (file.isEmpty() || file.read(KEY_INST) == null)
             return null;

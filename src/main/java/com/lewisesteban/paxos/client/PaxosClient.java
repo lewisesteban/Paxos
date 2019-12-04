@@ -48,7 +48,7 @@ public class PaxosClient<NODE extends RemotePaxosNode & PaxosProposer> {
      * @throws StorageException There is a problem with stable storage. Please fix it and try again.
      */
     public ExecutedCommand recover() throws StorageException {
-        FailureManager.ClientOperation failedOp = failureManager.getFailedOperation();
+        FailureManager.ClientOperation failedOp = failureManager.getLastStartedOperation();
         if (failedOp != null) {
             Serializable result = fragments.get(failedOp.getKeyHash() % nbFragments).doCommand(failedOp.getCmdData(), failedOp.getCmdNb(), failedOp.getInst());
             return new ExecutedCommand(failedOp.getCmdData(), result);
@@ -65,7 +65,7 @@ public class PaxosClient<NODE extends RemotePaxosNode & PaxosProposer> {
      * @throws StorageException There is a problem with stable storage. Please fix it and try again.
      */
     public ExecutedCommand tryRecover() throws CommandException, StorageException {
-        FailureManager.ClientOperation failedOp = failureManager.getFailedOperation();
+        FailureManager.ClientOperation failedOp = failureManager.getLastStartedOperation();
         if (failedOp != null) {
             Serializable result = fragments.get(failedOp.getKeyHash() % nbFragments).tryCommand(failedOp.getCmdData(), failedOp.getCmdNb(), failedOp.getInst());
             return new ExecutedCommand(failedOp.getCmdData(), result);
@@ -99,7 +99,7 @@ public class PaxosClient<NODE extends RemotePaxosNode & PaxosProposer> {
     /**
      * Tries to send a command. Will throw only if the network state is such that consensus cannot be reached.
      * In that case, a CommandException is thrown, which is needed to try the command again.
-     * Call this method only to try a failed command again, using the instance returned in the CommandException.
+     * Call this method only to try a failed command again, using the thrown CommandException.
      *
      * @param e The exception thrown during the last attempt to send this command
      * @param keyHash Hash of the key corresponding to the command. Used for fragmenting.

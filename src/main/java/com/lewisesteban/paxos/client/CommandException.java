@@ -10,13 +10,15 @@ public class CommandException extends Throwable {
     CommandException(Long instanceThatMayHaveBeenInitiated, Serializable commandData, long commandNb, Throwable cause) {
         super(cause);
         this.instanceThatMayHaveBeenInitiated = instanceThatMayHaveBeenInitiated;
+        this.commandData = commandData;
+        this.commandNb = commandNb;
     }
 
     Long getInstanceThatMayHaveBeenInitiated() {
         return instanceThatMayHaveBeenInitiated;
     }
 
-    Serializable getCommandData() {
+    public Serializable getCommandData() {
         return commandData;
     }
 

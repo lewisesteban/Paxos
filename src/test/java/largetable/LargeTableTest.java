@@ -38,7 +38,7 @@ public class LargeTableTest extends PaxosTestCase {
 
     public void testSimpleRequests() throws Exception {
         List<PaxosNetworkNode> cluster = initSimpleNetwork(3, new Network(), stateMachineList(3));
-        largetable.Client<PaxosServer> client = new Client<>(
+        LoopingClient<PaxosServer> client = new LoopingClient<>(
                 cluster.stream().map(PaxosNetworkNode::getPaxosSrv).collect(Collectors.toList()),
                 "client", InterruptibleVirtualFileAccessor.creator(-1));
         client.put("keyA", "valA");
@@ -48,12 +48,20 @@ public class LargeTableTest extends PaxosTestCase {
         assertEquals("valB", client.get("keyB"));
     }
 
+    public void testRecover() throws Exception {
+        List<PaxosNetworkNode> cluster = initSimpleNetwork(3, new Network(), stateMachineList(3));
+        LoopingClient<PaxosServer> client = new LoopingClient<>(
+                cluster.stream().map(PaxosNetworkNode::getPaxosSrv).collect(Collectors.toList()),
+                "client", InterruptibleVirtualFileAccessor.creator(-1));
+    }
+
+
     public void testSnapshot() throws Exception {
         SnapshotManager.SNAPSHOT_FREQUENCY = 2;
 
         Network network = new Network();
         List<PaxosNetworkNode> cluster = initSimpleNetwork(3, network, stateMachineList(3));
-        largetable.Client<PaxosServer> client = new Client<>(
+        LoopingClient<PaxosServer> client = new LoopingClient<>(
                 cluster.stream().map(PaxosNetworkNode::getPaxosSrv).collect(Collectors.toList()),
                 "client", InterruptibleVirtualFileAccessor.creator(-1));
         client.put("keyA", "valA");
@@ -76,10 +84,10 @@ public class LargeTableTest extends PaxosTestCase {
 
         Network network = new Network();
         List<PaxosNetworkNode> cluster = initSimpleNetwork(3, network, stateMachineList(3));
-        largetable.Client<PaxosServer> clientA = new Client<>(
+        LoopingClient<PaxosServer> clientA = new LoopingClient<>(
                 cluster.stream().map(PaxosNetworkNode::getPaxosSrv).collect(Collectors.toList()),
                 "clientA", InterruptibleVirtualFileAccessor.creator(-1));
-        largetable.Client<PaxosServer> clientB = new Client<>(
+        LoopingClient<PaxosServer> clientB = new LoopingClient<>(
                 cluster.stream().map(PaxosNetworkNode::getPaxosSrv).collect(Collectors.toList()),
                 "clientB", InterruptibleVirtualFileAccessor.creator(-1));
         clientA.put("keyA", "valA");
@@ -108,7 +116,7 @@ public class LargeTableTest extends PaxosTestCase {
                 receivedCmds.incrementAndGet();
                 try {
                     if (receivedCmds.get() == 0)
-                       Thread.sleep(500);
+                        Thread.sleep(500);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -123,7 +131,7 @@ public class LargeTableTest extends PaxosTestCase {
 
         // start and then kill client
         ClientNetNode clientNetNode = new ClientNetNode(-1);
-        largetable.Client<PaxosServer> client = new Client<>(
+        LoopingClient<PaxosServer> client = new LoopingClient<>(
                 cluster.stream().map(PaxosNetworkNode::getPaxosSrv).collect(Collectors.toList()),
                 "client", InterruptibleVirtualFileAccessor.creator(-1));
         Thread clientThread = new Thread(() -> client.put("key", "val"));
@@ -132,7 +140,7 @@ public class LargeTableTest extends PaxosTestCase {
         clientNetNode.kill();
 
         // new client should recover initiated operation
-        Client newClient = new Client<>(
+        LoopingClient newClient = new LoopingClient<>(
                 cluster.stream().map(PaxosNetworkNode::getPaxosSrv).collect(Collectors.toList()),
                 "client", InterruptibleVirtualFileAccessor.creator(-1));
         assertEquals(1, receivedCmds.get());
@@ -146,7 +154,7 @@ public class LargeTableTest extends PaxosTestCase {
     }
 
     public void testClientServerCrashStress() throws InterruptedException {
-        testClientCrashStress(true, 3000);
+        testClientCrashStress(true, 7000);
     }
 
     private void testClientCrashStress(boolean serverFailures, int time) throws InterruptedException {
@@ -191,12 +199,12 @@ public class LargeTableTest extends PaxosTestCase {
             clientIdInt.decrementAndGet();
             System.out.println("=== client starting: nb " + clientIdInt.get());
             List<ClientToSrvConnection> paxosServers = cluster.stream().map(node -> new ClientToSrvConnection(network, node.getPaxosSrv(), clientIdInt.get(), node.getAddress())).collect(Collectors.toList());
-            Client<ClientToSrvConnection> client;
+            LoopingClient<ClientToSrvConnection> client;
             try {
                 ClientNetNode netNode = new ClientNetNode(clientIdInt.get());
                 network.addNode(netNode);
                 network.start(ClientNetNode.address(clientIdInt.get()));
-                client = new Client<>(paxosServers, "client", InterruptibleVirtualFileAccessor.creator(clientIdInt.get()));
+                client = new LoopingClient<>(paxosServers, "client", InterruptibleVirtualFileAccessor.creator(clientIdInt.get()));
                 Thread clientWorkingThread = new Thread(() -> {
                     while (netNode.isRunning()) {
                         lastCmdId.incrementAndGet();
@@ -224,7 +232,8 @@ public class LargeTableTest extends PaxosTestCase {
                     System.out.println("starting client...");
                     startClient.run();
                     System.out.println("client finished");
-                } catch (InterruptedException ignored) { }
+                } catch (InterruptedException ignored) {
+                }
             }
         });
 
@@ -239,7 +248,7 @@ public class LargeTableTest extends PaxosTestCase {
                 network.start(addr(srv));
         }
         clientKiller.join();
-        assertFalse(error.get()); // TODO error (with server failures)
+        assertFalse(error.get()); // (?) error (with server failures)
     }
 
     public void testSerialization() throws StorageException, InterruptedException {
@@ -309,7 +318,9 @@ public class LargeTableTest extends PaxosTestCase {
 
         // finish
         System.out.println("finish");
-        cluster.forEach(node -> { if (!node.isRunning()) network.start(node.getAddress()); });
+        cluster.forEach(node -> {
+            if (!node.isRunning()) network.start(node.getAddress());
+        });
         clients.forEach(TestClient::stop);
         //Logger.set(true);
         long start = System.currentTimeMillis();
@@ -323,9 +334,9 @@ public class LargeTableTest extends PaxosTestCase {
             try {
                 System.out.println("sending request to " + node.getPaxosSrv().getId());
                 new ClientCommandSender(null).doCommand(node.getPaxosSrv(),
-                        new com.lewisesteban.paxos.paxosnode.Command(new Command(Command.GET, new String[] { "key" }), "lastClient", 0));
+                        new com.lewisesteban.paxos.paxosnode.Command(new Command(Command.GET, new String[]{"key"}), "lastClient", 0));
             } catch (Throwable e) {
-                e.printStackTrace(); // TODO CommandFailedException (may be related to the proposer having a runing command, which, after waiting for its end, has no entry in Listener.ExecutedCommand)
+                e.printStackTrace(); // (?) CommandFailedException (may be related to the proposer having a runing command, which, after waiting for its end, has no entry in Listener.ExecutedCommand)
                 fail();
             }
         });
@@ -335,7 +346,7 @@ public class LargeTableTest extends PaxosTestCase {
         Map<String, String> globalData = new TreeMap<>();
         clients.forEach(client -> client.getData().forEach(globalData::put));
         stateMachines.forEach((nodeId, sm) -> globalData.forEach((key, val) -> {
-            String smVal = (String) sm.execute(new Command(Command.GET, new String[] { key }));
+            String smVal = (String) sm.execute(new Command(Command.GET, new String[]{key}));
             if ((val != null || smVal != null) && (val == null || !val.equals(smVal))) {
                 System.err.println("server " + nodeId + " key=" + key + " val=" + smVal + " but should be " + val);
                 fail();
@@ -355,7 +366,7 @@ public class LargeTableTest extends PaxosTestCase {
     private class TestClient {
         private Random random = new Random();
         private Thread thread;
-        private Client<PaxosServer> client;
+        private LoopingClient<PaxosServer> client;
         private Map<String, String> data = new TreeMap<>();
         private int nbEntries;
         private String clientId;
@@ -363,7 +374,7 @@ public class LargeTableTest extends PaxosTestCase {
         private boolean keepGoing = true;
 
         TestClient(String id, List<PaxosServer> servers, int nbEntries, AtomicBoolean error) throws StorageException {
-            client = new Client<>(servers, id, InterruptibleVirtualFileAccessor.creator(-1));
+            client = new LoopingClient<>(servers, id, InterruptibleVirtualFileAccessor.creator(-1));
             this.nbEntries = nbEntries;
             this.clientId = id;
             this.error = error;

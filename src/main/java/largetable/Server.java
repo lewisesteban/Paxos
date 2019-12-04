@@ -22,7 +22,7 @@ public class Server implements StateMachine {
     private Snapshot waitingSnapshot = null;
     private TreeMap<String, String> table = new TreeMap<>();
 
-    Server(FileAccessorCreator fileAccessorCreator) {
+    public Server(FileAccessorCreator fileAccessorCreator) {
         this.fileAccessorCreator = fileAccessorCreator;
     }
 
