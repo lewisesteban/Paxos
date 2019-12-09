@@ -115,7 +115,7 @@ public class WholeFileAccessor implements FileAccessor {
         return accessors;
     }
 
-    static FileAccessorCreator creator() {
+    public static FileAccessorCreator creator() {
         return WholeFileAccessor::new;
     }
 }

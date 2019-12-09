@@ -107,6 +107,7 @@ public class LargeTableTest extends PaxosTestCase {
         assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length < 7);
     }
 
+    // TODO error
     public void testClientRecovery() throws Exception {
         AtomicInteger receivedCmds = new AtomicInteger(0);
         AtomicBoolean stateMachineFinished = new AtomicBoolean(false);
@@ -157,6 +158,7 @@ public class LargeTableTest extends PaxosTestCase {
         testClientCrashStress(true, 7000);
     }
 
+    // TODO error
     private void testClientCrashStress(boolean serverFailures, int time) throws InterruptedException {
         SnapshotManager.SNAPSHOT_FREQUENCY = 20;
         UnneededInstanceGossipper.GOSSIP_FREQUENCY = 100;
@@ -251,6 +253,7 @@ public class LargeTableTest extends PaxosTestCase {
         assertFalse(error.get()); // (?) error (with server failures)
     }
 
+    // TODO error
     public void testSerialization() throws StorageException, InterruptedException {
         SnapshotManager.SNAPSHOT_FREQUENCY = 15;
         UnneededInstanceGossipper.GOSSIP_FREQUENCY = 60;

@@ -15,9 +15,9 @@ import java.util.List;
  * Client that will throw exceptions if there is a problem with the Paxos network.
  * You must call recover after creating the client instance and before doing any other request.
  * When a method throws LargeTableException, you can call tryAgain to try again.
- * Don't forget to close() the client.
+ * Don't forget to end() the client.
  */
-public class LargeTableClient<NODE extends PaxosProposer & RemotePaxosNode> {
+public class LargeTableClient<NODE extends PaxosProposer & RemotePaxosNode> implements Client {
     private PaxosClient<NODE> paxosClient;
     private int lastCommandHash = 0;
     private CommandException lastCommandException = null;
@@ -79,7 +79,7 @@ public class LargeTableClient<NODE extends PaxosProposer & RemotePaxosNode> {
     /**
      * Call this whenever the client stops sending requests, even temporarily.
      */
-    public void close() {
+    public void end() {
         paxosClient.end();
     }
 
@@ -90,46 +90,6 @@ public class LargeTableClient<NODE extends PaxosProposer & RemotePaxosNode> {
             this.lastCommandException = e;
             this.lastCommandHash = command.getData()[0].hashCode();
             throw new LargeTableException(e);
-        }
-    }
-
-    public static class LargeTableException extends Exception {
-        LargeTableException(Throwable e) {
-            super(e);
-        }
-    }
-
-    public static class ExecutedCommand {
-        public final static byte TYPE_GET = Command.GET;
-        public final static byte TYPE_PUT = Command.PUT;
-        public final static byte TYPE_APPEND = Command.APPEND;
-
-        private Command cmd;
-        private Serializable result;
-
-        ExecutedCommand(Command cmd, Serializable result) {
-            this.cmd = cmd;
-            this.result = result;
-        }
-
-        public byte getCmdType() {
-            return cmd.getType();
-        }
-
-        public String getCmdKey() {
-            return cmd.getData()[0];
-        }
-
-        public String getCmdValue() {
-            if (getCmdType() == TYPE_GET)
-                return null;
-            return cmd.getData()[1];
-        }
-
-        public String getResult() {
-            if (getCmdType() != TYPE_GET)
-                return null;
-            return (String)result;
         }
     }
 }

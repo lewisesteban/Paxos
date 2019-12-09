@@ -14,8 +14,8 @@ import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 
 import static com.lewisesteban.paxos.NetworkFactory.initSimpleNetwork;
-import static largetable.LargeTableClient.ExecutedCommand.TYPE_APPEND;
-import static largetable.LargeTableClient.ExecutedCommand.TYPE_GET;
+import static largetable.Client.ExecutedCommand.TYPE_APPEND;
+import static largetable.Client.ExecutedCommand.TYPE_GET;
 
 public class ClientTest extends PaxosTestCase {
 
