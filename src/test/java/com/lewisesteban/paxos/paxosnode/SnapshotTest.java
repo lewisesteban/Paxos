@@ -399,7 +399,6 @@ public class SnapshotTest extends PaxosTestCase {
         assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length <= 4);
     }
 
-    // TODO error
     public void testStress() throws InterruptedException {
         final int NB_NODES = 5;
         final int NB_CLIENTS = 10;

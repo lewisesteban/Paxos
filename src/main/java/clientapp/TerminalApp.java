@@ -7,6 +7,7 @@ import com.lewisesteban.paxos.rpc.paxos.*;
 import com.lewisesteban.paxos.storage.SafeSingleFileStorage;
 import com.lewisesteban.paxos.storage.StorageException;
 import com.lewisesteban.paxos.storage.WholeFileAccessor;
+import largetable.Client;
 import largetable.LargeTableClient;
 import largetable.Server;
 
@@ -25,13 +26,18 @@ public class TerminalApp {
         } catch (StorageException e) {
             System.err.println("ERR storage. " + e.getMessage());
             System.exit(1);
+        } catch (Client.LargeTableException e) {
+            System.err.println("ERR network. " + e.getMessage());
+            System.exit(1);
         }
     }
 
-    private static LargeTableClient initialize(String[] args) throws StorageException {
+    private static LargeTableClient initialize(String[] args) throws StorageException, Client.LargeTableException {
         List<PaxosTestServer> cluster = new ArrayList<>();
         cluster.add(new PaxosTestServer(0));
-        return new LargeTableClient<>(cluster, "app", WholeFileAccessor::new);
+        LargeTableClient client = new LargeTableClient<>(cluster, "app", WholeFileAccessor::new);
+        client.recover();
+        return client;
     }
 
     private static void readInputAndExecute(LargeTableClient client) {
