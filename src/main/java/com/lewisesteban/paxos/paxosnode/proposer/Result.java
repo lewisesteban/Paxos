@@ -2,8 +2,7 @@ package com.lewisesteban.paxos.paxosnode.proposer;
 
 import java.io.Serializable;
 
-@SuppressWarnings("WeakerAccess")
-public class Result {
+public class Result implements Serializable {
     /**
      * The proposal may or may not have been started and/or finished, but one or more network error(s) are preventing
      * its confirmation.
@@ -66,8 +65,8 @@ public class Result {
         return extra;
     }
 
-    public class ExtraData {
-        Integer leaderId = null;
+    public class ExtraData implements Serializable {
+        Integer leaderId;
 
         ExtraData(int leaderId) {
             this.leaderId = leaderId;

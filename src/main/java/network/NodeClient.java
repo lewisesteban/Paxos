@@ -35,7 +35,7 @@ public class NodeClient implements RemotePaxosNode, PaxosProposer {
         this.fragmentId = fragmentId;
         Registry registry = LocateRegistry.getRegistry(host);
         paxosProposer = (RemotePaxosProposer) registry.lookup(NodeServer.getStubName("proposer", this));
-        //acceptor = (RemotePaxosAcceptor) registry.lookup(NodeServer.getStubName("acceptor", this));
+        acceptor = (RemotePaxosAcceptor) registry.lookup(NodeServer.getStubName("acceptor", this));
         listener = (RemotePaxosListener) registry.lookup(NodeServer.getStubName("listener", this));
         membership = (RemotePaxosMembership) registry.lookup(NodeServer.getStubName("membership", this));
     }

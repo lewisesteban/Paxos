@@ -1,4 +1,4 @@
-package clientapp;
+package apps;
 
 import com.lewisesteban.paxos.storage.StorageException;
 import largetable.Client;
