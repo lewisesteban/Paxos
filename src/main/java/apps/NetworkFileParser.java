@@ -15,10 +15,7 @@ import java.util.TreeMap;
 
 class NetworkFileParser {
 
-    static NodeServer createServer(String filePath, int serverNodeID, int serverNodeFragment, ServerCreator serverCreator) throws RemoteException, NotBoundException, StorageException, FileFormatException, FileNotFoundException {
-        List<RemotePaxosNode> cluster = new ArrayList<>();
-        NodeServer server = null;
-
+    static void createRemoteNodes(String filePath, NodeServer server, List<RemotePaxosNode> cluster) throws RemoteException, NotBoundException, StorageException, FileFormatException, FileNotFoundException {
         // read the network file
         File file = new File(getFilePath(filePath));
         BufferedReader br = new BufferedReader(new FileReader(file));
@@ -38,24 +35,13 @@ class NetworkFileParser {
             int nodeId = cluster.size();
 
             // create the node (client or server)
-            if (nodeId == serverNodeID) {
-                /*PaxosNode paxosNode = new PaxosNode(nodeId, serverNodeFragment, cluster,
-                        new largetable.Server(WholeFileAccessor::new),
-                        (f, dir) -> new SafeSingleFileStorage(f, dir, WholeFileAccessor::new),
-                        WholeFileAccessor::new);
-                server = new NodeServer(paxosNode);*/
-                server = serverCreator.create(cluster);
+            if (nodeId == server.getId()) {
                 cluster.add(server);
             } else {
-                cluster.add(new NodeClient(host, nodeId, serverNodeFragment));
+                cluster.add(new NodeClient(host, nodeId, server.getFragmentId()));
             }
 
         }
-
-        // start the server node
-        if (server == null)
-            throw new FileFormatException("The current server must be included in the network file.");
-        return server;
     }
 
     static List<NodeClient> createRemoteNodes(String filePath) throws NotBoundException, StorageException, FileFormatException, RemoteException, FileNotFoundException {
@@ -93,9 +79,5 @@ class NetworkFileParser {
 
     private static String getFilePath(String providedPath) {
         return providedPath == null ? "network" : providedPath;
-    }
-
-    interface ServerCreator {
-        NodeServer create(List<RemotePaxosNode> cluster) throws StorageException, RemoteException;
     }
 }

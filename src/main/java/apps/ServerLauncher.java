@@ -1,9 +1,13 @@
 package apps;
 
 import com.lewisesteban.paxos.paxosnode.PaxosNode;
+import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
 import com.lewisesteban.paxos.storage.SafeSingleFileStorage;
 import com.lewisesteban.paxos.storage.WholeFileAccessor;
 import network.NodeServer;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class ServerLauncher {
     public static void main(String[] args) {
@@ -12,23 +16,30 @@ public class ServerLauncher {
         }
 
         try {
-            // LocateRegistry.createRegistry(1099);
             // "rmiregistry" should be started before launching the program, and in the root folder containing compiled
             // files. In IntelliJ, that would be "target/classes".
+            // It may also be created at runtime like this:
+            // LocateRegistry.createRegistry(1099);
 
             final int serverId = Integer.parseInt(args[1]);
             final int fragmentId = Integer.parseInt(args[0]);
-            NodeServer nodeServer = NetworkFileParser.createServer(args.length > 2 ? args[2] : null,
-                    serverId, fragmentId, cluster -> {
-                        PaxosNode paxosNode = new PaxosNode(serverId, fragmentId, cluster,
-                                new largetable.Server(WholeFileAccessor::new),
-                                (f, dir) -> new SafeSingleFileStorage(f, dir, WholeFileAccessor::new),
-                                WholeFileAccessor::new);
-                        return new NodeServer(paxosNode);
-                    });
-            nodeServer.start();
+            List<RemotePaxosNode> cluster = new ArrayList<>();
+            PaxosNode paxosNode = new PaxosNode(serverId, fragmentId, cluster,
+                    new largetable.Server(WholeFileAccessor::new),
+                    (f, dir) -> new SafeSingleFileStorage(f, dir, WholeFileAccessor::new),
+                    WholeFileAccessor::new);
+            NodeServer server = new NodeServer(paxosNode);
+            System.out.println("RMI server started. Enter C to connect to the other servers.");
 
-            System.err.println("Server ready");
+            int input = System.in.read();
+            if (input == 'C' || input == 'c') {
+                NetworkFileParser.createRemoteNodes(args.length == 3 ? args[2] : null, server, cluster);
+                server.start();
+                System.out.println("Server ready.");
+            } else {
+                System.out.println("Exiting.");
+            }
+
         } catch (Exception e) {
             System.err.println("Server exception: " + e.toString());
             e.printStackTrace();
