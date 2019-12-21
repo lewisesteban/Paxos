@@ -44,6 +44,8 @@ public class Bully {
     }
 
     synchronized MembershipRPCHandle.BullyVictoryResponse receiveVictoryMessage(int senderId, int msgInstanceNb) {
+        if (!cluster.isReady())
+            return new MembershipRPCHandle.BullyVictoryResponse(false, msgInstanceNb);
         if (msgInstanceNb >= electionInstance.get() && lastElectionVoted.get() < msgInstanceNb && senderId > cluster.getMyNodeId()) {
             Logger.println(cluster.getMyNodeId() + " received victory " + senderId);
             lastElectionVoted.set(msgInstanceNb);
@@ -57,6 +59,8 @@ public class Bully {
     }
 
     synchronized int receiveElectionMessage(int instanceNb) {
+        if (!cluster.isReady())
+            return -1;
         if (instanceNb > electionInstance.get()) {
             startElection();
         }
@@ -105,6 +109,7 @@ public class Bully {
     private void declareVictory() {
         cluster.setLeaderNodeId(cluster.getMyNodeId());
         electionIsOngoing.set(false);
+        AtomicBoolean stop = new AtomicBoolean(false);
         AtomicBoolean failed = new AtomicBoolean(false);
 
         // vote for self
@@ -117,9 +122,9 @@ public class Bully {
                 executorService.submit(() -> {
                     try {
                         MembershipRPCHandle.BullyVictoryResponse response = node.getMembership().bullyVictory(cluster.getMyNodeId(), electionInstance.get());
-                        if (response.isVictoryAccepted())
+                        if (response.isVictoryAccepted()) {
                             successfulNotifications.incrementAndGet();
-                        else {
+                        } else {
                             failed.set(true);
                             if (response.getInstanceNb() > electionInstance.get())
                                 electionInstance.set(response.getInstanceNb());
@@ -129,8 +134,10 @@ public class Bully {
                         synchronized (this) {
                             runningThreads.decrementAndGet();
                             notifyAll();
-                            if (failed.get())
+                            if (failed.get() && !stop.get()) {
+                                stop.set(true);
                                 fail();
+                            }
                         }
                     }
                 });
@@ -149,7 +156,14 @@ public class Bully {
                 return;
             }
         }
-        fail();
+
+        if (!stop.get()) {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException ignored) {
+            }
+            fail();
+        }
     }
 
     private void fail() {

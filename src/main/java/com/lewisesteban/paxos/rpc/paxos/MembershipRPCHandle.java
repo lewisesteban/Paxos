@@ -3,6 +3,7 @@ package com.lewisesteban.paxos.rpc.paxos;
 import com.lewisesteban.paxos.paxosnode.membership.NodeHeartbeat;
 
 import java.io.IOException;
+import java.io.Serializable;
 
 public interface MembershipRPCHandle {
 
@@ -22,7 +23,7 @@ public interface MembershipRPCHandle {
      */
     BullyVictoryResponse bullyVictory(int senderId, int instanceNb) throws IOException;
 
-    class BullyVictoryResponse {
+    class BullyVictoryResponse implements Serializable {
         boolean victoryAccepted;
         int instanceNb;
 

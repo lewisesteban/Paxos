@@ -12,11 +12,10 @@ public class Membership implements ClusterHandle, MembershipRPCHandle {
     private List<RemotePaxosNode> nodes;
     private int myNodeId;
     private int nbNodes;
-    private RemotePaxosNode myNode = null;
     private NodeStateSupervisor supervisor;
     private Bully bully;
     private Integer leader = null;
-    private boolean keepGoing = true;
+    private boolean running = false;
     private int fragmentId;
 
     public Membership(int myNodeId, int fragmentId, List<RemotePaxosNode> nodes) {
@@ -31,13 +30,18 @@ public class Membership implements ClusterHandle, MembershipRPCHandle {
         nbNodes = nodes.size();
         if (LEADER_ELECTION)
             supervisor.start();
-        keepGoing = true;
+        running = true;
     }
 
     public void stop() {
         if (LEADER_ELECTION)
             supervisor.stop();
-        keepGoing = false;
+        running = false;
+    }
+
+    @Override
+    public boolean isReady() {
+        return running;
     }
 
     @Override
@@ -61,14 +65,6 @@ public class Membership implements ClusterHandle, MembershipRPCHandle {
     }
 
     @Override
-    public RemotePaxosNode getMyNode() {
-        if (myNode == null) {
-            myNode = nodes.get(myNodeId);
-        }
-        return myNode;
-    }
-
-    @Override
     public Integer getLeaderNodeId() {
         return leader;
     }
@@ -76,7 +72,7 @@ public class Membership implements ClusterHandle, MembershipRPCHandle {
     @Override
     public void setLeaderNodeId(Integer nodeId) {
         leader = nodeId;
-        if (keepGoing) {
+        if (running) {
             if (leader == null) {
                 bully.startElection();
             } else {

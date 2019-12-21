@@ -198,6 +198,7 @@ public class ElectionTest extends PaxosTestCase {
         network.kill(addr(6));
         network.kill(addr(5));
         network.kill(addr(0));
+        Thread.sleep(200);
         for (int trial = 0; trial < 3; trial++) {
             SingleFragmentClient client = new SingleFragmentClient(proposers, "client" + trial, null);
             try {

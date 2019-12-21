@@ -16,6 +16,9 @@ import java.util.List;
 
 public class TerminalApp {
 
+    // TODO why is it taking so much processing power?
+    // TODO when servers go down and then back up, it seems client can't reconnect
+
     public static void main(String[] args) {
         try {
             readInputAndExecute(initialize(args));
