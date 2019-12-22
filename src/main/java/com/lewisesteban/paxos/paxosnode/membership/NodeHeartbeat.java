@@ -1,6 +1,8 @@
 package com.lewisesteban.paxos.paxosnode.membership;
 
-public class NodeHeartbeat {
+import java.io.Serializable;
+
+public class NodeHeartbeat implements Serializable {
     private boolean failed = false;
     private long counter;
 

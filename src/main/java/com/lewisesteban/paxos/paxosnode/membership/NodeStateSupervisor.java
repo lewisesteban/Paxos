@@ -13,7 +13,7 @@ public class NodeStateSupervisor {
     private NodeState[] nodeStates;
     private NodeHeartbeat[] nodeHeartbeats; // updated only before sending
     private ClusterHandle membership;
-    private boolean keepGoing = false;
+    private boolean running = false;
     private Random random = new Random();
     private AtomicLong heartbeatCounter = new AtomicLong(0);
 
@@ -22,7 +22,7 @@ public class NodeStateSupervisor {
     }
 
     void start() {
-        keepGoing = true;
+        running = true;
         nodeStates = new NodeState[membership.getNbMembers()];
         for (int node = 0; node < nodeStates.length; node++)
             nodeStates[node] = new NodeState(node);
@@ -31,10 +31,12 @@ public class NodeStateSupervisor {
     }
 
     void stop() {
-        keepGoing = false;
+        running = false;
     }
 
     synchronized void receiveMemberList(NodeHeartbeat[] memberList) {
+        if (!running)
+            return;
         for (int node = 0; node < nodeStates.length; ++node) {
             if (node == membership.getMyNodeId() && memberList[node] != null
                     && memberList[node].getCounter() > heartbeatCounter.get()) {
@@ -56,7 +58,7 @@ public class NodeStateSupervisor {
 
     private void backGroundWork() {
         int totalWaitTime = getTimeToWait();
-        while (keepGoing) {
+        while (running) {
             long start = System.currentTimeMillis();
             checkForTimeouts();
             checkForLeaderFailure();
@@ -101,22 +103,29 @@ public class NodeStateSupervisor {
         int node2 = getRandomNodeId(node1);
         try {
             membership.getMembers().get(node1).getMembership().gossipMemberList(nodeHeartbeats);
-        } catch (IOException ignored) { }
-        try {
-            membership.getMembers().get(node2).getMembership().gossipMemberList(nodeHeartbeats);
-        } catch (IOException e) {
+        } catch (IOException ignored) {
+        }
+        if (node2 != node1) {
             try {
-                membership.getMembers().get(getRandomNodeId(node2)).getMembership().gossipMemberList(nodeHeartbeats);
-            } catch (IOException ignored) { }
+                membership.getMembers().get(node2).getMembership().gossipMemberList(nodeHeartbeats);
+            } catch (IOException e) {
+                try {
+                    membership.getMembers().get(getRandomNodeId(node2)).getMembership().gossipMemberList(nodeHeartbeats);
+                } catch (IOException ignored) {
+                }
+            }
         }
     }
 
     private int getRandomNodeId(int exceptThisOne) {
         if (membership.getNbMembers() == 1)
             return membership.getMyNodeId();
+        if (membership.getNbMembers() == 2)
+            return membership.getMyNodeId() == 0 ? 1 : 0;
         int node = random.nextInt(membership.getNbMembers());
-        while (node == membership.getMyNodeId() || node == exceptThisOne)
+        while (node == membership.getMyNodeId() || node == exceptThisOne) {
             node = random.nextInt(membership.getNbMembers());
+        }
         return node;
     }
 }

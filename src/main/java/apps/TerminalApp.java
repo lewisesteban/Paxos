@@ -16,8 +16,9 @@ import java.util.List;
 
 public class TerminalApp {
 
-    // TODO why is it taking so much processing power?
+    // TODO check client requests performance (including failure handling)
     // TODO when servers go down and then back up, it seems client can't reconnect
+    // TODO client recover nullpointerexception Server.java:46
 
     public static void main(String[] args) {
         try {
