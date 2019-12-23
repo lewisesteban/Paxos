@@ -6,10 +6,10 @@ import com.lewisesteban.paxos.rpc.paxos.ListenerRPCHandle;
 
 import java.io.IOException;
 
-public class RemotePaxosListenerImpl implements RemotePaxosListener {
+public class PaxosListenerSrv implements RemotePaxosListener {
     private ListenerRPCHandle paxosListener;
 
-    RemotePaxosListenerImpl(ListenerRPCHandle paxosListener) {
+    PaxosListenerSrv(ListenerRPCHandle paxosListener) {
         this.paxosListener = paxosListener;
     }
 

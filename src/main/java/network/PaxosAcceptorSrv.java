@@ -7,10 +7,10 @@ import com.lewisesteban.paxos.rpc.paxos.AcceptorRPCHandle;
 
 import java.io.IOException;
 
-public class RemotePaxosAcceptorImpl implements RemotePaxosAcceptor {
+public class PaxosAcceptorSrv implements RemotePaxosAcceptor {
     private AcceptorRPCHandle paxosAcceptor;
 
-    RemotePaxosAcceptorImpl(AcceptorRPCHandle paxosAcceptor) {
+    PaxosAcceptorSrv(AcceptorRPCHandle paxosAcceptor) {
         this.paxosAcceptor = paxosAcceptor;
     }
 

@@ -6,10 +6,10 @@ import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 
 import java.io.IOException;
 
-public class RemotePaxosProposerImpl implements RemotePaxosProposer {
+public class PaxosProposerSrv implements RemotePaxosProposer {
     private PaxosProposer proposer;
 
-    RemotePaxosProposerImpl(PaxosProposer proposer) {
+    PaxosProposerSrv(PaxosProposer proposer) {
         this.proposer = proposer;
     }
 

@@ -11,16 +11,16 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 
-public class NodeServer extends RemotePaxosProposerImpl implements RemotePaxosNode {
+public class NodeServer extends PaxosProposerSrv implements RemotePaxosNode {
     private PaxosNode paxosNode;
 
     public NodeServer(PaxosNode paxosNode) throws RemoteException {
         super(paxosNode);
         this.paxosNode = paxosNode;
         RemotePaxosProposer proposerStub = (RemotePaxosProposer) UnicastRemoteObject.exportObject(this, 0);
-        RemotePaxosAcceptor acceptorStub = (RemotePaxosAcceptor) UnicastRemoteObject.exportObject(new RemotePaxosAcceptorImpl(paxosNode.getAcceptor()), 0);
-        RemotePaxosListener listenerStub = (RemotePaxosListener) UnicastRemoteObject.exportObject(new RemotePaxosListenerImpl(paxosNode.getListener()), 0);
-        RemotePaxosMembership membershipStub = (RemotePaxosMembership) UnicastRemoteObject.exportObject(new RemotePaxosMembershipImpl(paxosNode.getMembership()), 0);
+        RemotePaxosAcceptor acceptorStub = (RemotePaxosAcceptor) UnicastRemoteObject.exportObject(new PaxosAcceptorSrv(paxosNode.getAcceptor()), 0);
+        RemotePaxosListener listenerStub = (RemotePaxosListener) UnicastRemoteObject.exportObject(new PaxosListenerSrv(paxosNode.getListener()), 0);
+        RemotePaxosMembership membershipStub = (RemotePaxosMembership) UnicastRemoteObject.exportObject(new PaxosMembershipSrv(paxosNode.getMembership()), 0);
         Registry registry = LocateRegistry.getRegistry();
         registry.rebind(getStubName("proposer", this), proposerStub);
         registry.rebind(getStubName("acceptor", this), acceptorStub);

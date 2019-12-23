@@ -44,6 +44,7 @@ public class PaxosClient<NODE extends RemotePaxosNode & PaxosProposer> {
      * Call this method after creating the client instance in order to guarantee that a command that has been started
      * but not finished finishes, before starting any new command.
      * Returns the last executed command.
+     * You should not call tryRecover() or recover() after end().
      *
      * @throws StorageException There is a problem with stable storage. Please fix it and try again.
      */
@@ -63,6 +64,7 @@ public class PaxosClient<NODE extends RemotePaxosNode & PaxosProposer> {
      * but not finished finishes, before starting any new command.
      * Call this method until it succeeds (doesn't throw).
      * Returns the last executed command.
+     * You should not call tryRecover() or recover() after end().
      *
      * @throws StorageException There is a problem with stable storage. Please fix it and try again.
      */

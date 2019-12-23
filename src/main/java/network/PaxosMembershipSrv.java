@@ -5,10 +5,10 @@ import com.lewisesteban.paxos.rpc.paxos.MembershipRPCHandle;
 
 import java.io.IOException;
 
-public class RemotePaxosMembershipImpl implements RemotePaxosMembership {
+public class PaxosMembershipSrv implements RemotePaxosMembership {
     private MembershipRPCHandle paxosMembership;
 
-    RemotePaxosMembershipImpl(MembershipRPCHandle paxosMembership) {
+    PaxosMembershipSrv(MembershipRPCHandle paxosMembership) {
         this.paxosMembership = paxosMembership;
     }
 
