@@ -50,6 +50,8 @@ public class PaxosClient<NODE extends RemotePaxosNode & PaxosProposer> {
     public ExecutedCommand recover() throws StorageException {
         FailureManager.ClientOperation failedOp = failureManager.getLastStartedOperation();
         if (failedOp != null) {
+            failureManager.setOngoingCmdData(failedOp.getCmdData());
+            failureManager.setOngoingCmdKeyHash(failedOp.getKeyHash());
             Serializable result = fragments.get(failedOp.getKeyHash() % nbFragments).doCommand(failedOp.getCmdData(), failedOp.getCmdNb(), failedOp.getInst());
             return new ExecutedCommand(failedOp.getCmdData(), result);
         }

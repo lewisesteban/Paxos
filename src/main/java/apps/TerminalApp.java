@@ -16,10 +16,9 @@ import java.util.List;
 
 public class TerminalApp {
 
-    // TODO the client saves an ongoing command with null data
-    // TODO check client requests performance
     // TODO check failure handling and client recovery
     // TODO when servers go down and then back up, it seems client can't reconnect
+    // TODO "last" should not do anything if "end" has been called
 
     public static void main(String[] args) {
         try {

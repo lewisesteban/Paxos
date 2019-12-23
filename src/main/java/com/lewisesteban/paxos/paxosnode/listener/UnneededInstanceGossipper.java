@@ -57,9 +57,11 @@ public class UnneededInstanceGossipper {
                         paxosCluster.getMembers().get(node1).getListener().gossipUnneededInstances(unneededInstanceOfNodes);
                     } catch (IOException ignored) {
                     }
-                    try {
-                        paxosCluster.getMembers().get(node2).getListener().gossipUnneededInstances(unneededInstanceOfNodes);
-                    } catch (IOException ignored) {
+                    if (node2 != node1) {
+                        try {
+                            paxosCluster.getMembers().get(node2).getListener().gossipUnneededInstances(unneededInstanceOfNodes);
+                        } catch (IOException ignored) {
+                        }
                     }
                     isGossipping.set(false);
                 });
@@ -70,6 +72,8 @@ public class UnneededInstanceGossipper {
     private int getRandomNodeId(int exceptThisOne) {
         if (paxosCluster.getNbMembers() == 1)
             return paxosCluster.getMyNodeId();
+        if (paxosCluster.getNbMembers() == 2)
+            return paxosCluster.getMyNodeId() == 0 ? 1 : 0;
         int node = random.nextInt(paxosCluster.getNbMembers());
         while (node == paxosCluster.getMyNodeId() || node == exceptThisOne)
             node = random.nextInt(paxosCluster.getNbMembers());
