@@ -13,7 +13,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
 public class NodeClient implements RemotePaxosNode, PaxosProposer, RemoteCallManager {
-    private Registry registry;
+    private String host;
     private RemotePaxosProposer paxosProposer;
     private AcceptorRPCHandle acceptor;
     private ListenerRPCHandle listener;
@@ -25,15 +25,12 @@ public class NodeClient implements RemotePaxosNode, PaxosProposer, RemoteCallMan
     public NodeClient(String host, int nodeId, int fragmentId) throws RemoteException, NotBoundException {
         this.nodeId = nodeId;
         this.fragmentId = fragmentId;
-        registry = LocateRegistry.getRegistry(host);
+        this.host = host;
         connectToServer();
     }
 
-    private void setDisconnected() {
-        connected = false;
-    }
-
     private void connectToServer() throws RemoteException, NotBoundException {
+        Registry registry = LocateRegistry.getRegistry(host);
         paxosProposer = (RemotePaxosProposer) registry.lookup(NodeServer.getStubName("proposer", this));
         acceptor = new PaxosAcceptorClient((RemotePaxosAcceptor) registry.lookup(NodeServer.getStubName("acceptor", this)), this);
         listener = new PaxosListenerClient((RemotePaxosListener) registry.lookup(NodeServer.getStubName("listener", this)), this);
@@ -47,7 +44,7 @@ public class NodeClient implements RemotePaxosNode, PaxosProposer, RemoteCallMan
                 connectToServer();
             return callable.doRemoteCall();
         } catch (ConnectException | NoSuchObjectException e) {
-            setDisconnected();
+            connected = false;
             throw e;
         } catch (NotBoundException e) {
             throw new IOException(e);

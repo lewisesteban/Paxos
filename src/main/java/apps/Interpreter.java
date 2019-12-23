@@ -129,6 +129,7 @@ class Interpreter {
 
     @SuppressWarnings("unused")
     private String cmdExit(String[] args) {
+        client.end();
         return "EXIT";
     }
 
