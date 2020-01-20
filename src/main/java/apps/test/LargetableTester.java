@@ -15,12 +15,18 @@ class LargetableTester implements ClientUpdateHandler {
     }
 
     void start() throws IOException, InterruptedException {
-        TesterClient client = new TesterClient("192.168.178.221", username, password, "client1", this);
+        /*TesterClient client = new TesterClient("192.168.178.221", username, password, "client1");
+        client.setClientUpdateHandler(this);
         clients.add(client);
         client.launch();
         client.startTesting();
-        Thread.sleep(2000);
+        Thread.sleep(1000);
         client.stopTesting();
+        client.kill();*/
+        TesterServer server = new TesterServer("192.168.178.221", username, password, 0, 0);
+        server.launch();
+        server.connect();
+        server.kill();
     }
 
     @Override
