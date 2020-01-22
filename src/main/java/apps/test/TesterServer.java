@@ -43,7 +43,7 @@ class TesterServer {
 
     private void getPid(String startProcessCmd) throws IOException {
         Session session = sshClient.startSession();
-        String getPidCmd = "ps axo pid,cmd | grep \"" + startProcessCmd + "\" | head -n1 | cut -d \" \" -f2";
+        String getPidCmd = "ps axo pid,cmd | grep \"" + startProcessCmd + "\" | head -n1 | cut -d \" \" -f1";
         pid = IOUtils.readFully(session.exec(getPidCmd).getInputStream()).toString();
     }
 

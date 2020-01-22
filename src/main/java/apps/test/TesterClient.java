@@ -53,7 +53,7 @@ class TesterClient {
 
     private void getPid(String startProcessCmd) throws IOException {
         Session session = sshClient.startSession();
-        String getPidCmd = "ps axo pid,cmd | grep \"" + startProcessCmd + "\" | head -n1 | cut -d \" \" -f2";
+        String getPidCmd = "ps axo pid,cmd | grep \"" + startProcessCmd + "\" | head -n1 | cut -d \" \" -f1";
         pid = IOUtils.readFully(session.exec(getPidCmd).getInputStream()).toString();
     }
 
@@ -120,7 +120,7 @@ class TesterClient {
             largetableProcess.getOutputStream().write(command.getBytes());
             largetableProcess.getOutputStream().flush();
             resLine = reader.readLine();
-        } while (!resLine.startsWith("OK"));
+        } while (resLine != null && !resLine.startsWith("OK"));
         return resLine;
     }
 
