@@ -16,6 +16,7 @@ import java.util.TreeMap;
 class TesterClient {
     private static final int NB_ENTRIES = 3;
 
+    private String host;
     private String clientId;
     private final SSHClient sshClient = new SSHClient();
     private Session.Command largetableProcess = null;
@@ -23,17 +24,23 @@ class TesterClient {
     private Thread testingThread = null;
     private boolean testing = false;
     private BufferedReader reader = null;
+    private boolean isAuthenticated = false;
 
     private Random random = new Random();
     private Map<String, String> testingValues = new TreeMap<>();
     private ClientUpdateHandler clientUpdateHandler;
     private int commandCounter = 0;
 
-    TesterClient(String host, String username, String password, String clientId) throws IOException {
+    TesterClient(String host, String clientId) {
         this.clientId = clientId;
+        this.host = host;
+    }
+
+    synchronized void startSSH(String username, String password) throws IOException {
         sshClient.addHostKeyVerifier(new PromiscuousVerifier());
         sshClient.connect(host);
         sshClient.authPassword(username, password);
+        isAuthenticated = true;
     }
 
     synchronized boolean launch() {
@@ -53,7 +60,7 @@ class TesterClient {
 
     private void getPid(String startProcessCmd) throws IOException {
         Session session = sshClient.startSession();
-        String getPidCmd = "ps axo pid,cmd | grep \"" + startProcessCmd + "\" | head -n1 | cut -d \" \" -f1";
+        String getPidCmd = "ps axo pid,cmd | grep \"" + startProcessCmd + "\" | grep -P '\\d+' -o | head -n1";
         pid = IOUtils.readFully(session.exec(getPidCmd).getInputStream()).toString();
     }
 
@@ -153,6 +160,8 @@ class TesterClient {
     }
 
     synchronized boolean kill() {
+        if (!isAuthenticated)
+            return true;
         try {
             Session session = sshClient.startSession();
             IOUtils.readFully(session.exec("kill -9 " + pid).getInputStream());

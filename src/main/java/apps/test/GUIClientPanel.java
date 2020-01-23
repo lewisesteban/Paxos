@@ -9,16 +9,15 @@ class GUIClientPanel extends Panel implements ClientUpdateHandler {
     private Label onOffLbl;
     private Button onOffBtn;
 
-    GUIClientPanel(TesterClient client) {
+    GUIClientPanel(TesterClient client, int index) {
         this.client = client;
         client.setClientUpdateHandler(this);
-        setBounds(0, 40, 200, 200);
+        setBounds(0, 40 + (index * 35), 250, 30);
 
         Label clientIdLbl = new Label(client.getClientId());
         add(clientIdLbl);
 
-        cmdsLbl = new Label("0");
-        cmdsLbl.setSize(100, 20);
+        cmdsLbl = new Label("000000");
         add(cmdsLbl);
 
         onOffLbl = new Label("OFF");

@@ -11,19 +11,26 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 
 class TesterServer {
+    private String host;
     private int nodeId;
     private int fragmentId;
     private final SSHClient sshClient = new SSHClient();
     private Session.Command largetableProcess = null;
     private BufferedReader reader = null;
     private String pid = null;
+    private boolean isAuthenticated = false;
 
-    TesterServer(String host, String username, String password, int nodeId, int fragmentId) throws IOException {
+    TesterServer(String host, int nodeId, int fragmentId) {
         this.nodeId = nodeId;
         this.fragmentId = fragmentId;
+        this.host = host;
+    }
+
+    synchronized void startSSH(String username, String password) throws IOException {
         sshClient.addHostKeyVerifier(new PromiscuousVerifier());
         sshClient.connect(host);
         sshClient.authPassword(username, password);
+        isAuthenticated = true;
     }
 
     synchronized boolean launch() {
@@ -43,7 +50,7 @@ class TesterServer {
 
     private void getPid(String startProcessCmd) throws IOException {
         Session session = sshClient.startSession();
-        String getPidCmd = "ps axo pid,cmd | grep \"" + startProcessCmd + "\" | head -n1 | cut -d \" \" -f1";
+        String getPidCmd = "ps axo pid,cmd | grep \"" + startProcessCmd + "\" | grep -P '\\d+' -o | head -n1";
         pid = IOUtils.readFully(session.exec(getPidCmd).getInputStream()).toString();
     }
 
@@ -63,6 +70,8 @@ class TesterServer {
     }
 
     synchronized boolean kill() {
+        if (!isAuthenticated)
+            return true;
         try {
             Session session = sshClient.startSession();
             IOUtils.readFully(session.exec("kill -9 " + pid).getInputStream());
@@ -76,5 +85,13 @@ class TesterServer {
             e.printStackTrace();
             return false;
         }
+    }
+
+    public int getNodeId() {
+        return nodeId;
+    }
+
+    public int getFragmentId() {
+        return fragmentId;
     }
 }
