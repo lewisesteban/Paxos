@@ -94,7 +94,7 @@ class SerialKiller {
             if (nbAlive == targets.size()) {
                 return true;
             } else if (nbAlive > targets.size() / 2) {
-                int rand = random.nextInt(targets.size() - nbAlive);
+                int rand = random.nextInt(targets.size() - nbAlive + 1); // the +1 is to keep them alive longer
                 return rand == 0;
             } else {
                 return false;
