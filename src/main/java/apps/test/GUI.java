@@ -10,12 +10,14 @@ import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
+// TODO configure serial killer minWait and maxWait
+// TODO servers should not have a 2-step launching process
+
 public class GUI extends Frame {
+    private String username, password = null;
+    private JWindow loadingWindow = null;
     private List<TesterServer> servers;
     private List<TesterClient> clients;
-    private String username = null;
-    private String password = null;
-    private JWindow loadingWindow = null;
 
     public static void main(String... args) throws IOException {
         new GUI();
@@ -31,23 +33,47 @@ public class GUI extends Frame {
                 close();
             }
         });
+        setupClientsAndServers();
+    }
 
+    private void setupClientsAndServers() throws IOException {
         Factory factory = new Factory("tester_clients", "network");
-
         servers = factory.createServers();
         clients = factory.createClients();
+
+        List<GUIServerPanel> serverPanels = new ArrayList<>();
+        List<GUIClientPanel> clientPanels = new ArrayList<>();
 
         showLoadingWindow("Starting clients and servers." + System.lineSeparator() + "Please wait...");
         Thread serverStartingThread = new Thread(() -> {
             launchServers();
             startClientsSSH();
             closeLoadingWindow();
-            for (int i = 0; i < servers.size(); ++i)
-                add(new GUIServerPanel(servers.get(i), i));
-            for (int i = 0; i < clients.size(); ++i)
-                add(new GUIClientPanel(clients.get(i), i));
+            for (int i = 0; i < servers.size(); ++i) {
+                GUIServerPanel panel = new GUIServerPanel(servers.get(i), i, 250, 100);
+                serverPanels.add(panel);
+                add(panel);
+            }
+            for (int i = 0; i < clients.size(); ++i) {
+                GUIClientPanel panel = new GUIClientPanel(clients.get(i), i, 0, 100);
+                clientPanels.add(panel);
+                add(panel);
+            }
+            setupSKs(clientPanels, serverPanels);
         });
         serverStartingThread.start();
+    }
+
+    private void setupSKs(List<GUIClientPanel> clientPanels, List<GUIServerPanel> serverPanels) {
+        List<Target> clientTargets = new ArrayList<>();
+        for (int i = 0; i < clients.size(); ++i)
+            clientTargets.add(new TargetClient(clients.get(i), clientPanels.get(i)));
+        add(new GUISerialKillerPanel(clientTargets, 0, 40));
+
+        List<Target> serverTargets = new ArrayList<>();
+        for (int i = 0; i < servers.size(); ++i)
+            serverTargets.add(new TargetServer(servers.get(i), serverPanels.get(i)));
+        add(new GUISerialKillerPanel(serverTargets, 250, 40));
     }
 
     private void showLoadingWindow(String msg) {

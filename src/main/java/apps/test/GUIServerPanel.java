@@ -1,16 +1,15 @@
 package apps.test;
 
 import java.awt.*;
-import java.awt.event.ActionEvent;
 
 class GUIServerPanel extends Panel {
     private TesterServer server;
     private Label onOffLbl;
     private Button onOffBtn;
 
-    GUIServerPanel(TesterServer server, int GUIIndex) {
+    GUIServerPanel(TesterServer server, int GUIIndex, int xOffset, int yOffset) {
         this.server = server;
-        setBounds(250, 40 + (GUIIndex * 35), 250, 30);
+        setBounds(xOffset, yOffset + (GUIIndex * 35), 250, 30);
 
         Label fragmentLbl = new Label(Integer.toString(server.getFragmentId()));
         fragmentLbl.setBackground(Color.BLACK);
@@ -27,26 +26,39 @@ class GUIServerPanel extends Panel {
         add(onOffLbl);
 
         onOffBtn = new Button("Turn off");
-        onOffBtn.addActionListener(this::onOffBtnClick);
+        onOffBtn.addActionListener(event -> onOffBtnClick());
         add(onOffBtn);
     }
 
-    @SuppressWarnings("unused")
-    private void onOffBtnClick(ActionEvent event) {
+    boolean onOffBtnClick() {
         if (server.isUp()) {
             if (server.kill()) {
-                onOffLbl.setText("OFF");
-                onOffLbl.setBackground(Color.RED);
-                onOffLbl.setForeground(Color.WHITE);
-                onOffBtn.setLabel("Turn on");
+                setAlive(false);
+                return true;
+            } else {
+                return false;
             }
         } else {
             if (server.launch() && server.connect()) {
-                onOffLbl.setText("ON");
-                onOffLbl.setBackground(Color.GREEN);
-                onOffLbl.setForeground(Color.BLACK);
-                onOffBtn.setLabel("Turn off");
+                setAlive(true);
+                return true;
+            } else {
+                return false;
             }
+        }
+    }
+
+    private void setAlive(boolean alive) {
+        if (alive) {
+            onOffLbl.setText("ON");
+            onOffLbl.setBackground(Color.GREEN);
+            onOffLbl.setForeground(Color.BLACK);
+            onOffBtn.setLabel("Turn off");
+        } else {
+            onOffLbl.setText("OFF");
+            onOffLbl.setBackground(Color.RED);
+            onOffLbl.setForeground(Color.WHITE);
+            onOffBtn.setLabel("Turn on");
         }
     }
 }

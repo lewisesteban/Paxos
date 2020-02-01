@@ -49,7 +49,6 @@ class TesterClient {
             String cmdLine = "java -jar Paxos/target/paxos_client.jar " + clientId + " Paxos/network";
             largetableProcess = session.exec(cmdLine);
             reader = new BufferedReader(new InputStreamReader(largetableProcess.getInputStream()));
-            fetchRemoteValues();
             getPid(cmdLine);
             return true;
         } catch (IOException e) {
@@ -79,9 +78,9 @@ class TesterClient {
         testing = true;
         testingThread = new Thread(() -> {
             try {
+                if (testingValues.isEmpty())
+                    fetchRemoteValues();
                 while (largetableProcess != null && largetableProcess.isOpen() && testing) {
-
-                    // TODO send commands by groups. Each group will contain a random number of GETs at the end. Each one of these GETs will check one of the keys used in the group (for instance: if there are 2 gets, check the two last keys)
 
                     // choose a write command (put or append)
                     String key = clientId + "_key" + random.nextInt(NB_ENTRIES);

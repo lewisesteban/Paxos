@@ -1,7 +1,6 @@
 package apps.test;
 
 import java.awt.*;
-import java.awt.event.ActionEvent;
 
 class GUIClientPanel extends Panel implements ClientUpdateHandler {
     private TesterClient client;
@@ -9,10 +8,10 @@ class GUIClientPanel extends Panel implements ClientUpdateHandler {
     private Label onOffLbl;
     private Button onOffBtn;
 
-    GUIClientPanel(TesterClient client, int index) {
+    GUIClientPanel(TesterClient client, int index, int xOffset, int yOffset) {
         this.client = client;
         client.setClientUpdateHandler(this);
-        setBounds(0, 40 + (index * 35), 250, 30);
+        setBounds(xOffset, yOffset + (index * 35), 250, 30);
 
         Label clientIdLbl = new Label(client.getClientId());
         add(clientIdLbl);
@@ -26,26 +25,25 @@ class GUIClientPanel extends Panel implements ClientUpdateHandler {
         add(onOffLbl);
 
         onOffBtn = new Button("Turn on");
-        onOffBtn.addActionListener(this::onOffBtnClick);
+        onOffBtn.addActionListener(event -> onOffBtnClick());
         add(onOffBtn);
     }
 
-    @SuppressWarnings("unused")
-    private void onOffBtnClick(ActionEvent event) {
+    boolean onOffBtnClick() {
         if (client.isUp()) {
             if (client.kill()) {
-                onOffLbl.setText("OFF");
-                onOffLbl.setBackground(Color.RED);
-                onOffLbl.setForeground(Color.WHITE);
-                onOffBtn.setLabel("Turn on");
+                setAlive(false);
+                return true;
+            } else {
+                return false;
             }
         } else {
             if (client.launch()) {
                 client.startTesting();
-                onOffLbl.setText("ON");
-                onOffLbl.setBackground(Color.GREEN);
-                onOffLbl.setForeground(Color.BLACK);
-                onOffBtn.setLabel("Turn off");
+                setAlive(true);
+                return true;
+            } else {
+                return false;
             }
         }
     }
@@ -58,5 +56,19 @@ class GUIClientPanel extends Panel implements ClientUpdateHandler {
     @Override
     public void cmdFinished(String clientId, int commandNumber, String key, String value, String cmdType, String cmdData) {
         cmdsLbl.setText(Integer.toString(commandNumber));
+    }
+
+    private void setAlive(boolean alive) {
+        if (alive) {
+            onOffLbl.setText("ON");
+            onOffLbl.setBackground(Color.GREEN);
+            onOffLbl.setForeground(Color.BLACK);
+            onOffBtn.setLabel("Turn off");
+        } else {
+            onOffLbl.setText("OFF");
+            onOffLbl.setBackground(Color.RED);
+            onOffLbl.setForeground(Color.WHITE);
+            onOffBtn.setLabel("Turn on");
+        }
     }
 }
