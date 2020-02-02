@@ -22,11 +22,16 @@ public class NodeClient implements RemotePaxosNode, PaxosProposer, RemoteCallMan
     private int fragmentId;
     private boolean connected = false;
 
-    public NodeClient(String host, int nodeId, int fragmentId) throws RemoteException, NotBoundException {
+    public NodeClient(String host, int nodeId, int fragmentId) {
         this.nodeId = nodeId;
         this.fragmentId = fragmentId;
         this.host = host;
-        connectToServer();
+
+        try {
+            connectToServer();
+        } catch (RemoteException | NotBoundException e) {
+            connected = false;
+        }
     }
 
     private void connectToServer() throws RemoteException, NotBoundException {
@@ -79,18 +84,30 @@ public class NodeClient implements RemotePaxosNode, PaxosProposer, RemoteCallMan
         return fragmentId;
     }
 
+    /*
+     * The following three methods should always return a non-null object.
+     * Any attempt on using an "Empty" object will cause "doRemoteCall" to attempt connection, because "connected" will,
+     * in this case, always be false.
+     */
+
     @Override
     public AcceptorRPCHandle getAcceptor() {
+        if (acceptor == null)
+            return new EmptyAcceptor();
         return acceptor;
     }
 
     @Override
     public ListenerRPCHandle getListener() {
+        if (listener == null)
+            return new EmptyListener();
         return listener;
     }
 
     @Override
     public MembershipRPCHandle getMembership() {
+        if (membership == null)
+            return new EmptyMembership();
         return membership;
     }
 

@@ -11,7 +11,7 @@ import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
 // TODO configure serial killer minWait and maxWait
-// TODO servers should not have a 2-step launching process
+// TODO when only 2 servers out of 3 are up, client is slow
 
 public class GUI extends Frame {
     private String username, password = null;
