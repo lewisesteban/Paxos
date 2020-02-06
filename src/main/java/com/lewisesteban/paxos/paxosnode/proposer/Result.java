@@ -17,16 +17,23 @@ public class Result implements Serializable {
      * Success: consensus has been reached for the specified command on the specified instance.
      */
     public static final byte CONSENSUS_ON_THIS_CMD = 2;
-    /**
-     * The proposal has not been started.
-     * Please check the "extraData" variable and make the required modifications.
-     */
-    public static final byte BAD_PROPOSAL = 4;
 
     private byte status;
     private long instanceId = -1;
     private Serializable returnData = null;
     private ExtraData extra = null;
+
+    public Result(Result base, int leaderId) {
+        this.status = base.status;
+        this.instanceId = base.instanceId;
+        this.returnData = base.returnData;
+        this.extra = base.extra;
+        if (this.extra == null) {
+            this.extra = new ExtraData(leaderId);
+        } else {
+            this.extra.leaderId = leaderId;
+        }
+    }
 
     public Result(byte status, long instanceId, Serializable returnData) {
         this.status = status;
@@ -41,12 +48,6 @@ public class Result implements Serializable {
 
     public Result(byte status) {
         this.status = status;
-    }
-
-    public Result(long instanceId, int leaderId) {
-        this.status = BAD_PROPOSAL;
-        this.instanceId = instanceId;
-        this.extra = new ExtraData(leaderId);
     }
 
     public byte getStatus() {

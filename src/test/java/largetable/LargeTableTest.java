@@ -5,6 +5,7 @@ import com.lewisesteban.paxos.client.ClientCommandSender;
 import com.lewisesteban.paxos.paxosnode.StateMachine;
 import com.lewisesteban.paxos.paxosnode.listener.SnapshotManager;
 import com.lewisesteban.paxos.paxosnode.listener.UnneededInstanceGossipper;
+import com.lewisesteban.paxos.paxosnode.membership.Bully;
 import com.lewisesteban.paxos.paxosnode.membership.Membership;
 import com.lewisesteban.paxos.paxosnode.membership.NodeStateSupervisor;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
@@ -48,14 +49,6 @@ public class LargeTableTest extends PaxosTestCase {
         assertEquals("valB", client.get("keyB"));
     }
 
-    public void testRecover() throws Exception {
-        List<PaxosNetworkNode> cluster = initSimpleNetwork(3, new Network(), stateMachineList(3));
-        LoopingClient<PaxosServer> client = new LoopingClient<>(
-                cluster.stream().map(PaxosNetworkNode::getPaxosSrv).collect(Collectors.toList()),
-                "client", InterruptibleVirtualFileAccessor.creator(-1));
-        // what's this?
-    }
-
     public void testSnapshot() throws Exception {
         SnapshotManager.SNAPSHOT_FREQUENCY = 2;
 
@@ -80,10 +73,15 @@ public class LargeTableTest extends PaxosTestCase {
     }
 
     public void testEndClientSnapshot() throws Exception {
+        NodeStateSupervisor.GOSSIP_AVG_TIME_PER_NODE = 10;
+        NodeStateSupervisor.FAILURE_TIMEOUT = 40;
+        Bully.WAIT_AFTER_FAILURE = 10;
+        Bully.WAIT_FOR_VICTORY_TIMEOUT = 50;
         SnapshotManager.SNAPSHOT_FREQUENCY = 2;
 
         Network network = new Network();
         List<PaxosNetworkNode> cluster = initSimpleNetwork(3, network, stateMachineList(3));
+        Thread.sleep(200); // wait for election
         LoopingClient<PaxosServer> clientA = new LoopingClient<>(
                 cluster.stream().map(PaxosNetworkNode::getPaxosSrv).collect(Collectors.toList()),
                 "clientA", InterruptibleVirtualFileAccessor.creator(-1));
@@ -92,19 +90,24 @@ public class LargeTableTest extends PaxosTestCase {
                 "clientB", InterruptibleVirtualFileAccessor.creator(-1));
         clientA.put("keyA", "valA");
         clientB.get("keyA");
+        // the first two commands may have been done on non-dedicated servers, in which case the client will have redirected, ending its previous server, letting the related files get included in a snapshot
+        // the following five commands cannot be in a snapshot
+        clientA.get("keyA");
+        clientB.get("keyA");
         clientB.get("keyA");
         clientB.get("keyA");
         Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 50);
         clientB.get("keyA");
         Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 50);
-        assertEquals(5, InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length);
+        int nbFiles = InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length;
+        assertTrue(nbFiles >= 5);
 
         clientA.close();
         clientB.get("keyA");
         Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 50);
         clientB.get("keyA");
         Thread.sleep(500);
-        assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length < 7);
+        assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length < (nbFiles + 2));
     }
 
     public void testClientRecovery() throws Exception {

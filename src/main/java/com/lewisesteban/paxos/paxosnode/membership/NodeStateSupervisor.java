@@ -21,7 +21,7 @@ public class NodeStateSupervisor {
         this.membership = membership;
     }
 
-    void start() {
+    synchronized void start() {
         running = true;
         nodeStates = new NodeState[membership.getNbMembers()];
         for (int node = 0; node < nodeStates.length; node++)

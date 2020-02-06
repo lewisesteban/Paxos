@@ -11,7 +11,19 @@ import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
 // TODO configure serial killer minWait and maxWait
-// TODO when only 2 servers out of 3 are up, client is slow
+
+// TODO servers are slow to start
+
+// TODO server 2 dead, last inst 40, client sends cmd, server 1 skips all instances up to 44 because they supposedly have consensus on another value
+// happened after doing a command when 2 servers out of 3 are dead, and then trying it again when 2 are up
+
+// TODO after some killing and restarting, restarted all, then did put/appends on server 2, which did not work (gets returned wrong values). However, after killing server 2, gets returned correct values (from server 1)
+// put key a
+// get key
+// kill 2
+// append key b
+// get key -> b
+// was it just a typing mistake?
 
 public class GUI extends Frame {
     private String username, password = null;
