@@ -73,11 +73,11 @@ public class Proposer implements PaxosProposer {
                 listener.waitForConsensusOn(instanceId);
                 Listener.ExecutedCommand consensusCmd = listener.tryGetExecutedCommand(instanceId);
                 if (consensusCmd == null)
-                    return returnToClient(new Result(Result.NETWORK_ERROR, instanceId));
+                    return new Result(Result.NETWORK_ERROR, instanceId);
                 if (consensusCmd.getCommand().equals(command))
-                    return returnToClient(new Result(Result.CONSENSUS_ON_THIS_CMD, instanceId, consensusCmd.getResult()));
+                    return instFinished(new Result(Result.CONSENSUS_ON_THIS_CMD, instanceId, consensusCmd.getResult()));
                 else
-                    return returnToClient(new Result(Result.CONSENSUS_ON_ANOTHER_CMD, instanceId, consensusCmd.getResult()));
+                    return instFinished(new Result(Result.CONSENSUS_ON_ANOTHER_CMD, instanceId, consensusCmd.getResult()));
             }
         }
         try {
@@ -94,7 +94,7 @@ public class Proposer implements PaxosProposer {
                 return propose(command, instanceId, attempt + 1);
             } else {
                 Logger.println("network_error node=" + memberList.getMyNodeId() + " inst=" + instanceId + " cmd=" + command +  " attempt=" + attempt);
-                return returnToClient(new Result(Result.NETWORK_ERROR));
+                return new Result(Result.NETWORK_ERROR);
             }
         } else {
             try {
@@ -110,7 +110,7 @@ public class Proposer implements PaxosProposer {
         Listener.ExecutedCommand thisInstanceExecutedCmd = listener.tryGetExecutedCommand(instanceId);
         if (thisInstanceExecutedCmd != null) {
             boolean sameCmd = (thisInstanceExecutedCmd.getCommand().equals(command));
-            return returnToClient(new Result(sameCmd ? Result.CONSENSUS_ON_THIS_CMD : Result.CONSENSUS_ON_ANOTHER_CMD,
+            return instFinished(new Result(sameCmd ? Result.CONSENSUS_ON_THIS_CMD : Result.CONSENSUS_ON_ANOTHER_CMD,
                     instanceId, thisInstanceExecutedCmd.getResult()));
         }
 
@@ -153,10 +153,10 @@ public class Proposer implements PaxosProposer {
         } catch (IOException e) {
             return tryAgain(command, instanceId, attempt, true);
         } catch (IsInSnapshotException e) {
-            return returnToClient(new Result(Result.CONSENSUS_ON_ANOTHER_CMD, instanceId, null));
+            return instFinished(new Result(Result.CONSENSUS_ON_ANOTHER_CMD, instanceId, null));
         }
         byte resultStatus = proposalChanged ? Result.CONSENSUS_ON_ANOTHER_CMD : Result.CONSENSUS_ON_THIS_CMD;
-        return returnToClient(new Result(resultStatus, instanceId, returnData));
+        return instFinished(new Result(resultStatus, instanceId, returnData));
     }
 
     private PrepareResult prepare(long instanceId, Proposal proposal) throws IOException {
@@ -283,13 +283,13 @@ public class Proposer implements PaxosProposer {
         try {
             Logger.println("requestSnapshot node=" + memberList.getMyNodeId() + " inst=" + instanceId);
             snapshotRequester.requestSnapshot(instanceId);
-            return returnToClient(new Result(Result.CONSENSUS_ON_ANOTHER_CMD, instanceId));
+            return instFinished(new Result(Result.CONSENSUS_ON_ANOTHER_CMD, instanceId));
         } catch (IOException e) {
-            return returnToClient(new Result(Result.NETWORK_ERROR, instanceId));
+            return new Result(Result.NETWORK_ERROR, instanceId);
         }
     }
 
-    private Result returnToClient(Result res) {
+    private Result instFinished(Result res) {
         if (Membership.LEADER_ELECTION) {
             Integer leaderNodeId = memberList.getLeaderNodeId();
             if (leaderNodeId != null && leaderNodeId != memberList.getMyNodeId()) {
