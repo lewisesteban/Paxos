@@ -30,6 +30,7 @@ public class GUI extends Frame {
     private JWindow loadingWindow = null;
     private List<TesterServer> servers;
     private List<TesterClient> clients;
+    private GUISerialKillerPanel clientSK, serverSK;
 
     public static void main(String... args) throws IOException {
         new GUI();
@@ -62,12 +63,12 @@ public class GUI extends Frame {
             startClientsSSH();
             closeLoadingWindow();
             for (int i = 0; i < servers.size(); ++i) {
-                GUIServerPanel panel = new GUIServerPanel(servers.get(i), i, 250, 100);
+                GUIServerPanel panel = new GUIServerPanel(servers.get(i), i, 250, 130);
                 serverPanels.add(panel);
                 add(panel);
             }
             for (int i = 0; i < clients.size(); ++i) {
-                GUIClientPanel panel = new GUIClientPanel(clients.get(i), i, 0, 100);
+                GUIClientPanel panel = new GUIClientPanel(clients.get(i), i, 0, 130);
                 clientPanels.add(panel);
                 add(panel);
             }
@@ -80,12 +81,14 @@ public class GUI extends Frame {
         List<Target> clientTargets = new ArrayList<>();
         for (int i = 0; i < clients.size(); ++i)
             clientTargets.add(new TargetClient(clients.get(i), clientPanels.get(i)));
-        add(new GUISerialKillerPanel(clientTargets, 0, 40));
+        clientSK = new GUISerialKillerPanel(clientTargets, 0, 40);
+        add(clientSK);
 
         List<Target> serverTargets = new ArrayList<>();
         for (int i = 0; i < servers.size(); ++i)
             serverTargets.add(new TargetServer(servers.get(i), serverPanels.get(i)));
-        add(new GUISerialKillerPanel(serverTargets, 250, 40));
+        serverSK = new GUISerialKillerPanel(serverTargets, 250, 40);
+        add(serverSK);
     }
 
     private void showLoadingWindow(String msg) {
@@ -176,6 +179,8 @@ public class GUI extends Frame {
     }
 
     private synchronized void close() {
+        clientSK.turnOff();
+        serverSK.turnOff();
         if (clients != null) {
             for (TesterClient client : clients)
                 client.kill();

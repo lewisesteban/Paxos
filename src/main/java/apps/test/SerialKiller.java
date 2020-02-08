@@ -50,7 +50,10 @@ class SerialKiller {
                 restoring = !restoring;
             } finally {
                 try {
-                    Thread.sleep(minWait + random.nextInt(maxWait - minWait));
+                    if (minWait >= maxWait)
+                        Thread.sleep(minWait);
+                    else
+                        Thread.sleep(minWait + random.nextInt(maxWait - minWait));
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }

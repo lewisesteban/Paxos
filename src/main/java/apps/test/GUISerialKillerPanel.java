@@ -1,12 +1,15 @@
 package apps.test;
 
 
+import javax.swing.*;
 import java.awt.*;
+import java.text.NumberFormat;
 
 class GUISerialKillerPanel extends Panel {
     private SerialKiller serialKiller;
     private Button onOffBtn;
     private Label onOffLbl;
+    private JFormattedTextField minWait, maxWait;
 
     GUISerialKillerPanel(java.util.List<Target> targets, int xOffset, int yOffset) {
         serialKiller = new SerialKiller(targets);
@@ -22,14 +25,37 @@ class GUISerialKillerPanel extends Panel {
         onOffBtn = new Button("Turn on");
         onOffBtn.addActionListener(event -> onOffBtnClick());
         add(onOffBtn);
+
+        Panel confPanel = new Panel();
+        confPanel.add(new Label("Wait (ms):"));
+        minWait = new JFormattedTextField(NumberFormat.getIntegerInstance());
+        minWait.setValue(0L);
+        minWait.setColumns(4);
+        confPanel.add(minWait);
+        confPanel.add(new Label("to"));
+        maxWait = new JFormattedTextField(NumberFormat.getIntegerInstance());
+        maxWait.setValue(500L);
+        maxWait.setColumns(4);
+        confPanel.add(maxWait);
+        add(confPanel);
     }
 
-    private void onOffBtnClick() {
+    synchronized void turnOff() {
+        if (serialKiller.isGoing()) {
+            onOffBtnClick();
+        }
+    }
+
+    private synchronized void onOffBtnClick() {
         if (serialKiller.isGoing()) {
             serialKiller.stop();
             setAlive(false);
         } else {
-            serialKiller.startInBackground(300, 600);
+            try {
+                serialKiller.startInBackground((Integer) minWait.getValue(), (Integer) maxWait.getValue());
+            } catch (ClassCastException e) {
+                serialKiller.startInBackground(((Long) minWait.getValue()).intValue(), ((Long) maxWait.getValue()).intValue());
+            }
             setAlive(true);
         }
     }

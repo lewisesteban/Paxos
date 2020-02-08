@@ -19,6 +19,7 @@ class TesterClient {
     private String host;
     private String clientId;
     private final SSHClient sshClient = new SSHClient();
+    private Session session = null;
     private Session.Command largetableProcess = null;
     private String pid = null;
     private Thread testingThread = null;
@@ -45,7 +46,7 @@ class TesterClient {
 
     synchronized boolean launch() {
         try {
-            Session session = sshClient.startSession();
+            session = sshClient.startSession();
             String cmdLine = "java -jar Paxos/target/paxos_client.jar " + clientId + " Paxos/network";
             largetableProcess = session.exec(cmdLine);
             reader = new BufferedReader(new InputStreamReader(largetableProcess.getInputStream()));
@@ -118,7 +119,9 @@ class TesterClient {
         testingThread.start();
     }
 
-    private String doCommandUntilSuccess(String command) throws IOException {
+    private synchronized String doCommandUntilSuccess(String command) throws IOException {
+        if (largetableProcess == null)
+            throw new IOException("connection closed");
         if (!command.endsWith("\n"))
             command += "\n";
         String resLine;
@@ -127,6 +130,8 @@ class TesterClient {
             largetableProcess.getOutputStream().flush();
             resLine = reader.readLine();
         } while (resLine != null && !resLine.startsWith("OK"));
+        if (resLine == null)
+            throw new IOException("connection closed");
         return resLine;
     }
 
@@ -158,13 +163,23 @@ class TesterClient {
         }
     }
 
-    synchronized boolean kill() {
+    boolean kill() {
         if (!isAuthenticated)
             return true;
         try {
-            Session session = sshClient.startSession();
-            IOUtils.readFully(session.exec("kill -9 " + pid).getInputStream());
-            largetableProcess = null;
+            Session killSession = sshClient.startSession();
+            IOUtils.readFully(killSession.exec("kill -9 " + pid).getInputStream());
+            killSession.close();
+            synchronized (this) {
+                if (largetableProcess != null) {
+                    largetableProcess.close();
+                    largetableProcess = null;
+                }
+                if (session != null) {
+                    session.close();
+                    session = null;
+                }
+            }
             return true;
         } catch (ConnectionException e) {
             e.printStackTrace();

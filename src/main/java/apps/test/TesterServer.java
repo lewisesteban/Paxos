@@ -15,6 +15,7 @@ class TesterServer {
     private int nodeId;
     private int fragmentId;
     private final SSHClient sshClient = new SSHClient();
+    private Session session = null;
     private Session.Command largetableProcess = null;
     private BufferedReader reader = null;
     private String pid = null;
@@ -35,7 +36,7 @@ class TesterServer {
 
     synchronized boolean launch() {
         try {
-            Session session = sshClient.startSession();
+            session = sshClient.startSession();
             String cmdLine = "java -jar Paxos/target/paxos_server.jar " + fragmentId + " " + nodeId + " Paxos/network_fragment";
             largetableProcess = session.exec(cmdLine);
             reader = new BufferedReader(new InputStreamReader(largetableProcess.getInputStream()));
@@ -69,13 +70,23 @@ class TesterServer {
         return largetableProcess != null;
     }
 
-    synchronized boolean kill() {
+    boolean kill() {
         if (!isAuthenticated)
             return true;
         try {
-            Session session = sshClient.startSession();
-            IOUtils.readFully(session.exec("kill -9 " + pid).getInputStream());
-            largetableProcess = null;
+            Session killSession = sshClient.startSession();
+            IOUtils.readFully(killSession.exec("kill -9 " + pid).getInputStream());
+            killSession.close();
+            synchronized (this) {
+                if (largetableProcess != null) {
+                    largetableProcess.close();
+                    largetableProcess = null;
+                }
+                if (session != null) {
+                    session.close();
+                    session = null;
+                }
+            }
             return true;
         } catch (ConnectionException e) {
             e.printStackTrace();
