@@ -103,13 +103,14 @@ class TesterClient {
                     // do a get command to check
                     if (random.nextInt(3) == 0) {
                         String res = doCommandUntilSuccess("get " + key + "\n");
-                        String resVal = res.substring(3);
+                        String resVal = res.length() <= 3 ? null : res.substring(3);
                         System.out.println("#" + this.clientId + " key " + key + " local val is " + testingValues.get(key));
-                        if (!resVal.equals(testingValues.get(key))) {
-                            reportError(key, testingValues.get(key), resVal, cmdType, cmdVal);
-                        } else {
+                        if ((resVal == null && testingValues.get(key) == null) ||
+                                (resVal != null && resVal.equals(testingValues.get(key)))) {
                             cmdFinished(key, resVal, cmdType, cmdVal);
                             cmdFinished(key, resVal, "get", null);
+                        } else {
+                            reportError(key, testingValues.get(key), resVal, cmdType, cmdVal);
                         }
                     } else {
                         cmdFinished(key, testingValues.get(key), cmdType, cmdVal);
