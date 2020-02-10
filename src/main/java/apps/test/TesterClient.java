@@ -32,6 +32,9 @@ class TesterClient {
     private ClientUpdateHandler clientUpdateHandler;
     private int commandCounter = 0;
 
+    private int cmdVal = 0;
+    private String lastAppliedCmd = null;
+
     TesterClient(String host, String clientId) {
         this.clientId = clientId;
         this.host = host;
@@ -65,6 +68,7 @@ class TesterClient {
     }
 
     private void fetchRemoteValues() throws IOException {
+        System.out.println("#" + this.clientId + "----- fetching remote values");
         for (int i = 0; i < NB_ENTRIES; i++) {
             String key = clientId + "_key" + i;
             String resLine = doCommandUntilSuccess("get " + key + "\n");
@@ -81,26 +85,26 @@ class TesterClient {
             try {
                 if (testingValues.isEmpty())
                     fetchRemoteValues();
+                System.out.println("#" + this.clientId + "----- restoring");
+                restore();
+                System.out.println("#" + this.clientId + "----- starting");
                 while (largetableProcess != null && largetableProcess.isOpen() && testing) {
 
                     // choose a write command (put or append)
                     String key = clientId + "_key" + random.nextInt(NB_ENTRIES);
                     String cmdType = random.nextInt(10) == 0 ? "put" : "append";
-                    String cmdVal = Integer.toString(random.nextInt(10));
-
-                    // apply it to local values
-                    if (cmdType.equals("put") || !testingValues.containsKey(key))
-                        testingValues.put(key, cmdVal);
-                    else
-                        testingValues.put(key, testingValues.get(key) + cmdVal);
+                    String cmdVal = nextVal();
+                    String cmd = cmdType + " " + key + " " + cmdVal + "\n";
 
                     // execute it
-                    doCommandUntilSuccess(cmdType + " " + key + " " + cmdVal + "\n");
+                    doCommandUntilSuccess(cmd);
+                    applyToLocalDb(cmd);
 
                     // do a get command to check
                     if (random.nextInt(3) == 0) {
                         String res = doCommandUntilSuccess("get " + key + "\n");
                         String resVal = res.substring(3);
+                        System.out.println("#" + this.clientId + " key " + key + " local val is " + testingValues.get(key));
                         if (!resVal.equals(testingValues.get(key))) {
                             reportError(key, testingValues.get(key), resVal, cmdType, cmdVal);
                         } else {
@@ -119,6 +123,35 @@ class TesterClient {
         testingThread.start();
     }
 
+    private String nextVal() {
+        cmdVal = (cmdVal + 1) % 10;
+        return Integer.toString(cmdVal);
+    }
+
+    private void restore() throws IOException {
+        String lastFinishedCmd = doCommandUntilSuccess("last command");
+        if (lastFinishedCmd.length() <= 3)
+            return;
+        lastFinishedCmd = lastFinishedCmd.toLowerCase().substring(3).replace("\"", "") + "\n";
+        if (!lastFinishedCmd.equals(lastAppliedCmd)) {
+            applyToLocalDb(lastFinishedCmd);
+        }
+    }
+
+    private void applyToLocalDb(String command) {
+        String[] words = command.toLowerCase().substring(0, command.length() - 1).split(" ");
+        String type = words[0];
+        if (type.equals("get"))
+            return;
+        String key = words[1];
+        String val = words[2];
+        if (type.equals("put") || !testingValues.containsKey(key))
+            testingValues.put(key, val);
+        else
+            testingValues.put(key, testingValues.get(key) + val);
+        lastAppliedCmd = command;
+    }
+
     private synchronized String doCommandUntilSuccess(String command) throws IOException {
         if (largetableProcess == null)
             throw new IOException("connection closed");
@@ -127,8 +160,10 @@ class TesterClient {
         String resLine;
         do {
             largetableProcess.getOutputStream().write(command.getBytes());
+            System.out.print("#" + this.clientId + "  in:" + command);
             largetableProcess.getOutputStream().flush();
             resLine = reader.readLine();
+            System.out.println("#" + this.clientId + " out:" + resLine);
         } while (resLine != null && !resLine.startsWith("OK"));
         if (resLine == null)
             throw new IOException("connection closed");
@@ -179,6 +214,7 @@ class TesterClient {
                     session.close();
                     session = null;
                 }
+                stopTesting();
             }
             return true;
         } catch (ConnectionException e) {
