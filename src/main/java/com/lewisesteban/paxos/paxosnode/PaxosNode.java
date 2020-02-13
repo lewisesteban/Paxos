@@ -1,6 +1,7 @@
 package com.lewisesteban.paxos.paxosnode;
 
 import com.lewisesteban.paxos.paxosnode.acceptor.Acceptor;
+import com.lewisesteban.paxos.paxosnode.listener.CatchingUpManager;
 import com.lewisesteban.paxos.paxosnode.listener.Listener;
 import com.lewisesteban.paxos.paxosnode.listener.SnapshotManager;
 import com.lewisesteban.paxos.paxosnode.listener.UnneededInstanceGossipper;
@@ -37,6 +38,10 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
         proposer = new Proposer(paxosCluster, listener, runningProposalManager, snapshotManager, clientCommandContainer);
         runningProposalManager.setup(proposer, listener);
         snapshotManager.setup(listener, acceptor, unneededInstanceGossipper);
+    }
+
+    public void setCatchingUpManager(CatchingUpManager catchingUpManager) {
+        listener.setCatchingUpManager(catchingUpManager);
     }
 
     public void start() {

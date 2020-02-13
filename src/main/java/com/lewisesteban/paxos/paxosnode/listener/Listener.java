@@ -22,6 +22,7 @@ public class Listener implements ListenerRPCHandle {
     private StateMachine stateMachine;
     private RunningProposalManager runningProposalManager;
     private SnapshotManager snapshotManager;
+    private CatchingUpManager catchingUpManager = new EmptyCatchingUpManager();
 
     public Listener(ClusterHandle memberList, StateMachine stateMachine,
                     RunningProposalManager runningProposalManager, SnapshotManager snapshotManager) {
@@ -29,6 +30,22 @@ public class Listener implements ListenerRPCHandle {
         this.stateMachine = stateMachine;
         this.runningProposalManager = runningProposalManager;
         this.snapshotManager = snapshotManager;
+    }
+
+    public synchronized void setCatchingUpManager(CatchingUpManager catchingUpManager) {
+        this.catchingUpManager = catchingUpManager;
+    }
+
+    private synchronized void startCatchingUp(long highestMissingInstance) {
+        if (!catchingUpManager.isCatchingUp()) {
+            catchingUpManager.startCatchUp(lastInstanceId + 1, highestMissingInstance);
+            long start = lastInstanceId + 1;
+            for (long inst = start; inst <= highestMissingInstance; inst++) {
+                runningProposalManager.tryProposeNoOp(inst);
+            }
+        } else {
+            runningProposalManager.tryProposeNoOp(highestMissingInstance);
+        }
     }
 
     /**
@@ -39,7 +56,7 @@ public class Listener implements ListenerRPCHandle {
     public synchronized boolean waitForConsensusOn(long instance) {
         if (instance <= snapshotLastInstanceId)
             return true;
-        runningProposalManager.tryProposeNoOp(instance);
+        startCatchingUp(instance);
         while (runningProposalManager.contains(instance)) {
             try {
                 // to do: optimize? having each waiting instance check "contains" every time is not so good
@@ -54,6 +71,7 @@ public class Listener implements ListenerRPCHandle {
     public synchronized boolean execute(long instanceId, Command command) throws IOException {
         if (executedCommands.containsKey(instanceId))
             return true;
+        catchingUpManager.consensusReached(instanceId);
         if (instanceId > snapshotLastInstanceId + 1 && !executedCommands.containsKey(instanceId - 1)) {
             if (!waitForConsensusOn(instanceId - 1)) {
                 throw new IOException("bad network state");

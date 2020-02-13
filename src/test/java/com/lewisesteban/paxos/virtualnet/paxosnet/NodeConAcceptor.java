@@ -34,6 +34,16 @@ class NodeConAcceptor implements AcceptorRPCHandle {
     }
 
     @Override
+    public PrepareAnswer[] bulkPrepare(long[] instanceIds, Proposal.ID[] propIds) throws IOException {
+        return parent.tryNetCall(() -> acceptorHandle().bulkPrepare(instanceIds, propIds));
+    }
+
+    @Override
+    public AcceptAnswer[] bulkAccept(long[] instanceIds, Proposal[] proposals) throws IOException {
+        return parent.tryNetCall(() -> acceptorHandle().bulkAccept(instanceIds, proposals));
+    }
+
+    @Override
     public long getLastInstance() throws IOException {
         return parent.tryNetCall(() -> acceptorHandle().getLastInstance());
     }

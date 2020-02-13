@@ -25,6 +25,16 @@ public class PaxosAcceptorSrv implements RemotePaxosAcceptor {
     }
 
     @Override
+    public PrepareAnswer[] bulkPrepare(long[] instanceIds, Proposal.ID[] propIds) throws IOException {
+        return paxosAcceptor.bulkPrepare(instanceIds, propIds);
+    }
+
+    @Override
+    public AcceptAnswer[] bulkAccept(long[] instanceIds, Proposal[] proposals) throws IOException {
+        return paxosAcceptor.bulkAccept(instanceIds, proposals);
+    }
+
+    @Override
     public long getLastInstance() throws IOException {
         return paxosAcceptor.getLastInstance();
     }

@@ -11,7 +11,7 @@ public class PrepareAnswer implements Serializable {
     private boolean snapshotRequestRequired = false;
     private long highestProposalNumber = Integer.MIN_VALUE;
 
-    PrepareAnswer(boolean prepareOK, Proposal alreadyAccepted) {
+    public PrepareAnswer(boolean prepareOK, Proposal alreadyAccepted) {
         this.prepareOK = prepareOK;
         this.alreadyAccepted = alreadyAccepted;
     }

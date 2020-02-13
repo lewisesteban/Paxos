@@ -28,6 +28,16 @@ public class PaxosSrvAcceptor implements AcceptorRPCHandle {
     }
 
     @Override
+    public PrepareAnswer[] bulkPrepare(long[] instanceIds, Proposal.ID[] propIds) throws IOException {
+        return threadManager.pleaseDo(() -> paxosAcceptor.bulkPrepare(instanceIds, propIds));
+    }
+
+    @Override
+    public AcceptAnswer[] bulkAccept(long[] instanceIds, Proposal[] proposals) throws IOException {
+        return threadManager.pleaseDo(() -> paxosAcceptor.bulkAccept(instanceIds, proposals));
+    }
+
+    @Override
     public long getLastInstance() throws IOException {
         return threadManager.pleaseDo(() -> paxosAcceptor.getLastInstance());
     }

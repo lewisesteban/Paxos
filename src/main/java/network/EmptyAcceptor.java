@@ -20,6 +20,16 @@ class EmptyAcceptor implements AcceptorRPCHandle {
     }
 
     @Override
+    public PrepareAnswer[] bulkPrepare(long[] instanceIds, Proposal.ID[] propIds) throws IOException {
+        throw new IOException("Not connected");
+    }
+
+    @Override
+    public AcceptAnswer[] bulkAccept(long[] instanceIds, Proposal[] proposals) throws IOException {
+        throw new IOException("Not connected");
+    }
+
+    @Override
     public long getLastInstance() throws IOException {
         throw new IOException("Not connected");
     }

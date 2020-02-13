@@ -279,6 +279,16 @@ public class VirtualNetTest extends PaxosTestCase {
             }
 
             @Override
+            public PrepareAnswer[] bulkPrepare(long[] instanceIds, Proposal.ID[] propIds) throws IOException {
+                return acceptor.bulkPrepare(instanceIds, propIds);
+            }
+
+            @Override
+            public AcceptAnswer[] bulkAccept(long[] instanceIds, Proposal[] proposals) throws IOException {
+                return acceptor.bulkAccept(instanceIds, proposals);
+            }
+
+            @Override
             public long getLastInstance() throws IOException {
                 return acceptor.getLastInstance();
             }

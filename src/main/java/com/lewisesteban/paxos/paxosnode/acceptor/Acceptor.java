@@ -7,6 +7,7 @@ import com.lewisesteban.paxos.storage.FileAccessorCreator;
 import com.lewisesteban.paxos.storage.StorageException;
 import com.lewisesteban.paxos.storage.StorageUnit;
 
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class Acceptor implements AcceptorRPCHandle {
@@ -51,6 +52,30 @@ public class Acceptor implements AcceptorRPCHandle {
                 return new AcceptAnswer(AcceptAnswer.ACCEPTED);
             }
         }
+    }
+
+    @Override
+    public PrepareAnswer[] bulkPrepare(long[] instanceIds, Proposal.ID[] propIds) throws IOException {
+        PrepareAnswer[] answers = new PrepareAnswer[instanceIds.length];
+        for (int i = 0; i < instanceIds.length; ++i) {
+            if (instanceIds[i] < 0)
+                answers[i] = null;
+            else
+                answers[i] = reqPrepare(instanceIds[i], propIds[i]);
+        }
+        return answers;
+    }
+
+    @Override
+    public AcceptAnswer[] bulkAccept(long[] instanceIds, Proposal[] proposals) throws IOException {
+        AcceptAnswer[] answers = new AcceptAnswer[instanceIds.length];
+        for (int i = 0; i < instanceIds.length; ++i) {
+            if (instanceIds[i] < 0)
+                answers[i] = null;
+            else
+                answers[i] = reqAccept(instanceIds[i], proposals[i]);
+        }
+        return answers;
     }
 
     @Override
