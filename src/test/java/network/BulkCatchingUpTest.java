@@ -263,12 +263,6 @@ public class BulkCatchingUpTest extends TestCase {
         checkCallNumbers(100, 100, 1, 1);
     }
 
-    // TODO what if multiple prepare attempts are needed because propId is too low?
-    // --> when server starts, ask highest-numbered server alive for last inst and propNumber
-
-    // make a test that launches servers and a client connected through real network (in another file)
-    // TODO paxos.setCatchingUpManager()
-
     class TestAcceptor implements AcceptorRPCHandle {
 
         @Override

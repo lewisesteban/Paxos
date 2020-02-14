@@ -4,6 +4,7 @@ import com.lewisesteban.paxos.paxosnode.PaxosNode;
 import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
 import com.lewisesteban.paxos.storage.SafeSingleFileStorage;
 import com.lewisesteban.paxos.storage.WholeFileAccessor;
+import network.MultiClientCatchingUpManager;
 import network.NodeServer;
 
 import java.util.ArrayList;
@@ -30,7 +31,9 @@ public class ServerLauncher {
                     WholeFileAccessor::new);
             NodeServer server = new NodeServer(paxosNode);
 
-            NetworkFileParser.createRemoteNodes(args.length == 3 ? args[2] : null, server, cluster);
+            List<MultiClientCatchingUpManager.ClientCUMGetter> catchingUpManagers = new ArrayList<>();
+            NetworkFileParser.createRemoteNodes(args.length == 3 ? args[2] : null, server, cluster, catchingUpManagers);
+            paxosNode.setCatchingUpManager(new MultiClientCatchingUpManager(catchingUpManagers));
             server.start();
             System.out.println("Server ready.");
 

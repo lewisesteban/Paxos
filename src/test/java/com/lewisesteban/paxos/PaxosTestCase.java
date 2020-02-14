@@ -49,8 +49,8 @@ public class PaxosTestCase extends TestCase {
         if(files!=null) {
             for(File f: files) {
                 if (f.getName().startsWith("proposer") || f.getName().startsWith("acceptor") ||
-                        f.getName().endsWith("commandManager") || f.getName().startsWith("stateMachine") ||
-                        f.getName().equals("test")) {
+                        f.getName().contains("commandManager") || f.getName().startsWith("stateMachine") ||
+                        f.getName().contains("clientOngoingCommand") || f.getName().equals("test")) {
                     if(f.isDirectory()) {
                         deleteFolder(f);
                     } else {
@@ -187,7 +187,7 @@ public class PaxosTestCase extends TestCase {
         });
     }
 
-    public static int[][] getRacks(List<PaxosNetworkNode> nodes) {
+    protected static int[][] getRacks(List<PaxosNetworkNode> nodes) {
 
         int highestRack = 0;
         for (PaxosNetworkNode node : nodes) {

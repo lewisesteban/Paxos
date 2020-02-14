@@ -2,6 +2,7 @@ package network;
 
 import com.lewisesteban.paxos.paxosnode.acceptor.AcceptAnswer;
 import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
+import com.lewisesteban.paxos.paxosnode.listener.CatchingUpManager;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
 import com.lewisesteban.paxos.rpc.paxos.AcceptorRPCHandle;
 
@@ -16,6 +17,10 @@ public class PaxosAcceptorClient implements RemotePaxosAcceptor {
         this.client = client;
         this.remoteAcceptor = remoteAcceptor;
         this.catchingUpManager = new BulkCatchingUpManager(this);
+    }
+
+    CatchingUpManager getCatchingUpManager() {
+        return catchingUpManager;
     }
 
     @Override

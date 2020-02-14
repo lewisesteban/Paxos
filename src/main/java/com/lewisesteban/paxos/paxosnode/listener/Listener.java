@@ -37,7 +37,7 @@ public class Listener implements ListenerRPCHandle {
     }
 
     private synchronized void startCatchingUp(long highestMissingInstance) {
-        if (!catchingUpManager.isCatchingUp()) {
+        if (!catchingUpManager.isCatchingUp() && !runningProposalManager.contains(highestMissingInstance)) {
             catchingUpManager.startCatchUp(lastInstanceId + 1, highestMissingInstance);
             long start = lastInstanceId + 1;
             for (long inst = start; inst <= highestMissingInstance; inst++) {

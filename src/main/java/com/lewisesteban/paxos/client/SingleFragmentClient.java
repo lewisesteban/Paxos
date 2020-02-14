@@ -19,7 +19,7 @@ public class SingleFragmentClient {
     private Command.Factory commandFactory;
     private String clientId;
     private ClientCommandSender sender;
-    private PaxosProposer dedicatedProposer = null;
+    private PaxosProposer dedicatedProposer;
     private List<PaxosProposer> nodesTried = new ArrayList<>();
     private Random random = new Random();
 
@@ -31,6 +31,7 @@ public class SingleFragmentClient {
         this.commandFactory = new Command.Factory(clientId);
         this.sender = new ClientCommandSender(failureManager);
         this.clientId = clientId;
+        this.dedicatedProposer = fragmentNodes.get(fragmentNodes.size() - 1);
     }
 
     /**

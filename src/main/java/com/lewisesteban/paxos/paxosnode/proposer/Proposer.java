@@ -146,7 +146,7 @@ public class Proposer implements PaxosProposer {
         Logger.println("accepted node=" + memberList.getMyNodeId() + " inst=" + instanceId + " cmd=" + prepared.getCommand() +  " changed=" + proposalChanged);
 
         // scatter and return
-        scatter(instanceId, prepared);
+        scatter(instanceId, prepared, proposalChanged);
         java.io.Serializable returnData;
         try {
             returnData = listener.getReturnOf(instanceId, prepared.getCommand());
@@ -264,17 +264,20 @@ public class Proposer implements PaxosProposer {
         return new AcceptAnswer(AcceptAnswer.REFUSED);
     }
 
-    private void scatter(long instanceId, Proposal prepared) {
+    private void scatter(long instanceId, Proposal prepared, boolean proposalChanged) {
         try {
             listener.execute(instanceId, prepared.getCommand());
         } catch (IOException ignored) { }
-        for (RemotePaxosNode node : memberList.getMembers()) {
-            if (node.getId() != memberList.getMyNodeId()) {
-                executor.submit(() -> {
-                    try {
-                        node.getListener().execute(instanceId, prepared.getCommand());
-                    } catch (IOException ignored) { }
-                });
+        if (!proposalChanged) {
+            for (RemotePaxosNode node : memberList.getMembers()) {
+                if (node.getId() != memberList.getMyNodeId()) {
+                    executor.submit(() -> {
+                        try {
+                            node.getListener().execute(instanceId, prepared.getCommand());
+                        } catch (IOException ignored) {
+                        }
+                    });
+                }
             }
         }
     }

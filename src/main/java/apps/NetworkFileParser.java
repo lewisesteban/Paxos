@@ -2,12 +2,11 @@ package apps;
 
 import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
 import com.lewisesteban.paxos.storage.StorageException;
+import network.MultiClientCatchingUpManager;
 import network.NodeClient;
 import network.NodeServer;
 
 import java.io.*;
-import java.rmi.NotBoundException;
-import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -15,7 +14,15 @@ import java.util.TreeMap;
 
 class NetworkFileParser {
 
-    static void createRemoteNodes(String filePath, NodeServer server, List<RemotePaxosNode> cluster) throws RemoteException, NotBoundException, StorageException, FileFormatException, FileNotFoundException {
+    /**
+     * Parses a file to create the objects that a Paxos server uses to connect to other servers.
+     *
+     * @param filePath File to parse, containing addresses of all servers of the cluster in the correct order.
+     * @param server This node.
+     * @param cluster A list that the node uses and needs to contain connectors to all nodes of the cluster.
+     * @param catchingUpManagers An empty list of catching up managers, to be filled by this method.
+     */
+    static void createRemoteNodes(String filePath, NodeServer server, List<RemotePaxosNode> cluster, List<MultiClientCatchingUpManager.ClientCUMGetter> catchingUpManagers) throws StorageException, FileFormatException, FileNotFoundException {
         // read the network file
         File file = new File(getFilePath(filePath));
         BufferedReader br = new BufferedReader(new FileReader(file));
@@ -38,13 +45,21 @@ class NetworkFileParser {
             if (nodeId == server.getId()) {
                 cluster.add(server);
             } else {
-                cluster.add(new NodeClient(host, nodeId, server.getFragmentId()));
+                NodeClient nodeClient = new NodeClient(host, nodeId, server.getFragmentId());
+                cluster.add(nodeClient);
+                catchingUpManagers.add(nodeClient.getCatchingUpManager());
             }
 
         }
     }
 
-    static List<NodeClient> createRemoteNodes(String filePath) throws NotBoundException, StorageException, FileFormatException, RemoteException, FileNotFoundException {
+    /**
+     * Parses a file to create the objects that a Paxos client uses to connect to all servers.
+     *
+     * @param filePath File to parse, containing addresses of all servers in the correct order, with their fragment ID.
+     * @return Connectors to all servers.
+     */
+    static List<NodeClient> createRemoteNodes(String filePath) throws StorageException, FileFormatException, FileNotFoundException {
         Map<Integer, List<NodeClient>> fragments = new TreeMap<>();
 
             // read the network file
