@@ -29,16 +29,10 @@ public class ServerLauncher {
                     (f, dir) -> new SafeSingleFileStorage(f, dir, WholeFileAccessor::new),
                     WholeFileAccessor::new);
             NodeServer server = new NodeServer(paxosNode);
-            System.out.println("RMI server started. Enter C to connect to the other servers.");
 
-            int input = System.in.read();
-            if (input == 'C' || input == 'c') {
-                NetworkFileParser.createRemoteNodes(args.length == 3 ? args[2] : null, server, cluster);
-                server.start();
-                System.out.println("Server ready.");
-            } else {
-                System.out.println("Exiting.");
-            }
+            NetworkFileParser.createRemoteNodes(args.length == 3 ? args[2] : null, server, cluster);
+            server.start();
+            System.out.println("Server ready.");
 
         } catch (Exception e) {
             System.err.println("Server exception: " + e.toString());

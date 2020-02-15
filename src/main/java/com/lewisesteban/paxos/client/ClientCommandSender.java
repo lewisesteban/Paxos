@@ -46,10 +46,10 @@ public class ClientCommandSender {
                     break;
                 case Result.NETWORK_ERROR:
                     throw new CommandFailedException(instance, command, null);
-                case Result.BAD_PROPOSAL:
-                    if (result.getExtra().getLeaderId() != null) {
-                        throw new DedicatedProposerRedirection(result.getExtra().getLeaderId(), command, instance);
-                    }
+            }
+            if (result.getExtra() != null && result.getExtra().getLeaderId() != null) {
+                throw new DedicatedProposerRedirection(result.getExtra().getLeaderId(), command, instance,
+                        result.getStatus() == Result.CONSENSUS_ON_THIS_CMD, result.getReturnData());
             }
         }
         return commandReturn;
@@ -82,14 +82,26 @@ public class ClientCommandSender {
 
     class DedicatedProposerRedirection extends CommandException {
         private int dedicatedProposerId;
+        private Serializable cmdResult;
+        private boolean success;
 
-        DedicatedProposerRedirection(int dedicatedProposerId, Command command, Long instance) {
+        DedicatedProposerRedirection(int dedicatedProposerId, Command command, Long instance, boolean success, Serializable result) {
             super(instance, command.getData(), command.getClientCmdNb(), null);
             this.dedicatedProposerId = dedicatedProposerId;
+            this.success = success;
+            this.cmdResult = result;
         }
 
         int getDedicatedProposerId() {
             return dedicatedProposerId;
+        }
+
+        Serializable getCmdResult() {
+            return cmdResult;
+        }
+
+        boolean isSuccess() {
+            return success;
         }
     }
 }

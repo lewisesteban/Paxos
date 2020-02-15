@@ -17,6 +17,10 @@ import java.util.List;
 public class TerminalApp {
 
     public static void main(String[] args) {
+        if (args.length < 1) {
+            System.out.println("Expected arguments: clientId + (optional) network file");
+            return;
+        }
         try {
             readInputAndExecute(initialize(args));
             System.exit(0);
@@ -35,8 +39,9 @@ public class TerminalApp {
     }
 
     private static LargeTableClient initialize(String[] args) throws StorageException, Client.LargeTableException, RemoteException, NotBoundException, FileNotFoundException, FileFormatException {
+        String clientId = args[0];
         List<NodeClient> cluster = NetworkFileParser.createRemoteNodes(args.length <= 1 ? null : args[1]);
-        LargeTableClient client = new LargeTableClient<>(cluster, "app", WholeFileAccessor::new);
+        LargeTableClient client = new LargeTableClient<>(cluster, clientId, WholeFileAccessor::new);
         client.recover();
         return client;
     }

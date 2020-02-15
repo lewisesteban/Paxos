@@ -22,7 +22,9 @@ public class SingleFragmentClient {
     private PaxosProposer dedicatedProposer = null;
     private List<PaxosProposer> nodesTried = new ArrayList<>();
     private Random random = new Random();
-    private List<PaxosProposer> nonEndedServers = new ArrayList<>();
+
+    private final List<PaxosProposer> nonEndedServers = new ArrayList<>();
+    private final List<PaxosProposer> endRequests = new ArrayList<>();
 
     public SingleFragmentClient(List<PaxosProposer> fragmentNodes, String clientId, FailureManager failureManager) {
         this.nodes = fragmentNodes;
@@ -89,6 +91,7 @@ public class SingleFragmentClient {
         if (instance == null)
             instance = -1L;
         while (true) {
+            setNonEnded(node);
             try {
                 if (instance == -1) {
                     return sender.doCommand(node, command);
@@ -99,6 +102,8 @@ public class SingleFragmentClient {
                 if (e.getInstanceThatMayHaveBeenInitiated() != null)
                     instance = e.getInstanceThatMayHaveBeenInitiated();
                 node = changeProposer(nodes.get(e.getDedicatedProposerId()));
+                if (e.isSuccess())
+                    return e.getCmdResult();
             } catch (ClientCommandSender.CommandFailedException e) {
                 if (e.getInstanceThatMayHaveBeenInitiated() != null)
                     instance = e.getInstanceThatMayHaveBeenInitiated();
@@ -144,42 +149,72 @@ public class SingleFragmentClient {
         }
     }
 
+    private void setNonEnded(PaxosProposer proposer) {
+        synchronized (nonEndedServers) {
+            if (!nonEndedServers.contains(proposer))
+                nonEndedServers.add(proposer);
+        }
+    }
+
     private PaxosProposer changeProposer(PaxosProposer newProposer) {
-        if (dedicatedProposer != null)
+        if (dedicatedProposer != null) {
             tryEndServer(dedicatedProposer);
+        }
         dedicatedProposer = newProposer;
-        nonEndedServers.add(newProposer);
         return newProposer;
     }
 
-    private boolean tryEndServer(PaxosProposer server) {
-        if (nonEndedServers.contains(server)) {
-            try {
-                server.endClient(clientId);
-                nonEndedServers.remove(server);
-                return true;
-            } catch (IOException e) {
-                return false;
+    private void tryEndServer(PaxosProposer server) {
+        synchronized (endRequests) {
+            synchronized (nonEndedServers) {
+                if (!endRequests.contains(server) && nonEndedServers.contains(server)) {
+                    Thread thread = new Thread(() -> {
+                        try {
+                            server.endClient(clientId);
+                            synchronized (nonEndedServers) {
+                                nonEndedServers.remove(server);
+                            }
+                        } catch (IOException ignored) {
+                        } finally {
+                            synchronized (endRequests) {
+                                endRequests.remove(server);
+                                endRequests.notifyAll();
+                            }
+                        }
+                    });
+                    endRequests.add(server);
+                    thread.start();
+                }
             }
-        } else {
-            return true;
         }
     }
 
-    private boolean tryEndAll(PaxosProposer exceptThisOne) {
-        if (nonEndedServers.isEmpty() || (nonEndedServers.size() == 1 && nonEndedServers.get(0).equals(exceptThisOne)))
-            return true;
-        boolean success = true;
+    private void tryEndAll(PaxosProposer exceptThisOne) {
+        if (nonEndedServers.isEmpty())
+            return;
+        synchronized (nonEndedServers) {
+            if (nonEndedServers.size() == 1 && nonEndedServers.get(0) == exceptThisOne)
+                return;
+        }
         for (PaxosProposer proposer : nodes) {
             if (proposer != exceptThisOne) {
-                if (!tryEndServer(proposer))
-                    success = false;
+                tryEndServer(proposer);
             }
         }
-        return success;
     }
 
     boolean endClient() {
-        return tryEndAll(null);
+        tryEndAll(null);
+        synchronized (endRequests) {
+            while (!endRequests.isEmpty()) {
+                try {
+                    endRequests.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+            }
+        }
+        return true;
     }
 }

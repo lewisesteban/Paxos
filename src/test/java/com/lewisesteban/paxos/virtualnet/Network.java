@@ -39,6 +39,10 @@ public class Network {
         nodes.get(address).kill();
     }
 
+    public boolean isRunning(Address address) {
+        return nodes.get(address).isRunning();
+    }
+
     public void startAll() {
         for (VirtualNetNode node : nodes.values()) {
             if (!node.isRunning())

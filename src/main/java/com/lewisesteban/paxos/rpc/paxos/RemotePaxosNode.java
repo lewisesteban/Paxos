@@ -12,7 +12,18 @@ public interface RemotePaxosNode {
      */
     int getFragmentId();
 
+    /**
+     * @return Non-null object to use for remotely calling an acceptor's methods
+     */
     AcceptorRPCHandle getAcceptor();
+
+    /**
+     * @return Non-null object to use for remotely calling an listener's methods
+     */
     ListenerRPCHandle getListener();
+
+    /**
+     * @return Non-null object to use for remotely calling methods related to membership
+     */
     MembershipRPCHandle getMembership();
 }

@@ -31,7 +31,6 @@ public class ElectionTest extends PaxosTestCase {
         Thread.sleep(200);
         assertNull(nodes.get(3).getPaxosSrv().propose(cmd1, 0).getExtra());
         Result result = proposer.propose(cmd2, 1);
-        assertEquals(Result.BAD_PROPOSAL, result.getStatus());
         assertEquals((Integer)3, result.getExtra().getLeaderId());
 
         System.out.println("--- killing node");
