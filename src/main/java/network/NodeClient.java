@@ -39,25 +39,27 @@ public class NodeClient implements RemotePaxosNode, PaxosProposer, RemoteCallMan
         } catch (InterruptedException e) {
             throw new RemoteException();
         }
-        if (!connected) {
-            try {
-                Registry registry = LocateRegistry.getRegistry(host);
-                paxosProposer = (RemotePaxosProposer) registry.lookup(NodeServer.getStubName("proposer", this));
-                RemotePaxosAcceptor remoteAcceptor = (RemotePaxosAcceptor) registry.lookup(NodeServer.getStubName("acceptor", this));
-                remoteAcceptor.getLastInstance(); // check that srv is responding
-                PaxosAcceptorClient paxosAcceptorClient = new PaxosAcceptorClient((RemotePaxosAcceptor) registry.lookup(NodeServer.getStubName("acceptor", this)), this);
-                acceptor = paxosAcceptorClient;
-                listener = new PaxosListenerClient((RemotePaxosListener) registry.lookup(NodeServer.getStubName("listener", this)), this);
-                membership = new PaxosMembershipClient((RemotePaxosMembership) registry.lookup(NodeServer.getStubName("membership", this)), this);
-                catchingUpManager = paxosAcceptorClient.getCatchingUpManager();
-                connected = true;
-                initialized = true;
-            } catch (RemoteException | NotBoundException e) {
-                connected = false;
-                throw new IOException(e);
-            } finally {
-                connectionMutex.release();
+        try {
+            if (!connected) {
+                try {
+                    Registry registry = LocateRegistry.getRegistry(host);
+                    paxosProposer = (RemotePaxosProposer) registry.lookup(NodeServer.getStubName("proposer", this));
+                    RemotePaxosAcceptor remoteAcceptor = (RemotePaxosAcceptor) registry.lookup(NodeServer.getStubName("acceptor", this));
+                    remoteAcceptor.getLastInstance(); // check that srv is responding
+                    PaxosAcceptorClient paxosAcceptorClient = new PaxosAcceptorClient((RemotePaxosAcceptor) registry.lookup(NodeServer.getStubName("acceptor", this)), this);
+                    acceptor = paxosAcceptorClient;
+                    listener = new PaxosListenerClient((RemotePaxosListener) registry.lookup(NodeServer.getStubName("listener", this)), this);
+                    membership = new PaxosMembershipClient((RemotePaxosMembership) registry.lookup(NodeServer.getStubName("membership", this)), this);
+                    catchingUpManager = paxosAcceptorClient.getCatchingUpManager();
+                    connected = true;
+                    initialized = true;
+                } catch (RemoteException | NotBoundException e) {
+                    connected = false;
+                    throw new IOException(e);
+                }
             }
+        } finally {
+            connectionMutex.release();
         }
     }
 
