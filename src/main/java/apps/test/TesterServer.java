@@ -17,7 +17,6 @@ class TesterServer {
     private final SSHClient sshClient = new SSHClient();
     private Session session = null;
     private Session.Command largetableProcess = null;
-    private BufferedReader reader = null;
     private String pid = null;
     private boolean isAuthenticated = false;
 
@@ -39,7 +38,7 @@ class TesterServer {
             session = sshClient.startSession();
             String cmdLine = "java -jar Paxos/target/paxos_server.jar " + fragmentId + " " + nodeId + " Paxos/network_fragment";
             largetableProcess = session.exec(cmdLine);
-            reader = new BufferedReader(new InputStreamReader(largetableProcess.getInputStream()));
+            BufferedReader reader = new BufferedReader(new InputStreamReader(largetableProcess.getInputStream()));
             reader.readLine(); // this line should be a message stating that RMI server has started
             getPid(cmdLine);
             return true;
@@ -53,17 +52,6 @@ class TesterServer {
         Session session = sshClient.startSession();
         String getPidCmd = "ps axo pid,cmd | grep \"" + startProcessCmd + "\" | grep -P '\\d+' -o | head -n1";
         pid = IOUtils.readFully(session.exec(getPidCmd).getInputStream()).toString();
-    }
-
-    synchronized boolean connect() {
-        try {
-            largetableProcess.getOutputStream().write("c\n".getBytes());
-            largetableProcess.getOutputStream().flush();
-            reader.readLine(); // the next line should be "Server ready"
-            return true;
-        } catch (IOException e) {
-            return false;
-        }
     }
 
     synchronized boolean isUp() {

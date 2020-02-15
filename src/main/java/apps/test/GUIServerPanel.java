@@ -39,7 +39,7 @@ class GUIServerPanel extends Panel {
                 return false;
             }
         } else {
-            if (server.launch() && server.connect()) {
+            if (server.launch()) {
                 setAlive(true);
                 return true;
             } else {

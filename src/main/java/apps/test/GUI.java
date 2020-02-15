@@ -10,6 +10,10 @@ import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
+// TODO Two servers up. Kill and restore while doing commands. Kill 0. Send command. Restore 0. Command fails. Try again. Still fails.
+
+// TODO after killing all servers, data is lost
+
 // TODO change network_fragment file name according to fragment
 
 // TODO server 2 dead, last inst 40, client sends cmd, server 1 skips all instances up to 44 because they supposedly have consensus on another value
@@ -117,7 +121,6 @@ public class GUI extends Frame {
                     server.startSSH(username, password);
                     server.launch();
                     barrier.await();
-                    server.connect();
                 } catch (InterruptedException | BrokenBarrierException | IOException e) {
                     e.printStackTrace();
                     close();

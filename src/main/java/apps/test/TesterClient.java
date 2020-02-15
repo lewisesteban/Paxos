@@ -165,7 +165,7 @@ class TesterClient {
             largetableProcess.getOutputStream().flush();
             resLine = reader.readLine();
             System.out.println("#" + this.clientId + " out:" + resLine);
-        } while (resLine != null && !resLine.startsWith("OK"));
+        } while (testing && resLine != null && !resLine.startsWith("OK"));
         if (resLine == null)
             throw new IOException("connection closed");
         return resLine;
