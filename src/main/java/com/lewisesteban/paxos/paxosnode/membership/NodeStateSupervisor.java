@@ -4,6 +4,8 @@ import com.lewisesteban.paxos.paxosnode.ClusterHandle;
 
 import java.io.IOException;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class NodeStateSupervisor {
@@ -16,6 +18,8 @@ public class NodeStateSupervisor {
     private boolean running = false;
     private Random random = new Random();
     private AtomicLong heartbeatCounter = new AtomicLong(0);
+    private ExecutorService executorService = Executors.newCachedThreadPool();
+    private boolean[] awaitingAnswers;
 
     NodeStateSupervisor(ClusterHandle membership) {
         this.membership = membership;
@@ -24,8 +28,11 @@ public class NodeStateSupervisor {
     synchronized void start() {
         running = true;
         nodeStates = new NodeState[membership.getNbMembers()];
-        for (int node = 0; node < nodeStates.length; node++)
+        awaitingAnswers = new boolean[membership.getNbMembers()];
+        for (int node = 0; node < nodeStates.length; node++) {
             nodeStates[node] = new NodeState(node);
+            awaitingAnswers[node] = false;
+        }
         nodeHeartbeats = new NodeHeartbeat[membership.getNbMembers()];
         new Thread(this::backGroundWork).start();
     }
@@ -101,19 +108,30 @@ public class NodeStateSupervisor {
         nodeHeartbeats[membership.getMyNodeId()] = new NodeHeartbeat(heartbeatCounter.getAndIncrement());
         int node1 = getRandomNodeId(membership.getMyNodeId());
         int node2 = getRandomNodeId(node1);
-        try {
-            membership.getMembers().get(node1).getMembership().gossipMemberList(nodeHeartbeats);
-        } catch (IOException ignored) {
-        }
+        executorService.submit(() -> {
+            if (!sendRequest(node1))
+                sendRequest(getRandomNodeId(node2));
+        });
         if (node2 != node1) {
-            try {
-                membership.getMembers().get(node2).getMembership().gossipMemberList(nodeHeartbeats);
-            } catch (IOException e) {
-                try {
-                    membership.getMembers().get(getRandomNodeId(node2)).getMembership().gossipMemberList(nodeHeartbeats);
-                } catch (IOException ignored) {
-                }
-            }
+            executorService.submit(() -> {
+                sendRequest(node2);
+            });
+        }
+    }
+
+    private boolean sendRequest(int target) {
+        if (target == membership.getMyNodeId())
+            return false;
+        if (awaitingAnswers[target])
+            return false;
+        awaitingAnswers[target] = true;
+        try {
+            membership.getMembers().get(target).getMembership().gossipMemberList(nodeHeartbeats);
+            return true;
+        } catch (IOException e) {
+            return false;
+        } finally {
+            awaitingAnswers[target] = false;
         }
     }
 
