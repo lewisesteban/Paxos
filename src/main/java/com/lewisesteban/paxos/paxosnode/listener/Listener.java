@@ -90,7 +90,7 @@ public class Listener implements ListenerRPCHandle {
                 lastInstanceId = instanceId;
             }
             snapshotManager.instanceFinished(instanceId);
-            Logger.println("node " + memberList.getMyNodeId() + " execute inst=" + instanceId + " cmd=" + command + " on object " + stateMachine.hashCode());
+            Logger.println("node " + memberList.getMyNodeId() + " execute inst=" + instanceId + " cmd=" + command + " cmdNb " + command.getClientCmdNb());
             executedCommands.put(instanceId, new ExecutedCommand(command, result));
         }
         return true;

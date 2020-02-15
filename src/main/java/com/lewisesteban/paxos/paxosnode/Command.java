@@ -75,11 +75,15 @@ public class Command implements Serializable {
             this.clientId = clientId;
         }
 
+        public synchronized void setNextCommandNumber(long nb) {
+            this.clientCmdNb = nb;
+        }
+
         public synchronized Command make(Serializable data) {
             return new Command(data, clientId, clientCmdNb++);
         }
 
-        public synchronized  Command make(Serializable data, long cmdNb) {
+        public synchronized Command make(Serializable data, long cmdNb) {
             return new Command(data, clientId, cmdNb);
         }
 

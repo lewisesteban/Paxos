@@ -34,6 +34,10 @@ public class SingleFragmentClient {
         this.dedicatedProposer = fragmentNodes.get(fragmentNodes.size() - 1);
     }
 
+    void setNextCommandNumber(long commandNb) {
+        commandFactory.setNextCommandNumber(commandNb);
+    }
+
     /**
      * Sends a command and tries again until it succeeds.
      */

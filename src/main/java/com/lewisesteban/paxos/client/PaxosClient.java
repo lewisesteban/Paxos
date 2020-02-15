@@ -53,6 +53,7 @@ public class PaxosClient<NODE extends RemotePaxosNode & PaxosProposer> {
         if (failedOp != null) {
             failureManager.setOngoingCmdData(failedOp.getCmdData());
             failureManager.setOngoingCmdKeyHash(failedOp.getKeyHash());
+            fragments.forEach(fragment -> fragment.setNextCommandNumber(failedOp.getCmdNb() + 1));
             Serializable result = fragments.get(failedOp.getKeyHash() % nbFragments).doCommand(failedOp.getCmdData(), failedOp.getCmdNb(), failedOp.getInst());
             return new ExecutedCommand(failedOp.getCmdData(), result);
         }
@@ -73,6 +74,7 @@ public class PaxosClient<NODE extends RemotePaxosNode & PaxosProposer> {
         if (failedOp != null) {
             failureManager.setOngoingCmdData(failedOp.getCmdData());
             failureManager.setOngoingCmdKeyHash(failedOp.getKeyHash());
+            fragments.forEach(fragment -> fragment.setNextCommandNumber(failedOp.getCmdNb() + 1));
             Serializable result = fragments.get(failedOp.getKeyHash() % nbFragments).tryCommand(failedOp.getCmdData(), failedOp.getCmdNb(), failedOp.getInst());
             return new ExecutedCommand(failedOp.getCmdData(), result);
         }
