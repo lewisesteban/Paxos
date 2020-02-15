@@ -6,19 +6,19 @@ import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.*;
 
 import java.io.IOException;
-import java.rmi.ConnectException;
-import java.rmi.NoSuchObjectException;
 import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
 public class NodeClient implements RemotePaxosNode, PaxosProposer, RemoteCallManager {
     private String host;
-    private RemotePaxosProposer paxosProposer;
-    private AcceptorRPCHandle acceptor;
-    private ListenerRPCHandle listener;
-    private MembershipRPCHandle membership;
+    private RemotePaxosProposer paxosProposer = null;
+    private AcceptorRPCHandle acceptor = null;
+    private ListenerRPCHandle listener = null;
+    private MembershipRPCHandle membership = null;
     private CatchingUpManager catchingUpManager = null;
+    private boolean initialized = false;
     private int nodeId;
     private int fragmentId;
     private boolean connected = false;
@@ -27,12 +27,6 @@ public class NodeClient implements RemotePaxosNode, PaxosProposer, RemoteCallMan
         this.nodeId = nodeId;
         this.fragmentId = fragmentId;
         this.host = host;
-        new Thread(() -> {
-            try {
-                connectToServer();
-            } catch (IOException ignored) {
-            }
-        }).start();
     }
 
     private synchronized void connectToServer() throws IOException {
@@ -40,13 +34,16 @@ public class NodeClient implements RemotePaxosNode, PaxosProposer, RemoteCallMan
             try {
                 Registry registry = LocateRegistry.getRegistry(host);
                 paxosProposer = (RemotePaxosProposer) registry.lookup(NodeServer.getStubName("proposer", this));
+                RemotePaxosAcceptor remoteAcceptor = (RemotePaxosAcceptor) registry.lookup(NodeServer.getStubName("acceptor", this));
+                remoteAcceptor.getLastInstance(); // check that srv is responding
                 PaxosAcceptorClient paxosAcceptorClient = new PaxosAcceptorClient((RemotePaxosAcceptor) registry.lookup(NodeServer.getStubName("acceptor", this)), this);
                 acceptor = paxosAcceptorClient;
                 listener = new PaxosListenerClient((RemotePaxosListener) registry.lookup(NodeServer.getStubName("listener", this)), this);
                 membership = new PaxosMembershipClient((RemotePaxosMembership) registry.lookup(NodeServer.getStubName("membership", this)), this);
                 catchingUpManager = paxosAcceptorClient.getCatchingUpManager();
                 connected = true;
-            } catch (ConnectException | NoSuchObjectException | NotBoundException e) {
+                initialized = true;
+            } catch (RemoteException | NotBoundException e) {
                 connected = false;
                 throw new IOException(e);
             }
@@ -56,8 +53,12 @@ public class NodeClient implements RemotePaxosNode, PaxosProposer, RemoteCallMan
     public <T> T doRemoteCall(RemoteCallable<T> callable) throws IOException {
         if (!connected)
             connectToServer();
-        return callable.doRemoteCall();
-
+        try {
+            return callable.doRemoteCall();
+        } catch (RemoteException e) {
+            connected = false;
+            throw e;
+        }
     }
 
     @Override
@@ -96,7 +97,7 @@ public class NodeClient implements RemotePaxosNode, PaxosProposer, RemoteCallMan
 
     @Override
     public AcceptorRPCHandle getAcceptor() {
-        if (acceptor == null) {
+        if (!initialized) {
             if (tryConnect())
                 return acceptor;
             else
@@ -107,7 +108,7 @@ public class NodeClient implements RemotePaxosNode, PaxosProposer, RemoteCallMan
 
     @Override
     public ListenerRPCHandle getListener() {
-        if (listener == null) {
+        if (!initialized) {
             if (tryConnect())
                 return listener;
             else
@@ -118,7 +119,7 @@ public class NodeClient implements RemotePaxosNode, PaxosProposer, RemoteCallMan
 
     @Override
     public MembershipRPCHandle getMembership() {
-        if (membership == null) {
+        if (!initialized) {
             if (tryConnect())
                 return membership;
             else

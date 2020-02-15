@@ -10,9 +10,10 @@ import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
-// TODO configure serial killer minWait and maxWait
+// TODO
+// kill 2, new elections keep happening between 0 and 1
 
-// TODO servers are slow to start
+// TODO change network_fragment file name according to fragment
 
 // TODO server 2 dead, last inst 40, client sends cmd, server 1 skips all instances up to 44 because they supposedly have consensus on another value
 // happened after doing a command when 2 servers out of 3 are dead, and then trying it again when 2 are up

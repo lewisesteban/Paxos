@@ -205,7 +205,7 @@ public class Proposer implements PaxosProposer {
         if (nbOk.get() > memberList.getNbMembers() / 2) {
             return new PrepareResult(getNewProp(alreadyAcceptedProps, proposal), false);
         }
-        if (nbFailed.get() > 0 && nbFailed.get() >= memberList.getNbMembers() / 2) {
+        if (nbFailed.get() > 0 && nbFailed.get() > memberList.getNbMembers() / 2) {
             throw new IOException("bad network state");
         }
         return new PrepareResult(null, false);
@@ -259,7 +259,7 @@ public class Proposer implements PaxosProposer {
         }
         if (nbOk.get() > memberList.getNbMembers() / 2)
             return new AcceptAnswer(AcceptAnswer.ACCEPTED);
-        if (nbFailed.get() >= memberList.getNbMembers() / 2)
+        if (nbFailed.get() > memberList.getNbMembers() / 2)
             throw new IOException("bad network state");
         return new AcceptAnswer(AcceptAnswer.REFUSED);
     }

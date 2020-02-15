@@ -25,7 +25,8 @@ class NetworkFileParser {
     static void createRemoteNodes(String filePath, NodeServer server, List<RemotePaxosNode> cluster, List<MultiClientCatchingUpManager.ClientCUMGetter> catchingUpManagers) throws StorageException, FileFormatException, FileNotFoundException {
         // read the network file
         File file = new File(getFilePath(filePath));
-        BufferedReader br = new BufferedReader(new FileReader(file));
+        FileReader fr = new FileReader(file);
+        BufferedReader br = new BufferedReader(fr);
         String line;
         while (true) {
             try {
@@ -49,7 +50,12 @@ class NetworkFileParser {
                 cluster.add(nodeClient);
                 catchingUpManagers.add(nodeClient.getCatchingUpManager());
             }
-
+        }
+        try {
+            br.close();
+            fr.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -62,32 +68,39 @@ class NetworkFileParser {
     static List<NodeClient> createRemoteNodes(String filePath) throws StorageException, FileFormatException, FileNotFoundException {
         Map<Integer, List<NodeClient>> fragments = new TreeMap<>();
 
-            // read the network file
-            File file = new File(getFilePath(filePath));
-            BufferedReader br = new BufferedReader(new FileReader(file));
-            String line;
-            while (true) {
-                try {
-                    if ((line = br.readLine()) == null) break;
-                } catch (IOException e) {
-                    throw new StorageException(e);
-                }
-
-                // parse the line
-                String[] words = line.split(" ");
-                if (words.length != 2 || !words[1].matches("\\d+") || words[0].isEmpty())
-                    throw new FileFormatException("Each line of the network file should contain the host followed the fragment number, separated by a space. The position of the line indicates the ID of the server within the fragment.");
-                String host = words[0];
-                int fragmentNb = Integer.parseInt(words[1]);
-                if (!fragments.containsKey(fragmentNb))
-                    fragments.put(fragmentNb, new ArrayList<>());
-                int nodeId = fragments.get(fragmentNb).size();
-
-                // create the node
-                fragments.get(fragmentNb).add(new NodeClient(host, nodeId, fragmentNb));
-
+        // read the network file
+        File file = new File(getFilePath(filePath));
+        FileReader fr = new FileReader(file);
+        BufferedReader br = new BufferedReader(fr);
+        String line;
+        while (true) {
+            try {
+                if ((line = br.readLine()) == null) break;
+            } catch (IOException e) {
+                throw new StorageException(e);
             }
 
+            // parse the line
+            String[] words = line.split(" ");
+            if (words.length != 2 || !words[1].matches("\\d+") || words[0].isEmpty())
+                throw new FileFormatException("Each line of the network file should contain the host followed the fragment number, separated by a space. The position of the line indicates the ID of the server within the fragment.");
+            String host = words[0];
+            int fragmentNb = Integer.parseInt(words[1]);
+            if (!fragments.containsKey(fragmentNb))
+                fragments.put(fragmentNb, new ArrayList<>());
+            int nodeId = fragments.get(fragmentNb).size();
+
+            // create the node
+            fragments.get(fragmentNb).add(new NodeClient(host, nodeId, fragmentNb));
+
+        }
+
+        try {
+            br.close();
+            fr.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         // return all nodes of all fragments
         return fragments.values().stream().collect(ArrayList::new, List::addAll, List::addAll);
     }

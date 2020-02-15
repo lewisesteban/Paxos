@@ -19,6 +19,9 @@ import java.util.Objects;
 public class DistributedTest extends TestCase {
     // TODO what if multiple prepare attempts are needed because propId is too low?
     // --> when server starts, ask highest-numbered server alive for last inst and propNumber (async)
+
+    // TODO no catching-up if there are only 1 or 2 instances missing
+
     private final int nbServers = 5;
     private int nbServersStarted = 0;
 
