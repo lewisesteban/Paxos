@@ -20,8 +20,6 @@ public class DistributedTest extends TestCase {
     // TODO what if multiple prepare attempts are needed because propId is too low?
     // --> when server starts, ask highest-numbered server alive for last inst and propNumber (async)
 
-    // TODO no catching-up if there are only 1 or 2 instances missing
-
     private final int nbServers = 5;
     private int nbServersStarted = 0;
 
@@ -68,10 +66,12 @@ public class DistributedTest extends TestCase {
 
         System.out.println();
         System.out.println("testing backward catching-up");
+        Thread.sleep(3000); // wait for requests sent to 0 to timeout
         startServer(0);
-        Thread.sleep(100); // wait for server to connect to others, so that CUM is initialized
+        Thread.sleep(500); // wait for server 0 to connect to others, so that CUM is initialized
+        System.out.println("sending request");
         client4.get("str100");
-        Thread.sleep(3000); // wait for server to catch-up
+        Thread.sleep(5000); // wait for server to catch-up
         assertEquals(nbCmds + 2, Objects.requireNonNull(new File("acceptor0").listFiles()).length);
 
         System.out.println();
@@ -80,7 +80,10 @@ public class DistributedTest extends TestCase {
         Thread.sleep(1000); // wait for election
         LargeTableClient client5 = startClient("5");
         assertEquals(nbCmds, client5.get("str100").length());
-        assertEquals(nbCmds + 3, Objects.requireNonNull(new File("acceptor4").listFiles()).length);
+        Thread.sleep(200); // wait for temp files to disappear
+        File[] files = new File("acceptor4").listFiles();
+        assertNotNull(files);
+        assertEquals(nbCmds + 3, files.length);
     }
 
     private void startServer(int serverId) throws StorageException, RemoteException {

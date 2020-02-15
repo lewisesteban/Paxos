@@ -4,6 +4,7 @@ import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.listener.CatchingUpManager;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 import com.lewisesteban.paxos.rpc.paxos.*;
+import com.sun.corba.se.impl.orbutil.concurrent.Mutex;
 
 import java.io.IOException;
 import java.rmi.NotBoundException;
@@ -22,14 +23,22 @@ public class NodeClient implements RemotePaxosNode, PaxosProposer, RemoteCallMan
     private int nodeId;
     private int fragmentId;
     private boolean connected = false;
+    private Mutex connectionMutex = new Mutex();
 
     public NodeClient(String host, int nodeId, int fragmentId) {
         this.nodeId = nodeId;
         this.fragmentId = fragmentId;
         this.host = host;
+        new Thread(this::tryConnect).start();
     }
 
-    private synchronized void connectToServer() throws IOException {
+    private void connectToServer() throws IOException {
+        try {
+            if (!connectionMutex.attempt(3000))
+                throw new RemoteException();
+        } catch (InterruptedException e) {
+            throw new RemoteException();
+        }
         if (!connected) {
             try {
                 Registry registry = LocateRegistry.getRegistry(host);
@@ -46,6 +55,8 @@ public class NodeClient implements RemotePaxosNode, PaxosProposer, RemoteCallMan
             } catch (RemoteException | NotBoundException e) {
                 connected = false;
                 throw new IOException(e);
+            } finally {
+                connectionMutex.release();
             }
         }
     }

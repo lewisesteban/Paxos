@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Listener implements ListenerRPCHandle {
+    private static final int MIN_MISSING_INST_FOR_CATCHING_UP = 2;
 
     private long snapshotLastInstanceId = -1;
     private Map<Long, ExecutedCommand> executedCommands = new HashMap<>();
@@ -37,7 +38,8 @@ public class Listener implements ListenerRPCHandle {
     }
 
     private synchronized void startCatchingUp(long highestMissingInstance) {
-        if (!catchingUpManager.isCatchingUp() && !runningProposalManager.contains(highestMissingInstance)) {
+        if (!catchingUpManager.isCatchingUp() && !runningProposalManager.contains(highestMissingInstance)
+            && highestMissingInstance - lastInstanceId >= MIN_MISSING_INST_FOR_CATCHING_UP) {
             catchingUpManager.startCatchUp(lastInstanceId + 1, highestMissingInstance);
             long start = lastInstanceId + 1;
             for (long inst = start; inst <= highestMissingInstance; inst++) {

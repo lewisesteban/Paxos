@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.util.*;
 
 public class BulkCatchingUpManager implements CatchingUpManager {
-    static int TIMEOUT = 10000;
+    static int TIMEOUT = 5000;
 
     private AcceptorRPCHandle remoteAcceptorClient;
     private boolean catchingUp = false;
