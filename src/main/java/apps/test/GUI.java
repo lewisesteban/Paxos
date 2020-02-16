@@ -10,45 +10,9 @@ import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
-// TODO change network_fragment file name according to fragment
-
 // TODO GUI display
 
 // TODO test redirection (client is talking to 1 but 2 is back, is client redirected?)
-
-// TODO error
-// kill and restore while doing commands, then all servers are up everything is well
-// then kill 2. here's what happens:
-// #client1  in:append client1_key2 2
-// #client1 out:ERR network. com.lewisesteban.paxos.client.ClientCommandSender$CommandFailedException: java.io.IOException: java.rmi.ConnectIOException: error during JRMP connection establishment; nested exception is:
-// #client1  in:append client1_key2 2
-// #client1 out:	java.net.SocketException: Connection reset
-// #client1  in:append client1_key2 2
-// #client1 out:OK
-// #client1  in:get client1_key2
-// #client1 out:OK
-// #client1 key client1_key2 local val is 6792401482345802
-// #client1  in:put client1_key0 3
-// ERROR key=client1_key2
-//
-// PS: in all the log, there is no other JRMP error or Connection reset exception
-
-// TODO error
-// after many failures (error mentioned below), client seems to treat every request as a GET
-// ==> MAY BE BECAUSE THE CLIENT SENT "GET" REQUESTS AFTER EVERY FAILURE, INSTEAD OF TRY AGAIN
-// #client1  in:append client1_key2 3
-// #client1 out:OK 35745689024356867235658952364579172
-// #client1  in:get client1_key2
-// #client1 out:OK 35745689024356867235658952364579172
-// #client1 key client1_key2 local val is 357456890243568672356589523645791723
-// ERROR key=client1_key2
-
-// TODO (minor) error: two servers are up, but the client keeps failing
-// #client1 out:ERR network. com.lewisesteban.paxos.client.ClientCommandSender$CommandFailedException: java.io.IOException: java.rmi.ConnectException: Connection refused to host: 192.168.178.221; nested exception is:
-// #client1  in:get client1_key2
-// #client1 out:	java.net.ConnectException: Connection refused (Connection refused)
-// #client1  in:get client1_key2
-
 
 public class GUI extends Frame {
     private String username, password = null;
