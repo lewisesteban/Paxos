@@ -83,6 +83,13 @@ public class Acceptor implements AcceptorRPCHandle {
         return instances.getHighestInstance();
     }
 
+    @Override
+    public long getLastPropNb() {
+        if (instances.getHighestInstance() == -1)
+            return 0;
+        return instances.get(instances.getHighestInstance()).getLastPreparedPropId().getNodePropNb();
+    }
+
     public void removeLogsUntil(long lastInstanceToRemove) throws StorageException {
         AtomicReference<StorageException> exception = new AtomicReference<>(null);
         instances.truncateBefore(lastInstanceToRemove + 1,

@@ -10,46 +10,6 @@ import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
-// TODO change network_fragment file name according to fragment
-
-// TODO GUI display
-
-// TODO test redirection (client is talking to 1 but 2 is back, is client redirected?)
-
-// TODO error
-// kill and restore while doing commands, then all servers are up everything is well
-// then kill 2. here's what happens:
-// #client1  in:append client1_key2 2
-// #client1 out:ERR network. com.lewisesteban.paxos.client.ClientCommandSender$CommandFailedException: java.io.IOException: java.rmi.ConnectIOException: error during JRMP connection establishment; nested exception is:
-// #client1  in:append client1_key2 2
-// #client1 out:	java.net.SocketException: Connection reset
-// #client1  in:append client1_key2 2
-// #client1 out:OK
-// #client1  in:get client1_key2
-// #client1 out:OK
-// #client1 key client1_key2 local val is 6792401482345802
-// #client1  in:put client1_key0 3
-// ERROR key=client1_key2
-//
-// PS: in all the log, there is no other JRMP error or Connection reset exception
-
-// TODO error
-// after many failures (error mentioned below), client seems to treat every request as a GET
-// ==> MAY BE BECAUSE THE CLIENT SENT "GET" REQUESTS AFTER EVERY FAILURE, INSTEAD OF TRY AGAIN
-// #client1  in:append client1_key2 3
-// #client1 out:OK 35745689024356867235658952364579172
-// #client1  in:get client1_key2
-// #client1 out:OK 35745689024356867235658952364579172
-// #client1 key client1_key2 local val is 357456890243568672356589523645791723
-// ERROR key=client1_key2
-
-// TODO (minor) error: two servers are up, but the client keeps failing
-// #client1 out:ERR network. com.lewisesteban.paxos.client.ClientCommandSender$CommandFailedException: java.io.IOException: java.rmi.ConnectException: Connection refused to host: 192.168.178.221; nested exception is:
-// #client1  in:get client1_key2
-// #client1 out:	java.net.ConnectException: Connection refused (Connection refused)
-// #client1  in:get client1_key2
-
-
 public class GUI extends Frame {
     private String username, password = null;
     private JWindow loadingWindow = null;
@@ -62,6 +22,7 @@ public class GUI extends Frame {
     }
 
     private GUI() throws IOException {
+        setTitle("LargeTable testing GUI");
         promptCredentials();
         setVisible(true);
         setLayout(null);
@@ -82,22 +43,24 @@ public class GUI extends Frame {
         List<GUIServerPanel> serverPanels = new ArrayList<>();
         List<GUIClientPanel> clientPanels = new ArrayList<>();
 
+        final Frame frame = this;
         showLoadingWindow("Starting clients and servers." + System.lineSeparator() + "Please wait...");
         Thread serverStartingThread = new Thread(() -> {
             launchServers();
             startClientsSSH();
             closeLoadingWindow();
             for (int i = 0; i < servers.size(); ++i) {
-                GUIServerPanel panel = new GUIServerPanel(servers.get(i), i, 250, 130);
+                GUIServerPanel panel = new GUIServerPanel(servers.get(i), i, 250, 140);
                 serverPanels.add(panel);
                 add(panel);
             }
             for (int i = 0; i < clients.size(); ++i) {
-                GUIClientPanel panel = new GUIClientPanel(clients.get(i), i, 0, 130);
+                GUIClientPanel panel = new GUIClientPanel(clients.get(i), i, 0, 140);
                 clientPanels.add(panel);
                 add(panel);
             }
             setupSKs(clientPanels, serverPanels);
+            frame.setVisible(true);
         });
         serverStartingThread.start();
     }
@@ -106,13 +69,13 @@ public class GUI extends Frame {
         List<Target> clientTargets = new ArrayList<>();
         for (int i = 0; i < clients.size(); ++i)
             clientTargets.add(new TargetClient(clients.get(i), clientPanels.get(i)));
-        clientSK = new GUISerialKillerPanel(clientTargets, 0, 40);
+        clientSK = new GUISerialKillerPanel(clientTargets, 0, 50);
         add(clientSK);
 
         List<Target> serverTargets = new ArrayList<>();
         for (int i = 0; i < servers.size(); ++i)
             serverTargets.add(new TargetServer(servers.get(i), serverPanels.get(i)));
-        serverSK = new GUISerialKillerPanel(serverTargets, 250, 40);
+        serverSK = new GUISerialKillerPanel(serverTargets, 250, 50);
         add(serverSK);
     }
 

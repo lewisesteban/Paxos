@@ -13,4 +13,5 @@ public interface AcceptorRPCHandle {
     PrepareAnswer[] bulkPrepare(long[] instanceIds, Proposal.ID[] propIds) throws IOException;
     AcceptAnswer[] bulkAccept(long[] instanceIds, Proposal[] proposals) throws IOException;
     long getLastInstance() throws IOException;
+    long getLastPropNb() throws IOException;
 }

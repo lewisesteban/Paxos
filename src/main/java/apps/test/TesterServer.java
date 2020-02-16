@@ -36,7 +36,7 @@ class TesterServer {
     synchronized boolean launch() {
         try {
             session = sshClient.startSession();
-            String cmdLine = "java -jar Paxos/target/paxos_server.jar " + fragmentId + " " + nodeId + " Paxos/network_fragment";
+            String cmdLine = "java -jar Paxos/target/paxos_server.jar " + fragmentId + " " + nodeId + " Paxos/network_f" + fragmentId;
             largetableProcess = session.exec(cmdLine);
             BufferedReader reader = new BufferedReader(new InputStreamReader(largetableProcess.getInputStream()));
             reader.readLine(); // this line should be a message stating that RMI server has started

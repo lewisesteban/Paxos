@@ -327,5 +327,10 @@ public class BulkCatchingUpTest extends TestCase {
         public long getLastInstance() {
             return 0;
         }
+
+        @Override
+        public long getLastPropNb() {
+            return 0;
+        }
     }
 }

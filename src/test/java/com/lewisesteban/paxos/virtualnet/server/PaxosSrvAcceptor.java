@@ -42,4 +42,8 @@ public class PaxosSrvAcceptor implements AcceptorRPCHandle {
         return threadManager.pleaseDo(() -> paxosAcceptor.getLastInstance());
     }
 
+    @Override
+    public long getLastPropNb() throws IOException {
+        return threadManager.pleaseDo(() -> paxosAcceptor.getLastPropNb());
+    }
 }

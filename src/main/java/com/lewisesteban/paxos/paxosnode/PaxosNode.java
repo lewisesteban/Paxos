@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.List;
 
 public class PaxosNode implements RemotePaxosNode, PaxosProposer {
+    static boolean CATCH_UP_ON_START = true;
 
     private Acceptor acceptor;
     private Listener listener;
@@ -47,7 +48,41 @@ public class PaxosNode implements RemotePaxosNode, PaxosProposer {
     public void start() {
         paxosCluster.start();
         unneededInstanceGossipper.setup(paxosCluster);
+        if (CATCH_UP_ON_START) {
+            new Thread(this::fetchHighestInstance).start();
+            new Thread(this::fetchHighestPropNb).start();
+        }
         running = true;
+    }
+
+    private void fetchHighestInstance() {
+        int nodeId = paxosCluster.getNbMembers() - 1;
+        while (nodeId >= 0) {
+            if (nodeId != paxosCluster.getMyNodeId()) {
+                try {
+                    long inst = paxosCluster.getMembers().get(nodeId).getAcceptor().getLastInstance();
+                    proposer.updateInst(inst);
+                    return;
+                } catch (IOException ignored) {
+                }
+            }
+            nodeId--;
+        }
+    }
+
+    private void fetchHighestPropNb() {
+        int nodeId = paxosCluster.getNbMembers() - 1;
+        while (nodeId >= 0) {
+            if (nodeId != paxosCluster.getMyNodeId()) {
+                try {
+                    long propNb = paxosCluster.getMembers().get(nodeId).getAcceptor().getLastPropNb();
+                    proposer.updatePropNb(propNb);
+                    return;
+                } catch (IOException ignored) {
+                }
+            }
+            nodeId--;
+        }
     }
 
     public void stop() {

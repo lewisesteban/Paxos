@@ -50,6 +50,8 @@ public class InstanceContainer<T extends Serializable> {
     }
 
     long getHighestInstance() {
+        if (instances.isEmpty())
+            return -1;
         return highestInstance;
     }
 

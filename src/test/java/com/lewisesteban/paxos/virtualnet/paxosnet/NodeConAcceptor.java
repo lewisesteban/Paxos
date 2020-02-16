@@ -47,4 +47,9 @@ class NodeConAcceptor implements AcceptorRPCHandle {
     public long getLastInstance() throws IOException {
         return parent.tryNetCall(() -> acceptorHandle().getLastInstance());
     }
+
+    @Override
+    public long getLastPropNb() throws IOException {
+        return parent.tryNetCall(() -> acceptorHandle().getLastPropNb());
+    }
 }
