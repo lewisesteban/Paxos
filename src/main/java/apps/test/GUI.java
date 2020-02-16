@@ -17,9 +17,6 @@ import java.util.concurrent.CyclicBarrier;
 // TODO test redirection (client is talking to 1 but 2 is back, is client redirected?)
 
 // TODO error
-// client got stuck on AGAIN after having killed 2 servers simultaneously
-
-// TODO error
 // kill and restore while doing commands, then all servers are up everything is well
 // then kill 2. here's what happens:
 // #client1  in:append client1_key2 2

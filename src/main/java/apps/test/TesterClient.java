@@ -163,6 +163,7 @@ class TesterClient {
         System.out.print("#" + this.clientId + "  in:" + command);
         largetableProcess.getOutputStream().flush();
         resLine = reader.readLine();
+        System.out.println("#" + this.clientId + " out:" + resLine);
         while (testing && resLine != null && !resLine.startsWith("OK")) {
             largetableProcess.getOutputStream().write("again\n".getBytes());
             System.out.println("#" + this.clientId + "  in: AGAIN");

@@ -25,13 +25,13 @@ public class TerminalApp {
             readInputAndExecute(initialize(args));
             System.exit(0);
         } catch (StorageException | FileNotFoundException e) {
-            System.err.println("ERR storage. " + e.getMessage());
+            System.err.println("ERR storage. " + e.getMessage().replace("\n", "").replace("\r", ""));
             System.exit(1);
         } catch (Client.LargeTableException e) {
-            System.err.println("ERR network. " + e.getMessage());
+            System.err.println("ERR network. " + e.getMessage().replace("\n", "").replace("\r", ""));
             System.exit(1);
         } catch (RemoteException | NotBoundException e) {
-            System.err.println("ERR RMI. " + e.getMessage());
+            System.err.println("ERR RMI. " + e.getMessage().replace("\n", "").replace("\r", ""));
             e.printStackTrace();
         } catch (FileFormatException e) {
             System.err.println(e.getMessage());

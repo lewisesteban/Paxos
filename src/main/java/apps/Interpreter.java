@@ -44,11 +44,11 @@ class Interpreter {
                 return "OK " + res;
             }
         } catch (StorageException e) {
-            return "ERR storage. " + e.getMessage();
+            return "ERR storage. " + e.getMessage().replace("\n", "").replace("\r", "");
         } catch (LargeTableClient.LargeTableException e) {
-            return "ERR network. " + e.getMessage();
+            return "ERR network. " + e.getMessage().replace("\n", "").replace("\r", "");
         } catch (InvalidCommandException e) {
-            return "ERR invalid command. " + e.getMessage();
+            return "ERR invalid command. " + e.getMessage().replace("\n", "").replace("\r", "");
         }
     }
 
