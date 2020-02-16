@@ -40,7 +40,8 @@ public class VirtualNetTest extends PaxosTestCase {
     private int slowAcceptorId = 0;
 
     @Override
-    protected void setUp() {
+    protected void setUp() throws Exception {
+        super.setUp();
         Membership.LEADER_ELECTION = false;
     }
 
@@ -291,6 +292,11 @@ public class VirtualNetTest extends PaxosTestCase {
             @Override
             public long getLastInstance() throws IOException {
                 return acceptor.getLastInstance();
+            }
+
+            @Override
+            public long getLastPropNb() throws IOException {
+                return acceptor.getLastPropNb();
             }
         }
 

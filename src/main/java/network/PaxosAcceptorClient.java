@@ -57,4 +57,9 @@ public class PaxosAcceptorClient implements RemotePaxosAcceptor {
     public long getLastInstance() throws IOException {
         return client.doRemoteCall(() -> remoteAcceptor.getLastInstance());
     }
+
+    @Override
+    public long getLastPropNb() throws IOException {
+        return client.doRemoteCall(() -> remoteAcceptor.getLastPropNb());
+    }
 }

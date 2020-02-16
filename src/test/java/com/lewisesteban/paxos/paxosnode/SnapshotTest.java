@@ -60,6 +60,8 @@ public class SnapshotTest extends PaxosTestCase {
     }
 
     public void testDownloadSnapshot() throws IOException, InterruptedException {
+        PaxosNode.CATCH_UP_ON_START = false;
+
         AtomicBoolean snapshotLoaded = new AtomicBoolean(false);
         AtomicInteger snapshotCreated = new AtomicInteger(0);
         AtomicReference<String> stateMachineError = new AtomicReference<>(null);

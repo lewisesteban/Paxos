@@ -17,9 +17,6 @@ import java.util.List;
 import java.util.Objects;
 
 public class DistributedTest extends TestCase {
-    // TODO what if multiple prepare attempts are needed because propId is too low?
-    // --> when server starts, ask highest-numbered server alive for last inst and propNumber (async)
-
     private final int nbServers = 5;
     private int nbServersStarted = 0;
 
@@ -79,7 +76,9 @@ public class DistributedTest extends TestCase {
         startServer(4);
         Thread.sleep(1000); // wait for election
         LargeTableClient client5 = startClient("5");
+        long start = System.currentTimeMillis();
         assertEquals(nbCmds, client5.get("str100").length());
+        System.out.println("time: " + (System.currentTimeMillis() - start) + " ms");
         Thread.sleep(200); // wait for temp files to disappear
         File[] files = new File("acceptor4").listFiles();
         assertNotNull(files);

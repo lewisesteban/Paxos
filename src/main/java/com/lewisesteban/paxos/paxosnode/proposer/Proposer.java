@@ -51,6 +51,24 @@ public class Proposer implements PaxosProposer {
         this.clientCommandContainer = clientCommandContainer;
     }
 
+    public void updateInst(long remoteHighestInst) {
+        boolean finished = false;
+        while (!finished) {
+            long myHighest = lastGeneratedInstanceId.get();
+            if (remoteHighestInst > myHighest) {
+                if (lastGeneratedInstanceId.compareAndSet(myHighest, remoteHighestInst)) {
+                    finished = true;
+                }
+            } else {
+                return;
+            }
+        }
+    }
+
+    public void updatePropNb(long remoteHighestPropNb) {
+        propFac.updateProposalNumber(remoteHighestPropNb);
+    }
+
     @Override
     public long getNewInstanceId() {
         if (listener.getLastInstanceId() > lastGeneratedInstanceId.get()) {

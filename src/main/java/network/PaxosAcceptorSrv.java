@@ -38,4 +38,9 @@ public class PaxosAcceptorSrv implements RemotePaxosAcceptor {
     public long getLastInstance() throws IOException {
         return paxosAcceptor.getLastInstance();
     }
+
+    @Override
+    public long getLastPropNb() throws IOException {
+        return paxosAcceptor.getLastPropNb();
+    }
 }

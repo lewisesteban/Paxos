@@ -33,4 +33,9 @@ class EmptyAcceptor implements AcceptorRPCHandle {
     public long getLastInstance() throws IOException {
         throw new IOException("Not connected");
     }
+
+    @Override
+    public long getLastPropNb() throws IOException {
+        throw new IOException("Not connected");
+    }
 }
