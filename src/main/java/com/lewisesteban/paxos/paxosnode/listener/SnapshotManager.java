@@ -5,7 +5,7 @@ import com.lewisesteban.paxos.paxosnode.acceptor.Acceptor;
 import com.lewisesteban.paxos.storage.StorageException;
 
 public class SnapshotManager {
-    public static int SNAPSHOT_FREQUENCY = 1000;
+    public static int SNAPSHOT_FREQUENCY = 300;
 
     private final StateMachine stateMachine;
     private Listener listener;
