@@ -159,13 +159,17 @@ class TesterClient {
         if (!command.endsWith("\n"))
             command += "\n";
         String resLine;
-        do {
-            largetableProcess.getOutputStream().write(command.getBytes());
-            System.out.print("#" + this.clientId + "  in:" + command);
+        largetableProcess.getOutputStream().write(command.getBytes());
+        System.out.print("#" + this.clientId + "  in:" + command);
+        largetableProcess.getOutputStream().flush();
+        resLine = reader.readLine();
+        while (testing && resLine != null && !resLine.startsWith("OK")) {
+            largetableProcess.getOutputStream().write("again\n".getBytes());
+            System.out.println("#" + this.clientId + "  in: AGAIN");
             largetableProcess.getOutputStream().flush();
             resLine = reader.readLine();
             System.out.println("#" + this.clientId + " out:" + resLine);
-        } while (testing && resLine != null && !resLine.startsWith("OK"));
+        }
         if (resLine == null)
             throw new IOException("connection closed");
         return resLine;
@@ -179,15 +183,7 @@ class TesterClient {
         return largetableProcess != null;
     }
 
-    synchronized boolean isTesting() {
-        return testing;
-    }
-
-    int getNbFinishedCommands() {
-        return commandCounter;
-    }
-
-    synchronized void stopTesting() {
+    private synchronized void stopTesting() {
         testing = false;
         if (testingThread != null) {
             try {

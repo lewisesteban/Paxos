@@ -113,6 +113,8 @@ public class PaxosClient<NODE extends RemotePaxosNode & PaxosProposer> {
      * @param keyHash Hash of the key corresponding to the command. Used for fragmenting.
      */
     public Serializable tryCommandAgain(CommandException e, int keyHash) throws CommandException {
+        if (e == null)
+            return null;
         return fragments.get(keyHash % nbFragments).tryCommand(e.getCommandData(), e.getCommandNb(), e.getInstanceThatMayHaveBeenInitiated());
     }
 

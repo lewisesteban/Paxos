@@ -23,13 +23,14 @@ class Interpreter {
         commands.put("APPEND", this::cmdAppend);
         commands.put("END", this::cmdEnd);
         commands.put("EXIT", this::cmdExit);
+        commands.put("AGAIN", this::cmdAgain);
     }
 
     String interpret(String line) {
 
         String[] words = splitLine(line);
         if (words == null || words.length == 0 || !commands.containsKey(words[0].toUpperCase())) {
-            return "ERR invalid command. Available commands: LAST | GET | PUT | APPEND | END | EXIT";
+            return "ERR invalid command. Available commands: LAST | GET | PUT | APPEND | AGAIN | END | EXIT";
         }
         String cmd = words[0].toUpperCase();
         String[] args = Arrays.copyOfRange(words, 1, words.length);
@@ -96,6 +97,10 @@ class Interpreter {
         } else {
             return "";
         }
+    }
+
+    private String cmdAgain(@SuppressWarnings("unused") String[] args) throws Client.LargeTableException {
+        return client.tryAgain();
     }
 
     private String cmdGet(String[] args) throws InvalidCommandException, Client.LargeTableException {

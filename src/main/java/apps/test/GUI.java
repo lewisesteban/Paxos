@@ -12,16 +12,46 @@ import java.util.concurrent.CyclicBarrier;
 
 // TODO change network_fragment file name according to fragment
 
-// TODO server 2 dead, last inst 40, client sends cmd, server 1 skips all instances up to 44 because they supposedly have consensus on another value
-// happened after doing a command when 2 servers out of 3 are dead, and then trying it again when 2 are up
+// TODO GUI display
 
-// TODO after some killing and restarting, restarted all, then did put/appends on server 2, which did not work (gets returned wrong values). However, after killing server 2, gets returned correct values (from server 1)
-// put key a
-// get key
-// kill 2
-// append key b
-// get key -> b
-// was it just a typing mistake?
+// TODO test redirection (client is talking to 1 but 2 is back, is client redirected?)
+
+// TODO error
+// client got stuck on AGAIN after having killed 2 servers simultaneously
+
+// TODO error
+// kill and restore while doing commands, then all servers are up everything is well
+// then kill 2. here's what happens:
+// #client1  in:append client1_key2 2
+// #client1 out:ERR network. com.lewisesteban.paxos.client.ClientCommandSender$CommandFailedException: java.io.IOException: java.rmi.ConnectIOException: error during JRMP connection establishment; nested exception is:
+// #client1  in:append client1_key2 2
+// #client1 out:	java.net.SocketException: Connection reset
+// #client1  in:append client1_key2 2
+// #client1 out:OK
+// #client1  in:get client1_key2
+// #client1 out:OK
+// #client1 key client1_key2 local val is 6792401482345802
+// #client1  in:put client1_key0 3
+// ERROR key=client1_key2
+//
+// PS: in all the log, there is no other JRMP error or Connection reset exception
+
+// TODO error
+// after many failures (error mentioned below), client seems to treat every request as a GET
+// ==> MAY BE BECAUSE THE CLIENT SENT "GET" REQUESTS AFTER EVERY FAILURE, INSTEAD OF TRY AGAIN
+// #client1  in:append client1_key2 3
+// #client1 out:OK 35745689024356867235658952364579172
+// #client1  in:get client1_key2
+// #client1 out:OK 35745689024356867235658952364579172
+// #client1 key client1_key2 local val is 357456890243568672356589523645791723
+// ERROR key=client1_key2
+
+// TODO (minor) error: two servers are up, but the client keeps failing
+// #client1 out:ERR network. com.lewisesteban.paxos.client.ClientCommandSender$CommandFailedException: java.io.IOException: java.rmi.ConnectException: Connection refused to host: 192.168.178.221; nested exception is:
+// #client1  in:get client1_key2
+// #client1 out:	java.net.ConnectException: Connection refused (Connection refused)
+// #client1  in:get client1_key2
+
 
 public class GUI extends Frame {
     private String username, password = null;
