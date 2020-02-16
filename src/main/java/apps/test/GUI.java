@@ -10,10 +10,6 @@ import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
-// TODO GUI display
-
-// TODO test redirection (client is talking to 1 but 2 is back, is client redirected?)
-
 public class GUI extends Frame {
     private String username, password = null;
     private JWindow loadingWindow = null;
@@ -26,6 +22,7 @@ public class GUI extends Frame {
     }
 
     private GUI() throws IOException {
+        setTitle("LargeTable testing GUI");
         promptCredentials();
         setVisible(true);
         setLayout(null);
@@ -46,22 +43,24 @@ public class GUI extends Frame {
         List<GUIServerPanel> serverPanels = new ArrayList<>();
         List<GUIClientPanel> clientPanels = new ArrayList<>();
 
+        final Frame frame = this;
         showLoadingWindow("Starting clients and servers." + System.lineSeparator() + "Please wait...");
         Thread serverStartingThread = new Thread(() -> {
             launchServers();
             startClientsSSH();
             closeLoadingWindow();
             for (int i = 0; i < servers.size(); ++i) {
-                GUIServerPanel panel = new GUIServerPanel(servers.get(i), i, 250, 130);
+                GUIServerPanel panel = new GUIServerPanel(servers.get(i), i, 250, 140);
                 serverPanels.add(panel);
                 add(panel);
             }
             for (int i = 0; i < clients.size(); ++i) {
-                GUIClientPanel panel = new GUIClientPanel(clients.get(i), i, 0, 130);
+                GUIClientPanel panel = new GUIClientPanel(clients.get(i), i, 0, 140);
                 clientPanels.add(panel);
                 add(panel);
             }
             setupSKs(clientPanels, serverPanels);
+            frame.setVisible(true);
         });
         serverStartingThread.start();
     }
@@ -70,13 +69,13 @@ public class GUI extends Frame {
         List<Target> clientTargets = new ArrayList<>();
         for (int i = 0; i < clients.size(); ++i)
             clientTargets.add(new TargetClient(clients.get(i), clientPanels.get(i)));
-        clientSK = new GUISerialKillerPanel(clientTargets, 0, 40);
+        clientSK = new GUISerialKillerPanel(clientTargets, 0, 50);
         add(clientSK);
 
         List<Target> serverTargets = new ArrayList<>();
         for (int i = 0; i < servers.size(); ++i)
             serverTargets.add(new TargetServer(servers.get(i), serverPanels.get(i)));
-        serverSK = new GUISerialKillerPanel(serverTargets, 250, 40);
+        serverSK = new GUISerialKillerPanel(serverTargets, 250, 50);
         add(serverSK);
     }
 
