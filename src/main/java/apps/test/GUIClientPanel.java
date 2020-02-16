@@ -50,7 +50,7 @@ class GUIClientPanel extends Panel implements ClientUpdateHandler {
 
     @Override
     public void error(String clientId, int commandNumber, String key, String expected, String actual, String cmdType, String cmdVal) {
-        // TODO
+        System.err.println("ERROR clientId=" + clientId + " cmdNb=" + commandNumber + " expected=" + expected + " actual=" + actual);
     }
 
     @Override

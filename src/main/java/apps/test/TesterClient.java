@@ -4,6 +4,7 @@ import net.schmizz.sshj.SSHClient;
 import net.schmizz.sshj.common.IOUtils;
 import net.schmizz.sshj.connection.ConnectionException;
 import net.schmizz.sshj.connection.channel.direct.Session;
+import net.schmizz.sshj.transport.TransportException;
 import net.schmizz.sshj.transport.verification.PromiscuousVerifier;
 
 import java.io.BufferedReader;
@@ -48,6 +49,8 @@ class TesterClient {
     }
 
     synchronized boolean launch() {
+        if (testing)
+            return false;
         try {
             session = sshClient.startSession();
             String cmdLine = "java -jar Paxos/target/paxos_client.jar " + clientId + " Paxos/network";
@@ -63,7 +66,7 @@ class TesterClient {
 
     private void getPid(String startProcessCmd) throws IOException {
         Session session = sshClient.startSession();
-        String getPidCmd = "ps axo pid,cmd | grep \"" + startProcessCmd + "\" | grep -P '\\d+' -o | head -n1";
+        String getPidCmd = "ps axo pid,cmd | grep \"" + startProcessCmd + "\" | grep -v \"grep\" | grep -P '\\d+' -o | head -n1";
         pid = IOUtils.readFully(session.exec(getPidCmd).getInputStream()).toString();
     }
 
@@ -85,8 +88,8 @@ class TesterClient {
             try {
                 if (testingValues.isEmpty())
                     fetchRemoteValues();
-                System.out.println("#" + this.clientId + "----- restoring");
-                restore();
+                else
+                    restore();
                 System.out.println("#" + this.clientId + "----- starting");
                 while (largetableProcess != null && largetableProcess.isOpen() && testing) {
 
@@ -104,7 +107,6 @@ class TesterClient {
                     if (random.nextInt(3) == 0) {
                         String res = doCommandUntilSuccess("get " + key + "\n");
                         String resVal = res.length() <= 3 ? null : res.substring(3);
-                        System.out.println("#" + this.clientId + " key " + key + " local val is " + testingValues.get(key));
                         if ((resVal == null && testingValues.get(key) == null) ||
                                 (resVal != null && resVal.equals(testingValues.get(key)))) {
                             cmdFinished(key, resVal, cmdType, cmdVal);
@@ -118,7 +120,6 @@ class TesterClient {
                 }
             } catch (IOException e) {
                 // typically happens when client process is killed by tester program
-                testing = false;
             }
         });
         testingThread.start();
@@ -130,6 +131,7 @@ class TesterClient {
     }
 
     private void restore() throws IOException {
+        System.out.println("#" + this.clientId + "----- restoring");
         String lastFinishedCmd = doCommandUntilSuccess("last command");
         if (lastFinishedCmd.length() <= 3)
             return;
@@ -160,16 +162,16 @@ class TesterClient {
             command += "\n";
         String resLine;
         largetableProcess.getOutputStream().write(command.getBytes());
-        System.out.print("#" + this.clientId + "  in:" + command);
+        //System.out.print("#" + this.clientId + "  in:" + command);
         largetableProcess.getOutputStream().flush();
         resLine = reader.readLine();
-        System.out.println("#" + this.clientId + " out:" + resLine);
+        //System.out.println("#" + this.clientId + " out:" + resLine);
         while (testing && resLine != null && !resLine.startsWith("OK")) {
             largetableProcess.getOutputStream().write("again\n".getBytes());
-            System.out.println("#" + this.clientId + "  in: AGAIN");
+            //System.out.println("#" + this.clientId + "  in: AGAIN");
             largetableProcess.getOutputStream().flush();
             resLine = reader.readLine();
-            System.out.println("#" + this.clientId + " out:" + resLine);
+            //System.out.println("#" + this.clientId + " out:" + resLine);
         }
         if (resLine == null)
             throw new IOException("connection closed");
@@ -185,6 +187,8 @@ class TesterClient {
     }
 
     private synchronized void stopTesting() {
+        if (!testing)
+            return;
         testing = false;
         if (testingThread != null) {
             try {
@@ -203,17 +207,23 @@ class TesterClient {
             Session killSession = sshClient.startSession();
             IOUtils.readFully(killSession.exec("kill -9 " + pid).getInputStream());
             killSession.close();
-            synchronized (this) {
-                if (largetableProcess != null) {
+            if (largetableProcess != null) {
+                try {
                     largetableProcess.close();
-                    largetableProcess = null;
+                } catch (TransportException | ConnectionException e) {
+                    System.out.println("client process close error: " + e);
                 }
-                if (session != null) {
-                    session.close();
-                    session = null;
-                }
-                stopTesting();
+                largetableProcess = null;
             }
+            if (session != null) {
+                try {
+                    session.close();
+                } catch (TransportException | ConnectionException e) {
+                    System.out.println("client session close error: " + e);
+                }
+                session = null;
+            }
+            stopTesting();
             return true;
         } catch (ConnectionException e) {
             e.printStackTrace();
@@ -226,7 +236,6 @@ class TesterClient {
     }
 
     private void reportError(String key, String expected, String actual, String cmdType, String cmdVal) {
-        System.err.println("ERROR key=" + key);
         clientUpdateHandler.error(clientId, commandCounter, key, expected, actual, cmdType, cmdVal);
     }
 
