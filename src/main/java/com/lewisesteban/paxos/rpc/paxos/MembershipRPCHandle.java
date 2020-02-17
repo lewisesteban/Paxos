@@ -4,8 +4,9 @@ import com.lewisesteban.paxos.paxosnode.membership.NodeHeartbeat;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.rmi.Remote;
 
-public interface MembershipRPCHandle {
+public interface MembershipRPCHandle extends Remote {
 
     void gossipMemberList(NodeHeartbeat[] memberList) throws IOException;
 

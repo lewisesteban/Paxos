@@ -5,8 +5,9 @@ import com.lewisesteban.paxos.paxosnode.acceptor.PrepareAnswer;
 import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
 
 import java.io.IOException;
+import java.rmi.Remote;
 
-public interface AcceptorRPCHandle {
+public interface AcceptorRPCHandle extends Remote {
 
     PrepareAnswer reqPrepare(long instanceId, Proposal.ID propId) throws IOException;
     AcceptAnswer reqAccept(long instanceId, Proposal proposal) throws IOException;

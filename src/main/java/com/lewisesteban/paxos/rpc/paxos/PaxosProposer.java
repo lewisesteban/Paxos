@@ -4,8 +4,9 @@ import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.proposer.Result;
 
 import java.io.IOException;
+import java.rmi.Remote;
 
-public interface PaxosProposer {
+public interface PaxosProposer extends Remote {
 
     /**
      * Returns a new instance that should be available for proposing a command.

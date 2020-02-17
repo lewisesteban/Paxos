@@ -4,8 +4,9 @@ import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.paxosnode.StateMachine;
 
 import java.io.IOException;
+import java.rmi.Remote;
 
-public interface ListenerRPCHandle {
+public interface ListenerRPCHandle extends Remote {
 
     /**
      * Attempts to execute the specified command for the specified instance.
