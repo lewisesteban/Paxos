@@ -1,8 +1,6 @@
 package com.lewisesteban.paxos.rpc.paxos;
 
-import java.rmi.Remote;
-
-public interface RemotePaxosNode extends Remote {
+public interface RemotePaxosNode {
 
     /**
      * Returns the ID of the node within its fragment's cluster
