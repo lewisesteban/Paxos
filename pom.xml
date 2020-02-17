@@ -82,6 +82,18 @@
             <version>0.27.0</version>
         </dependency>
 
+	<dependency>
+  		<groupId>org.jboss.spec.javax.rmi</groupId>
+		<artifactId>jboss-rmi-api_1.0_spec</artifactId>
+		<version>1.0.4.Final</version>
+	</dependency>
+
+	<dependency>
+		<groupId>org.jboss.openjdk-orb</groupId>
+		<artifactId>openjdk-orb</artifactId>
+		<version>8.1.4.Final</version>
+	</dependency>
+
     </dependencies>
 
 </project>
