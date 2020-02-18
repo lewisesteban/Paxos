@@ -16,7 +16,8 @@ public class MultiClientCatchingUpManager implements CatchingUpManager {
         for (ClientCUMGetter clientCUMGetter : clients) {
             CatchingUpManager catchingUpManager = clientCUMGetter.get();
             if (catchingUpManager != null)
-                return catchingUpManager.isCatchingUp();
+                if (catchingUpManager.isCatchingUp())
+                    return true;
         }
         return false;
     }

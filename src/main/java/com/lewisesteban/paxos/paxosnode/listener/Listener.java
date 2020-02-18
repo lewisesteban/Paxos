@@ -14,7 +14,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Listener implements ListenerRPCHandle {
-    private static final int MIN_MISSING_INST_FOR_CATCHING_UP = 2;
+    private static final int MIN_MISSING_INST_FOR_CATCHING_UP = 3;
+    private static final int BULK_CATCHING_UP_MAX_SIZE = 100;
 
     private long snapshotLastInstanceId = -1;
     private Map<Long, ExecutedCommand> executedCommands = new HashMap<>();
@@ -23,7 +24,7 @@ public class Listener implements ListenerRPCHandle {
     private StateMachine stateMachine;
     private RunningProposalManager runningProposalManager;
     private SnapshotManager snapshotManager;
-    private CatchingUpManager catchingUpManager = new EmptyCatchingUpManager();
+    private CatchingUpManager catchingUpManager = null;
 
     public Listener(ClusterHandle memberList, StateMachine stateMachine,
                     RunningProposalManager runningProposalManager, SnapshotManager snapshotManager) {
@@ -37,17 +38,44 @@ public class Listener implements ListenerRPCHandle {
         this.catchingUpManager = catchingUpManager;
     }
 
-    private synchronized void startCatchingUp(long highestMissingInstance) {
-        if (!catchingUpManager.isCatchingUp() && !runningProposalManager.contains(highestMissingInstance)
-            && highestMissingInstance - lastInstanceId >= MIN_MISSING_INST_FOR_CATCHING_UP) {
-            catchingUpManager.startCatchUp(lastInstanceId + 1, highestMissingInstance);
-            long start = lastInstanceId + 1;
-            for (long inst = start; inst <= highestMissingInstance; inst++) {
+    private synchronized boolean catchUpBulk(long highestMissingInstance) {
+        while (highestMissingInstance - lastInstanceId >= MIN_MISSING_INST_FOR_CATCHING_UP) {
+            int bulkSize = BULK_CATCHING_UP_MAX_SIZE;
+            if (highestMissingInstance - lastInstanceId < bulkSize)
+                bulkSize = (int) (highestMissingInstance - lastInstanceId);
+            long CUFirst = lastInstanceId + 1;
+            long CULast = lastInstanceId + bulkSize;
+            catchingUpManager.startCatchUp(CUFirst, CULast);
+            for (long inst = CUFirst; inst <= CULast; inst++) {
                 runningProposalManager.tryProposeNoOp(inst);
             }
-        } else {
-            runningProposalManager.tryProposeNoOp(highestMissingInstance);
+
+            long lastInstIdBefore = lastInstanceId;
+            while (runningProposalManager.contains(CULast)) {
+                try {
+                    wait();
+                } catch (InterruptedException ignored) {
+                }
+            }
+            if (!(lastInstanceId > lastInstIdBefore)) {
+                return false;
+            }
         }
+        return true;
+    }
+
+    private synchronized boolean catchUpOneByOne(long highestMissingInstance) {
+        if (highestMissingInstance <= snapshotLastInstanceId)
+            return true;
+        runningProposalManager.tryProposeNoOp(highestMissingInstance);
+        while (runningProposalManager.contains(highestMissingInstance)) {
+            try {
+                // to do: optimize? having each waiting instance check "contains" every time is not so good
+                wait();
+            } catch (InterruptedException ignored) {
+            }
+        }
+        return highestMissingInstance <= snapshotLastInstanceId || executedCommands.containsKey(highestMissingInstance);
     }
 
     /**
@@ -56,24 +84,21 @@ public class Listener implements ListenerRPCHandle {
      * Returns false if consensus cannot be reached (eg because of network failure).
      */
     public synchronized boolean waitForConsensusOn(long instance) {
-        if (instance <= snapshotLastInstanceId)
-            return true;
-        startCatchingUp(instance);
-        while (runningProposalManager.contains(instance)) {
-            try {
-                // to do: optimize? having each waiting instance check "contains" every time is not so good
-                wait();
-            } catch (InterruptedException ignored) {
+        if (catchingUpManager != null && !runningProposalManager.contains(instance)) {
+            if (instance - lastInstanceId >= MIN_MISSING_INST_FOR_CATCHING_UP) {
+                if (!catchUpBulk(instance))
+                    return false;
             }
         }
-        return instance <= snapshotLastInstanceId || executedCommands.containsKey(instance);
+        return catchUpOneByOne(instance);
     }
 
     @Override
     public synchronized boolean execute(long instanceId, Command command) throws IOException {
         if (executedCommands.containsKey(instanceId))
             return true;
-        catchingUpManager.consensusReached(instanceId);
+        if (catchingUpManager != null)
+            catchingUpManager.consensusReached(instanceId);
         if (instanceId > snapshotLastInstanceId + 1 && !executedCommands.containsKey(instanceId - 1)) {
             if (!waitForConsensusOn(instanceId - 1)) {
                 throw new IOException("bad network state");

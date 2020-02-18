@@ -5,6 +5,8 @@ import com.lewisesteban.paxos.paxosnode.Command;
 import java.io.IOException;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -13,6 +15,7 @@ public class RunningProposalManager {
     private Proposer proposer = null;
     private Object listener = null;
     private ReadWriteLock lock = new ReentrantReadWriteLock();
+    private ExecutorService executorService = Executors.newCachedThreadPool();
 
     public RunningProposalManager() { }
 
@@ -33,12 +36,11 @@ public class RunningProposalManager {
             } catch (InstanceAlreadyRunningException e) {
                 return;
             }
-            Thread thread = new Thread(() -> {
+            executorService.submit(() -> {
                 try {
                     proposer.propose(Command.NoOpCommand(), instance, true);
                 } catch (IOException ignored) { }
             });
-            thread.start();
         } finally {
             lock.writeLock().unlock();
         }

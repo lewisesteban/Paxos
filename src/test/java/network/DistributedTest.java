@@ -44,7 +44,7 @@ public class DistributedTest extends TestCase {
 
     public void test2CatchingUp() throws RemoteException, StorageException, Client.LargeTableException, InterruptedException {
         SnapshotManager.SNAPSHOT_FREQUENCY = 1000;
-        int nbCmds = 100;
+        int nbCmds = 120;
 
         System.out.println("starting");
         for (int srvNb = nbServersStarted + 1; srvNb < nbServers - 1; srvNb++) {
