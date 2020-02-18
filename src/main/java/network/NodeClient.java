@@ -35,7 +35,7 @@ public class NodeClient implements RemotePaxosNode, PaxosProposer, RemoteCallMan
     private void connectToServer() throws IOException {
         try {
             if (!connectionMutex.attempt(3000))
-                throw new RemoteException();
+                throw new RemoteException("Mutex timed out");
         } catch (InterruptedException e) {
             throw new RemoteException();
         }

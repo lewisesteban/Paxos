@@ -61,7 +61,7 @@ class SerialKiller {
         }
     }
 
-    private boolean affectRandom(boolean restore) throws Exception {
+    private void affectRandom(boolean restore) throws Exception {
         int i = random.nextInt(targets.size());
         int nbAttempts = 0;
         while (!((restore && !targets.get(i).isAlive()) || (!restore && targets.get(i).isAlive()))) {
@@ -78,16 +78,10 @@ class SerialKiller {
         if (restore) {
             if (targets.get(i).restore()) {
                 nbAlive++;
-                return true;
-            } else {
-                return false;
             }
         } else {
             if (targets.get(i).kill()) {
                 nbAlive--;
-                return true;
-            } else {
-                return false;
             }
         }
     }
@@ -105,9 +99,9 @@ class SerialKiller {
         } else {
             if (nbAlive == 0) {
                 return true;
-            } else if (nbAlive <= targets.size() / 2) {
-                int rand = random.nextInt(nbAlive);
-                return rand == 0;
+            } else if (nbAlive <= (targets.size() / 2) + 1) { // the +1 is to reduce likelihood of "bad net state"
+                int rand = random.nextInt(nbAlive + 1);
+                return rand <= 1; // the "+1" and "<=1" are to reduce time spent with half the servers down
             } else {
                 return false;
             }

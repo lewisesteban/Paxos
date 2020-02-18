@@ -2,7 +2,6 @@ package apps;
 
 import com.lewisesteban.paxos.storage.StorageException;
 import com.lewisesteban.paxos.storage.WholeFileAccessor;
-import largetable.Client;
 import largetable.LargeTableClient;
 import network.NodeClient;
 
@@ -10,8 +9,6 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.rmi.NotBoundException;
-import java.rmi.RemoteException;
 import java.util.List;
 
 public class TerminalApp {
@@ -27,23 +24,15 @@ public class TerminalApp {
         } catch (StorageException | FileNotFoundException e) {
             System.err.println("ERR storage. " + e.getMessage().replace("\n", "").replace("\r", ""));
             System.exit(1);
-        } catch (Client.LargeTableException e) {
-            System.err.println("ERR network. " + e.getMessage().replace("\n", "").replace("\r", ""));
-            System.exit(1);
-        } catch (RemoteException | NotBoundException e) {
-            System.err.println("ERR RMI. " + e.getMessage().replace("\n", "").replace("\r", ""));
-            e.printStackTrace();
         } catch (FileFormatException e) {
             System.err.println(e.getMessage());
         }
     }
 
-    private static LargeTableClient initialize(String[] args) throws StorageException, Client.LargeTableException, RemoteException, NotBoundException, FileNotFoundException, FileFormatException {
+    private static LargeTableClient initialize(String[] args) throws StorageException, FileNotFoundException, FileFormatException {
         String clientId = args[0];
         List<NodeClient> cluster = NetworkFileParser.createRemoteNodes(args.length <= 1 ? null : args[1]);
-        LargeTableClient client = new LargeTableClient<>(cluster, clientId, WholeFileAccessor::new);
-        client.recover();
-        return client;
+        return new LargeTableClient<>(cluster, clientId, WholeFileAccessor::new);
     }
 
     private static void readInputAndExecute(LargeTableClient client) {
