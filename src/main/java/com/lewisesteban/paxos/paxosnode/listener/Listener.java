@@ -25,6 +25,7 @@ public class Listener implements ListenerRPCHandle {
     private RunningProposalManager runningProposalManager;
     private SnapshotManager snapshotManager;
     private CatchingUpManager catchingUpManager = null;
+    private Long currentBulkCatchUp = null;
 
     public Listener(ClusterHandle memberList, StateMachine stateMachine,
                     RunningProposalManager runningProposalManager, SnapshotManager snapshotManager) {
@@ -39,6 +40,7 @@ public class Listener implements ListenerRPCHandle {
     }
 
     private synchronized boolean catchUpBulk(long highestMissingInstance) {
+        currentBulkCatchUp = highestMissingInstance;
         while (highestMissingInstance - lastInstanceId >= MIN_MISSING_INST_FOR_CATCHING_UP) {
             int bulkSize = BULK_CATCHING_UP_MAX_SIZE;
             if (highestMissingInstance - lastInstanceId < bulkSize)
@@ -58,16 +60,19 @@ public class Listener implements ListenerRPCHandle {
                 }
             }
             if (!(lastInstanceId > lastInstIdBefore)) {
+                currentBulkCatchUp = null;
                 return false;
             }
         }
+        currentBulkCatchUp = null;
         return true;
     }
 
     private synchronized boolean catchUpOneByOne(long highestMissingInstance) {
         if (highestMissingInstance <= snapshotLastInstanceId)
             return true;
-        runningProposalManager.tryProposeNoOp(highestMissingInstance);
+        if (currentBulkCatchUp == null || highestMissingInstance > currentBulkCatchUp)
+            runningProposalManager.tryProposeNoOp(highestMissingInstance);
         while (runningProposalManager.contains(highestMissingInstance)) {
             try {
                 // to do: optimize? having each waiting instance check "contains" every time is not so good
@@ -84,7 +89,7 @@ public class Listener implements ListenerRPCHandle {
      * Returns false if consensus cannot be reached (eg because of network failure).
      */
     public synchronized boolean waitForConsensusOn(long instance) {
-        if (catchingUpManager != null && !runningProposalManager.contains(instance)) {
+        if (catchingUpManager != null && !runningProposalManager.contains(instance) && currentBulkCatchUp == null) {
             if (instance - lastInstanceId >= MIN_MISSING_INST_FOR_CATCHING_UP) {
                 if (!catchUpBulk(instance))
                     return false;

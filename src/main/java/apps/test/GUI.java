@@ -10,15 +10,16 @@ import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
-// PRIORITY 1
-// TODO stress test with gui: got error (see picture)
+// TODO stress test with gui: got error (see picture and txt file)
+// happens only when there are snapshots?
 
-// PRIORITY 2
-// TODO clients very slow when doing stress tests (especially when server was killed and restored)
-// client tends to get stuck in that case. But if I start another client, that one can go, while the other is still stuck a little while
+// TODO server slow to restart when doing stress test with 1 client.
+// the server does every 100 C-U fast at the begining (~200 ms), but after the client has done many commands,
+// server 2's catching-up becomes slow (5 seconds for 100 instances
+// PS: VM with 2 servers tends to crash
 
-// PRIORITY 3
 // TODO 1 client out of 2 is down for a while, the log grows, then client is restored: next snapshots won't include old logs
+// also, when only 1 out of 2 client is going (and the other has sent 0 cmds), no snapshot is done
 
 // GETALL, INST-GET, INST-GETALL (getall returns all keys of a fragment)
 // demonstrate every task done one by one
