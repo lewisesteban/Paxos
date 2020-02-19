@@ -10,20 +10,19 @@ import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
-// server gets out of memory when trying to catch up.
-// divide catching up into segments (of maybe 100 instances or so)
-// start with lowest instances, so that they can finish entirely
-// In runningInstancesManager: have a maximum number of threads. When new instance arrives and there are no threads
-// available, mark instance as started but wait for a thread to become available
-// Size of catching up segment depends on number of threads successfully started in RunningInstancesManager.
+// PRIORITY 1
+// TODO stress test with gui: got error (see picture)
 
-// check servers catching-up speed
-// TODO clients very slow when doing stress tests
-// TODO client doesn't work on 15.188.51.185?
-// TODO stress test with gui: got error
+// PRIORITY 2
+// TODO clients very slow when doing stress tests (especially when server was killed and restored)
+// client tends to get stuck in that case. But if I start another client, that one can go, while the other is still stuck a little while
+
+// PRIORITY 3
+// TODO 1 client out of 2 is down for a while, the log grows, then client is restored: next snapshots won't include old logs
+
 // GETALL, INST-GET, INST-GETALL (getall returns all keys of a fragment)
 // demonstrate every task done one by one
-// throw in lots of data?
+// throw in a big dataset?
 
 public class GUI extends Frame {
     private String username, password = null;

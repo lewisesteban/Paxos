@@ -15,7 +15,9 @@ class TesterServer {
     private String host;
     private int nodeId;
     private int fragmentId;
-    private final SSHClient sshClient = new SSHClient();
+    private String username, password;
+
+    private SSHClient sshClient = new SSHClient();
     private Session session = null;
     private Session.Command largetableProcess = null;
     private String pid = null;
@@ -28,10 +30,29 @@ class TesterServer {
     }
 
     synchronized void startSSH(String username, String password) throws IOException {
+        this.username = username;
+        this.password = password;
         sshClient.addHostKeyVerifier(new PromiscuousVerifier());
         sshClient.connect(host);
         sshClient.authPassword(username, password);
         isAuthenticated = true;
+    }
+
+    private synchronized void reconnect() {
+        isAuthenticated = false;
+        try {
+            sshClient.close();
+        } catch (IOException ignored) {
+        }
+        sshClient = new SSHClient();
+        sshClient.addHostKeyVerifier(new PromiscuousVerifier());
+        try {
+            sshClient.connect(host);
+            sshClient.authPassword(username, password);
+            isAuthenticated = true;
+        } catch (IOException e) {
+            System.out.println("Reconnect failed: " + e);
+        }
     }
 
     synchronized boolean launch() {
@@ -45,6 +66,9 @@ class TesterServer {
             reader.readLine(); // this line should be a message stating that RMI server has started
             getPid(cmdLine);
             return true;
+        } catch (ConnectionException | IllegalStateException e) {
+            reconnect();
+            return false;
         } catch (IOException e) {
             e.printStackTrace();
             return false;
@@ -86,10 +110,9 @@ class TesterServer {
                 session = null;
             }
             return true;
-        } catch (ConnectionException e) {
-            e.printStackTrace();
-            largetableProcess = null;
-            return true;
+        } catch (ConnectionException | IllegalStateException e) {
+            reconnect();
+            return false;
         } catch (IOException e) {
             e.printStackTrace();
             return false;

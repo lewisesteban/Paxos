@@ -91,7 +91,7 @@ class SerialKiller {
             if (nbAlive == targets.size()) {
                 return true;
             } else if (nbAlive > targets.size() / 2) {
-                int rand = random.nextInt(targets.size() - nbAlive + 1); // the +1 is to keep them alive longer
+                int rand = random.nextInt(targets.size() - nbAlive + 2); // the +2 is to keep them alive longer
                 return rand == 0;
             } else {
                 return false;
@@ -100,8 +100,8 @@ class SerialKiller {
             if (nbAlive == 0) {
                 return true;
             } else if (nbAlive <= (targets.size() / 2) + 1) { // the +1 is to reduce likelihood of "bad net state"
-                int rand = random.nextInt(nbAlive + 1);
-                return rand <= 1; // the "+1" and "<=1" are to reduce time spent with half the servers down
+                int rand = random.nextInt(nbAlive + 2);
+                return rand <= 1; // the "+2" and "<=1" are to reduce time spent with half the servers down
             } else {
                 return false;
             }
