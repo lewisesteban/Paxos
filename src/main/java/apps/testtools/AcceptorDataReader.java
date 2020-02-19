@@ -1,73 +1,66 @@
 package apps.testtools;
 
 import com.lewisesteban.paxos.paxosnode.Command;
-import com.lewisesteban.paxos.paxosnode.proposer.Proposal;
-import com.lewisesteban.paxos.storage.*;
 import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
+import java.io.*;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 public class AcceptorDataReader {
     private static final String STORAGE_KEY_LAST_ACCEPTED_ID_NODE = "c";
-    private static final String STORAGE_KEY_LAST_ACCEPTED_ID_PROP = "d";
     private static final String STORAGE_KEY_LAST_ACCEPTED_CMD = "e";
 
-    public static void main(String ... args) throws StorageException {
-        readStorage(WholeFileAccessor::new, (f, dir) -> new SafeSingleFileStorage(f, dir, WholeFileAccessor::new));
+    public static void main(String[] args) throws IOException, ClassNotFoundException {
+        readStorage();
     }
 
-    private static void readStorage(FileAccessorCreator fileAccessorCreator, StorageUnit.Creator storageUnitCreator) throws StorageException {
+    private static void readStorage() throws IOException, ClassNotFoundException {
         List<Long> list = new LinkedList<>();
-        FileAccessor folder = fileAccessorCreator.create(".", null);
-        FileAccessor[] files = folder.listFiles();
+        File dir = new File(".");
+        File[] files = dir.listFiles();
         if (files != null) {
-            for (FileAccessor file : files) {
+            for (File file : files) {
                 String name = file.getName();
                 if (name.endsWith("_tmp"))
                     name = name.substring(0, name.indexOf("_tmp"));
                 long instance = Long.parseLong(name.substring("inst".length()));
                 if (!list.contains(instance)) {
-                    StorageUnit storageUnit = storageUnitCreator.make("inst" + instance, null);
-                    if (!storageUnit.isEmpty()) {
-                        Proposal lastAcceptedProp = null;
-                        if (storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE) != null) {
-                            int lastAcceptedId_node = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_NODE));
-                            int lastAcceptedId_prop = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_ID_PROP));
+                    Map<String, String> content = readFile(file);
+                    if (!content.isEmpty()) {
+                        if (content.get(STORAGE_KEY_LAST_ACCEPTED_ID_NODE) != null) {
                             Command lastAcceptedCmd;
-                            try {
-                                lastAcceptedCmd = deserializeCommand(storageUnit.read(STORAGE_KEY_LAST_ACCEPTED_CMD));
-                            } catch (IOException e) {
-                                throw new StorageException(e);
-                            }
-                            lastAcceptedProp = new Proposal(lastAcceptedCmd, new Proposal.ID(lastAcceptedId_node, lastAcceptedId_prop));
-                        }
-                        if (lastAcceptedProp != null) {
+                            lastAcceptedCmd = deserializeCommand(content.get(STORAGE_KEY_LAST_ACCEPTED_CMD));
                             System.out.println("inst=" + instance
-                                    + "\tclient=" + lastAcceptedProp.getCommand().getClientId()
-                                    + "\tcmdNb=" + lastAcceptedProp.getCommand().getClientCmdNb()
-                                    + "\tnoOp=" + lastAcceptedProp.getCommand().isNoOp()
-                                    + "\tcmd=" + (lastAcceptedProp.getCommand().isNoOp() ? "N/A" : lastAcceptedProp.getCommand().getData()));
+                                    + "\tclient=" + lastAcceptedCmd.getClientId()
+                                    + "\tcmdNb=" + lastAcceptedCmd.getClientCmdNb()
+                                    + "\tnoOp=" + lastAcceptedCmd.isNoOp()
+                                    + "\tcmd=" + (lastAcceptedCmd.isNoOp() ? "N/A" : lastAcceptedCmd.getData()));
                         }
                         list.add(instance);
-                        storageUnit.close();
                     }
                 }
             }
         }
     }
 
-    private static Command deserializeCommand(String serialized) throws IOException {
+    private static Map<String, String> readFile(File file) throws ClassNotFoundException, IOException {
+        FileInputStream reader = new FileInputStream(file.getPath());
+        ObjectInputStream ois = new ObjectInputStream(reader);
+        Object res = ois.readObject();
+        //noinspection unchecked
+        TreeMap<String, String> content = (TreeMap<String, String>) res;
+        ois.close();
+        reader.close();
+        return content;
+    }
+
+    private static Command deserializeCommand(String serialized) throws IOException, ClassNotFoundException {
         byte[] bytes = Base64.decode(serialized);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
         ObjectInputStream objectInputStream = new ObjectInputStream(inputStream);
-        try {
-            return (Command) objectInputStream.readObject();
-        } catch (ClassNotFoundException e) {
-            throw new StorageException(e);
-        }
+        return (Command) objectInputStream.readObject();
     }
 }
