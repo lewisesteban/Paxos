@@ -55,11 +55,11 @@ public class PaxosClient<NODE extends RemotePaxosNode & PaxosProposer> {
             failureManager.setOngoingCmdData(failedOp.getCmdData());
             failureManager.setOngoingCmdKeyHash(failedOp.getKeyHash());
             fragments.forEach(fragment -> fragment.setNextCommandNumber(failedOp.getCmdNb() + 1));
+            Serializable result = fragments.get(failedOp.getKeyHash() % nbFragments).doCommand(failedOp.getCmdData(), failedOp.getCmdNb(), failedOp.getInst());
             if (!recovered) {
                 fragments.forEach(SingleFragmentClient::setAllServersNonEnded);
                 recovered = true;
             }
-            Serializable result = fragments.get(failedOp.getKeyHash() % nbFragments).doCommand(failedOp.getCmdData(), failedOp.getCmdNb(), failedOp.getInst());
             return new ExecutedCommand(failedOp.getCmdData(), result);
         }
         return null;
@@ -80,11 +80,11 @@ public class PaxosClient<NODE extends RemotePaxosNode & PaxosProposer> {
             failureManager.setOngoingCmdData(failedOp.getCmdData());
             failureManager.setOngoingCmdKeyHash(failedOp.getKeyHash());
             fragments.forEach(fragment -> fragment.setNextCommandNumber(failedOp.getCmdNb() + 1));
+            Serializable result = fragments.get(failedOp.getKeyHash() % nbFragments).tryCommand(failedOp.getCmdData(), failedOp.getCmdNb(), failedOp.getInst());
             if (!recovered) {
                 fragments.forEach(SingleFragmentClient::setAllServersNonEnded);
                 recovered = true;
             }
-            Serializable result = fragments.get(failedOp.getKeyHash() % nbFragments).tryCommand(failedOp.getCmdData(), failedOp.getCmdNb(), failedOp.getInst());
             return new ExecutedCommand(failedOp.getCmdData(), result);
         }
         return null;
