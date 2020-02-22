@@ -89,9 +89,9 @@ public class UnneededInstanceGossipper {
                 if (nodeId == paxosCluster.getMyNodeId()) {
                     newVal = unneededInstanceOfNodes[nodeId];
                 } else {
-                    long myUnneededInst = unneededInstanceOfNodes[nodeId];
+                    long localUnneededInst = unneededInstanceOfNodes[nodeId];
                     long receivedUnneededInst = data[nodeId];
-                    newVal = myUnneededInst > receivedUnneededInst ? myUnneededInst : receivedUnneededInst;
+                    newVal = localUnneededInst > receivedUnneededInst ? localUnneededInst : receivedUnneededInst;
                 }
                 unneededInstanceOfNodes[nodeId] = newVal;
                 if (lowestReceivedUnneededInst == null || newVal < lowestReceivedUnneededInst) {

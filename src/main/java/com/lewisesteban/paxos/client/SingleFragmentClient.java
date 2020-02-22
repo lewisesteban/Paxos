@@ -208,6 +208,10 @@ public class SingleFragmentClient {
         }
     }
 
+    void setAllServersNonEnded() {
+        nonEndedServers.addAll(nodes);
+    }
+
     boolean endClient() {
         tryEndAll(null);
         synchronized (endRequests) {
