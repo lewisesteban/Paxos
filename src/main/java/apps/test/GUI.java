@@ -10,17 +10,9 @@ import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
-// TODO fragmentation problem: file naming convention (for instance acceptor files)
+// TODO fragmentation problem: file naming convention of acceptor files and stateMachine files
 
-// TODO after stress test, closed everything, restarted => data lost
-
-// TODO during stress tests, servers sometimes don't make any snapshots
-// when 1 server goes down, it seems the servers can't do any more snapshots
-// (might have been related to server malfunction due to many simultaneous catching-ups?)
-
-// TODO vm sometimes crashes (becomes unresponsive or very slow) during stress test
-// Tends to happen when log grows too much.
-// Happened when starting GUI with already-existing log and snapshots. Started client SK, and killed servers a couple of times.
+// TODO change timeout for needed instance
 
 // TODO adapt serial killer to have most of the time only 1 or 2 servers down, sometimes 3, but rarely more
 // then i can have a network with 3 fragments, having 3, 3 and 2 servers respectively

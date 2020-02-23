@@ -198,6 +198,8 @@ public class SnapshotTest extends PaxosTestCase {
         network.start(addr(0));
 
         // check recovery
+        long newInstId = server.getNewInstanceId();
+        assertEquals(2, newInstId);
         Result result;
         result = server.propose(cmd5, 1);
         assertEquals(Result.CONSENSUS_ON_ANOTHER_CMD, result.getStatus());
@@ -208,7 +210,7 @@ public class SnapshotTest extends PaxosTestCase {
         assertFalse(prepareAnswer.isSnapshotRequestRequired());
 
         // try another proposal
-        result = server.propose(cmd5, server.getNewInstanceId()); // this will cause Paxos to re-execute inst3
+        result = server.propose(cmd5, newInstId); // this will cause Paxos to re-execute inst3
         assertEquals(Result.CONSENSUS_ON_ANOTHER_CMD, result.getStatus());
         result = server.propose(cmd5, server.getNewInstanceId()); // this will cause Paxos to re-execute inst4
         assertEquals(Result.CONSENSUS_ON_ANOTHER_CMD, result.getStatus());

@@ -64,12 +64,17 @@ public class LargeTableTest extends PaxosTestCase {
         Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 50);
         client.get("keyA");
         Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 50);
+        assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length < 4);
+        assertTrue(InterruptibleVirtualFileAccessor.creator(1).create("acceptor0", null).listFiles().length < 4);
+        assertTrue(InterruptibleVirtualFileAccessor.creator(2).create("acceptor0", null).listFiles().length < 4);
 
         network.killAll();
         network.startAll();
 
         assertEquals("valA", client.get("keyA"));
-        assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length < 6);
+        assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length < 5);
+        assertTrue(InterruptibleVirtualFileAccessor.creator(1).create("acceptor0", null).listFiles().length < 5);
+        assertTrue(InterruptibleVirtualFileAccessor.creator(2).create("acceptor0", null).listFiles().length < 5);
     }
 
     public void testEndClientSnapshot() throws Exception {

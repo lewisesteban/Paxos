@@ -1,6 +1,7 @@
 package apps;
 
 import com.lewisesteban.paxos.paxosnode.PaxosNode;
+import com.lewisesteban.paxos.paxosnode.StateMachine;
 import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
 import com.lewisesteban.paxos.storage.SafeSingleFileStorage;
 import com.lewisesteban.paxos.storage.WholeFileAccessor;
@@ -25,8 +26,10 @@ public class ServerLauncher {
             final int serverId = Integer.parseInt(args[1]);
             final int fragmentId = Integer.parseInt(args[0]);
             List<RemotePaxosNode> cluster = new ArrayList<>();
+            StateMachine stateMachine = new largetable.Server(WholeFileAccessor::new);
+            stateMachine.setup(serverId);
             PaxosNode paxosNode = new PaxosNode(serverId, fragmentId, cluster,
-                    new largetable.Server(WholeFileAccessor::new),
+                    stateMachine,
                     (f, dir) -> new SafeSingleFileStorage(f, dir, WholeFileAccessor::new),
                     WholeFileAccessor::new);
             NodeServer server = new NodeServer(paxosNode);
