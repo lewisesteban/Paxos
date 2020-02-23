@@ -15,10 +15,12 @@ public class Acceptor implements AcceptorRPCHandle {
     private InstanceContainer<AcceptDataInstance> instances;
     private ClusterHandle memberList;
     private StorageUnit.Creator storageCreator;
+    private FileAccessorCreator fileAccessorCreator;
 
     public Acceptor(ClusterHandle memberList, StorageUnit.Creator storageUnitCreator, FileAccessorCreator fileAccessorCreator) throws StorageException {
         this.memberList = memberList;
         this.storageCreator = storageUnitCreator;
+        this.fileAccessorCreator = fileAccessorCreator;
         this.instances = new InstanceContainer<>(AcceptDataInstance::new,
                 AcceptDataInstance.readStorage(memberList.getMyNodeId(), fileAccessorCreator, storageUnitCreator));
     }
@@ -92,14 +94,8 @@ public class Acceptor implements AcceptorRPCHandle {
 
     public void removeLogsUntil(long lastInstanceToRemove) throws StorageException {
         AtomicReference<StorageException> exception = new AtomicReference<>(null);
-        instances.truncateBefore(lastInstanceToRemove + 1,
-                (entry) -> {
-                    try {
-                        entry.getValue().deleteStorage(memberList.getMyNodeId(), entry.getKey(), storageCreator);
-                    } catch (StorageException e) {
-                        exception.set(e);
-                    }
-                });
+        instances.truncateBefore(lastInstanceToRemove + 1);
+        AcceptDataInstance.deleteStorage(lastInstanceToRemove, memberList.getMyNodeId(), fileAccessorCreator);
         if (exception.get() != null)
             throw exception.get();
     }

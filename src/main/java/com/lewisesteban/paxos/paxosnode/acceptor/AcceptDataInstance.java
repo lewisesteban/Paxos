@@ -69,9 +69,19 @@ class AcceptDataInstance implements Serializable {
         storage.close();
     }
 
-    void deleteStorage(int nodeId, long instanceNb, StorageUnit.Creator storageCreator) throws StorageException {
-        StorageUnit storage = storageCreator.make("inst" + instanceNb, "acceptor" + nodeId);
-        storage.delete();
+    static void deleteStorage(long highestToDelete, int nodeId, FileAccessorCreator fileAccessorCreator) throws StorageException {
+        FileAccessor folder = fileAccessorCreator.create("acceptor" + nodeId, null);
+        FileAccessor[] files = folder.listFiles();
+        if (files != null) {
+            for (FileAccessor file : files) {
+                String name = file.getName();
+                if (name.endsWith("_tmp"))
+                    name = name.substring(0, name.indexOf("_tmp"));
+                long instance = Long.parseLong(name.substring("inst".length()));
+                if (instance <= highestToDelete)
+                    file.delete();
+            }
+        }
     }
 
     static Map<Long, AcceptDataInstance> readStorage(int nodeId, FileAccessorCreator fileAccessorCreator, StorageUnit.Creator storageUnitCreator) throws StorageException {

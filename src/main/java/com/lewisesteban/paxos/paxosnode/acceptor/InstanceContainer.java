@@ -55,19 +55,10 @@ public class InstanceContainer<T extends Serializable> {
         return highestInstance;
     }
 
-    synchronized void truncateBefore(long earliestInstanceToKeep, EntryProcessingMethod<T> methodToApplyOnEntriesToBeRemoved) {
-        for (Map.Entry<Long, T> entry : instances.entrySet()) {
-            if (entry.getKey() < earliestInstanceToKeep) {
-                methodToApplyOnEntriesToBeRemoved.run(entry);
-            }
-        }
+    synchronized void truncateBefore(long earliestInstanceToKeep) {
         instances.keySet().removeIf((key) -> key < earliestInstanceToKeep);
         this.earliestInstanceId = earliestInstanceToKeep;
         if (earliestInstanceToKeep > highestInstance)
             highestInstance = earliestInstanceToKeep;
-    }
-
-    interface EntryProcessingMethod<T> {
-        void run(Map.Entry<Long, T> entry);
     }
 }
