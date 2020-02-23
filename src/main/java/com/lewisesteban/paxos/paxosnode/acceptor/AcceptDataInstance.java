@@ -16,7 +16,6 @@ import java.util.TreeMap;
  * Not thread-safe
  */
 class AcceptDataInstance implements Serializable {
-
     private static final String STORAGE_KEY_LAST_PREPARED_ID_NODE = "a";
     private static final String STORAGE_KEY_LAST_PREPARED_ID_PROP = "b";
     private static final String STORAGE_KEY_LAST_ACCEPTED_ID_NODE = "c";
@@ -50,8 +49,8 @@ class AcceptDataInstance implements Serializable {
     }
 
     // TODO don't write to storage if there has been no change
-    void saveToStorage(int nodeId, long instanceNb, StorageUnit.Creator storageCreator) throws StorageException {
-        StorageUnit storage = storageCreator.make("inst" + instanceNb, "acceptor" + nodeId);
+    void saveToStorage(int nodeId, int fragmentId, long instanceNb, StorageUnit.Creator storageCreator) throws StorageException {
+        StorageUnit storage = storageCreator.make("inst" + instanceNb, getFolderName(fragmentId, nodeId));
         storage.put(STORAGE_KEY_LAST_PREPARED_ID_NODE, String.valueOf(lastPreparedPropId.getNodeId()));
         storage.put(STORAGE_KEY_LAST_PREPARED_ID_PROP, String.valueOf(lastPreparedPropId.getNodePropNb()));
         if (lastAcceptedProp == null) {
@@ -69,8 +68,8 @@ class AcceptDataInstance implements Serializable {
         storage.close();
     }
 
-    static void deleteStorage(long highestToDelete, int nodeId, FileAccessorCreator fileAccessorCreator) throws StorageException {
-        FileAccessor folder = fileAccessorCreator.create("acceptor" + nodeId, null);
+    static void deleteStorage(int nodeId, int fragmentId, long highestToDelete, FileAccessorCreator fileAccessorCreator) throws StorageException {
+        FileAccessor folder = fileAccessorCreator.create(getFolderName(fragmentId, nodeId), null);
         FileAccessor[] files = folder.listFiles();
         if (files != null) {
             for (FileAccessor file : files) {
@@ -84,9 +83,9 @@ class AcceptDataInstance implements Serializable {
         }
     }
 
-    static Map<Long, AcceptDataInstance> readStorage(int nodeId, FileAccessorCreator fileAccessorCreator, StorageUnit.Creator storageUnitCreator) throws StorageException {
+    static Map<Long, AcceptDataInstance> readStorage(int nodeId, int fragmentId, FileAccessorCreator fileAccessorCreator, StorageUnit.Creator storageUnitCreator) throws StorageException {
         Map<Long, AcceptDataInstance> list = new TreeMap<>();
-        FileAccessor folder = fileAccessorCreator.create("acceptor" + nodeId, null);
+        FileAccessor folder = fileAccessorCreator.create(getFolderName(fragmentId, nodeId), null);
         FileAccessor[] files = folder.listFiles();
         if (files != null) {
             for (FileAccessor file : files) {
@@ -95,7 +94,7 @@ class AcceptDataInstance implements Serializable {
                     name = name.substring(0, name.indexOf("_tmp"));
                 long instance = Long.parseLong(name.substring("inst".length()));
                 if (!list.containsKey(instance)) {
-                    StorageUnit storageUnit = storageUnitCreator.make("inst" + instance, "acceptor" + nodeId);
+                    StorageUnit storageUnit = storageUnitCreator.make("inst" + instance, getFolderName(fragmentId, nodeId));
                     if (!storageUnit.isEmpty()) {
                         int lastPreparedPropId_node = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_PREPARED_ID_NODE));
                         int lastPreparedPropId_prop = Integer.parseInt(storageUnit.read(STORAGE_KEY_LAST_PREPARED_ID_PROP));
@@ -138,5 +137,9 @@ class AcceptDataInstance implements Serializable {
         } catch (ClassNotFoundException e) {
             throw new StorageException(e);
         }
+    }
+
+    private static String getFolderName(long fragment, long nodeId) {
+        return "acceptor_" + fragment + "_" + nodeId;
     }
 }

@@ -59,7 +59,7 @@ public class DistributedTest extends TestCase {
             client4.append("str100", "a");
         }
         assertEquals(nbCmds, client4.get("str100").length());
-        assertEquals(nbCmds + 1, Objects.requireNonNull(new File("acceptor3").listFiles()).length);
+        assertEquals(nbCmds + 1, Objects.requireNonNull(new File("acceptor_0_3").listFiles()).length);
 
         System.out.println();
         System.out.println("testing backward catching-up");
@@ -69,7 +69,7 @@ public class DistributedTest extends TestCase {
         System.out.println("sending request");
         client4.get("str100");
         Thread.sleep(5000); // wait for server to catch-up
-        assertEquals(nbCmds + 2, Objects.requireNonNull(new File("acceptor0").listFiles()).length);
+        assertEquals(nbCmds + 2, Objects.requireNonNull(new File("acceptor_0_0").listFiles()).length);
 
         System.out.println();
         System.out.println("testing forward catching-up");
@@ -80,7 +80,7 @@ public class DistributedTest extends TestCase {
         assertEquals(nbCmds, client5.get("str100").length());
         System.out.println("time: " + (System.currentTimeMillis() - start) + " ms");
         Thread.sleep(200); // wait for temp files to disappear
-        File[] files = new File("acceptor4").listFiles();
+        File[] files = new File("acceptor_0_4").listFiles();
         assertNotNull(files);
         assertEquals(nbCmds + 3, files.length);
     }

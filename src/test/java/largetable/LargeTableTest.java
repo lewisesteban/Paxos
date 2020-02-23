@@ -64,17 +64,18 @@ public class LargeTableTest extends PaxosTestCase {
         Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 50);
         client.get("keyA");
         Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 50);
-        assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length < 4);
-        assertTrue(InterruptibleVirtualFileAccessor.creator(1).create("acceptor0", null).listFiles().length < 4);
-        assertTrue(InterruptibleVirtualFileAccessor.creator(2).create("acceptor0", null).listFiles().length < 4);
+        assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor_0_0", null).listFiles().length < 4);
+        assertTrue(InterruptibleVirtualFileAccessor.creator(1).create("acceptor_0_1", null).listFiles().length < 4);
+        assertTrue(InterruptibleVirtualFileAccessor.creator(2).create("acceptor_0_2", null).listFiles().length < 4);
 
         network.killAll();
         network.startAll();
 
         assertEquals("valA", client.get("keyA"));
-        assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length < 5);
-        assertTrue(InterruptibleVirtualFileAccessor.creator(1).create("acceptor0", null).listFiles().length < 5);
-        assertTrue(InterruptibleVirtualFileAccessor.creator(2).create("acceptor0", null).listFiles().length < 5);
+        assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor_0_0", null).listFiles().length < 5);
+        assertTrue(InterruptibleVirtualFileAccessor.creator(1).create("acceptor_0_1", null).listFiles().length < 5);
+        assertTrue(InterruptibleVirtualFileAccessor.creator(2).create("acceptor_0_2", null).listFiles().length < 5);
+        // TODO change file paths
     }
 
     public void testEndClientSnapshot() throws Exception {
@@ -104,7 +105,7 @@ public class LargeTableTest extends PaxosTestCase {
         Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 50);
         clientB.get("keyA");
         Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 50);
-        int nbFiles = InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length;
+        int nbFiles = InterruptibleVirtualFileAccessor.creator(0).create("acceptor_0_0", null).listFiles().length;
         assertTrue(nbFiles >= 5);
 
         clientA.close();
@@ -112,7 +113,7 @@ public class LargeTableTest extends PaxosTestCase {
         Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 50);
         clientB.get("keyA");
         Thread.sleep(500);
-        assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length < (nbFiles + 2));
+        assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor_0_0", null).listFiles().length < (nbFiles + 2));
     }
 
     public void testClientRecovery() throws Exception {
@@ -280,14 +281,15 @@ public class LargeTableTest extends PaxosTestCase {
                 boolean keepGoing = true;
 
                 @Override
-                public void setup(int nodeId) throws IOException {
+                public void setup(String nodeIdStr) throws IOException {
+                    int nodeId = Integer.parseInt(nodeIdStr);
                     stateMachines.put(nodeId, this);
                     stateMachinesKillSwitches.put(nodeId, () -> {
                         synchronized (this) {
                             keepGoing = false;
                         }
                     });
-                    super.setup(nodeId);
+                    super.setup(nodeIdStr);
                 }
 
                 @Override

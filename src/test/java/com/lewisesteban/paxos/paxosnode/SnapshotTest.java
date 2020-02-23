@@ -49,14 +49,14 @@ public class SnapshotTest extends PaxosTestCase {
         SnapshotManager.SNAPSHOT_FREQUENCY = 2;
         proposer.propose(cmd1, proposer.getNewInstanceId());
         proposer.propose(cmd2, proposer.getNewInstanceId());
-        assertEquals(2, InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length); // should still be 2 because last command has not been validated by client
+        assertEquals(2, InterruptibleVirtualFileAccessor.creator(0).create("acceptor_0_0", null).listFiles().length); // should still be 2 because last command has not been validated by client
 
         sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100); // wait til I can gossip again
         proposer.propose(cmd3, proposer.getNewInstanceId()); // gossip unneeded inst 2
         sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100); // wait til I can gossip again
         proposer.propose(cmd4, proposer.getNewInstanceId()); // trigger snapshot
         sleep(200); // wait for snapshot to finish
-        assertEquals(2, InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length);
+        assertEquals(2, InterruptibleVirtualFileAccessor.creator(0).create("acceptor_0_0", null).listFiles().length);
     }
 
     public void testDownloadSnapshot() throws IOException, InterruptedException {
@@ -74,7 +74,7 @@ public class SnapshotTest extends PaxosTestCase {
             @Override
             public void applySnapshot(Snapshot snapshot) throws StorageException {
                 super.applySnapshot(snapshot);
-                if (nodeId != 2)
+                if (!nodeId.equals("2"))
                     stateMachineError.set("snapshot loaded on wrong server");
                 else {
                     if (snapshotLoaded.get())
@@ -87,7 +87,7 @@ public class SnapshotTest extends PaxosTestCase {
             @Override
             public void applyCurrentWaitingSnapshot() throws StorageException {
                 super.applyCurrentWaitingSnapshot();
-                if (nodeId == 2)
+                if (nodeId.equals("2"))
                     stateMachineError.set("waiting snapshot applied on node 2");
                 else
                     snapshotCreated.incrementAndGet();
@@ -105,7 +105,7 @@ public class SnapshotTest extends PaxosTestCase {
         proposer.propose(new Command("0", "client", 0), 0);
         proposer.propose(new Command("1", "client", 1), 1);
         network.kill(addr(2));
-        assertEquals(2, InterruptibleVirtualFileAccessor.creator(2).create("acceptor2", null).listFiles().length);
+        assertEquals(2, InterruptibleVirtualFileAccessor.creator(2).create("acceptor_0_2", null).listFiles().length);
 
         // make the others do a snapshot
         sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
@@ -113,15 +113,15 @@ public class SnapshotTest extends PaxosTestCase {
         nodes.get(0).getPaxosSrv().getListener().gossipUnneededInstances(new long[] { 2, 2, 2 });
         sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
         proposer.propose(new Command("3", "client", 3), 3); // trigger snapshot
-        assertEquals(2, InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length);
+        assertEquals(2, InterruptibleVirtualFileAccessor.creator(0).create("acceptor_0_0", null).listFiles().length);
 
         // proposal that will initiate snapshot downloading
         network.start(addr(2));
-        assertEquals(2, InterruptibleVirtualFileAccessor.creator(2).create("acceptor2", null).listFiles().length);
+        assertEquals(2, InterruptibleVirtualFileAccessor.creator(2).create("acceptor_0_2", null).listFiles().length);
         Result result;
         result = lateServer.propose(new Command("4", "anotherClient", 0), lateServer.getNewInstanceId());
         assertEquals(Result.CONSENSUS_ON_ANOTHER_CMD, result.getStatus());
-        FileAccessor node2Dir = InterruptibleVirtualFileAccessor.creator(2).create("acceptor2", null);
+        FileAccessor node2Dir = InterruptibleVirtualFileAccessor.creator(2).create("acceptor_0_2", null);
         assertTrue(node2Dir == null || node2Dir.listFiles() == null || node2Dir.listFiles().length == 0);
 
         // proposal that will initiate catching-up of the third command
@@ -151,9 +151,9 @@ public class SnapshotTest extends PaxosTestCase {
 
 
         // check  files (there should be 3 after snapshot)
-        FileAccessor[] files = InterruptibleVirtualFileAccessor.creator(2).create("acceptor2", null).listFiles();
+        FileAccessor[] files = InterruptibleVirtualFileAccessor.creator(2).create("acceptor_0_2", null).listFiles();
         assertTrue(files.length == 3 || files.length == 4); // note: there might be an extra file left that is within the snapshot (due to the fact that the acceptor is not synchronized with the snapshotting process), but the acceptor's InstanceManager will not use the information contained in it
-        files = InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles();
+        files = InterruptibleVirtualFileAccessor.creator(0).create("acceptor_0_0", null).listFiles();
         assertEquals(3, files.length);
         if (!(files[0].getName().equals("inst2") || files[1].getName().equals("inst2") || files[2].getName().equals("inst2")))
             fail();
@@ -286,7 +286,7 @@ public class SnapshotTest extends PaxosTestCase {
         Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
         server.propose(new Command(2, "client2", 2), server.getNewInstanceId());
         Thread.sleep(200);
-        assertEquals(4, InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length);
+        assertEquals(4, InterruptibleVirtualFileAccessor.creator(0).create("acceptor_0_0", null).listFiles().length);
 
         // end client and make sure there is a snapshot
         server.endClient("client1");
@@ -295,14 +295,14 @@ public class SnapshotTest extends PaxosTestCase {
         Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
         server.propose(new Command(4, "client2", 4), server.getNewInstanceId());
         Thread.sleep(200);
-        assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length <= 4);
+        assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor_0_0", null).listFiles().length <= 4);
     }
 
     public void testNeededInstanceRecovery() throws IOException, InterruptedException {
         AtomicBoolean error = new AtomicBoolean(false);
         Callable<StateMachine> stateMachine = () -> new StateMachine() {
             @Override
-            public void setup(int nodeId) {
+            public void setup(String nodeId) {
 
             }
 
@@ -400,7 +400,7 @@ public class SnapshotTest extends PaxosTestCase {
         Thread.sleep(UnneededInstanceGossipper.GOSSIP_FREQUENCY + 100);
         server.propose(new Command(4, "client2", 4), server.getNewInstanceId());
         Thread.sleep(200);
-        assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor0", null).listFiles().length <= 4);
+        assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor_0_0", null).listFiles().length <= 4);
     }
 
     public void testStress() throws InterruptedException {
@@ -458,7 +458,7 @@ public class SnapshotTest extends PaxosTestCase {
     public void testStateMachine() throws IOException {
         AtomicReference<Exception> error = new AtomicReference<>(null);
         SnapshotTestStateMachine stateMachine = new SnapshotTestStateMachine(error, 3);
-        stateMachine.setup(0);
+        stateMachine.setup("0");
 
         assertFalse(stateMachine.hasAppliedSnapshot());
         assertFalse(stateMachine.hasWaitingSnapshot());
@@ -492,7 +492,7 @@ public class SnapshotTest extends PaxosTestCase {
 
         // new state machine - load snapshot
         stateMachine = new SnapshotTestStateMachine(error, 3);
-        stateMachine.setup(0);
+        stateMachine.setup("0");
         assertFalse(stateMachine.hasWaitingSnapshot());
         assertTrue(stateMachine.hasAppliedSnapshot());
         assertEquals(2, stateMachine.getAppliedSnapshotLastInstance());
@@ -545,11 +545,11 @@ public class SnapshotTest extends PaxosTestCase {
         }
 
         @Override
-        public void setup(int nodeId) throws IOException {
-            this.nodeId = nodeId;
+        public void setup(String nodeIdStr) throws IOException {
+            this.nodeId = Integer.parseInt(nodeIdStr);
 
             synchronized (runningStateMachines) {
-                runningStateMachines.put(nodeId, this);
+                runningStateMachines.put(this.nodeId, this);
             }
 
             storageUnit = new SafeSingleFileStorage("stateMachine" + nodeId, null, InterruptibleVirtualFileAccessor.creator(nodeId));

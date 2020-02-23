@@ -21,7 +21,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Callable;
 
-@SuppressWarnings({"WeakerAccess", "unused"})
+@SuppressWarnings({"unused"})
 public class NetworkFactory {
 
     /**
@@ -46,7 +46,7 @@ public class NetworkFactory {
             final FileAccessorCreator fileAccessorCreator = InterruptibleVirtualFileAccessor.creator(thisNodeId);
             Callable<PaxosNode> paxosNodeCreator = () -> {
                 StateMachine stateMachine = stateMachineCreator.call();
-                stateMachine.setup(thisNodeId);
+                stateMachine.setup(Integer.toString(thisNodeId));
                 return paxosFactory.create(thisNodeId, fragmentNb, networkView, stateMachine, storageUnitCreator, fileAccessorCreator);
             };
             PaxosServer srv = new PaxosServer(paxosNodeCreator);
@@ -157,16 +157,16 @@ public class NetworkFactory {
     }
 
     public abstract static class BasicStateMachine implements StateMachine {
-        protected int nodeId;
+        protected String nodeId;
         Long waitingSnapshot = null;
         Long appliedSnapshot = null;
         StorageUnit storage;
 
         @Override
-        public void setup(int nodeId) {
-            this.nodeId = nodeId;
+        public void setup(String id) {
+            this.nodeId = id;
             try {
-                storage = new SafeSingleFileStorage("stateMachine" + nodeId, null, InterruptibleVirtualFileAccessor.creator(nodeId));
+                storage = new SafeSingleFileStorage("stateMachine" + nodeId, null, InterruptibleVirtualFileAccessor.creator(Integer.parseInt(nodeId)));
             } catch (StorageException e) {
                 e.printStackTrace();
             }

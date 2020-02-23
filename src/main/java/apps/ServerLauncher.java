@@ -27,7 +27,7 @@ public class ServerLauncher {
             final int fragmentId = Integer.parseInt(args[0]);
             List<RemotePaxosNode> cluster = new ArrayList<>();
             StateMachine stateMachine = new largetable.Server(WholeFileAccessor::new);
-            stateMachine.setup(serverId);
+            stateMachine.setup(fragmentId + "_" + serverId);
             PaxosNode paxosNode = new PaxosNode(serverId, fragmentId, cluster,
                     stateMachine,
                     (f, dir) -> new SafeSingleFileStorage(f, dir, WholeFileAccessor::new),

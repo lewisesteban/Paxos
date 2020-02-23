@@ -10,8 +10,6 @@ import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
-// TODO fragmentation problem: file naming convention of acceptor files and stateMachine files
-
 // TODO change timeout for needed instance
 
 // TODO adapt serial killer to have most of the time only 1 or 2 servers down, sometimes 3, but rarely more

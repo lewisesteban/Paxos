@@ -22,7 +22,7 @@ public class Acceptor implements AcceptorRPCHandle {
         this.storageCreator = storageUnitCreator;
         this.fileAccessorCreator = fileAccessorCreator;
         this.instances = new InstanceContainer<>(AcceptDataInstance::new,
-                AcceptDataInstance.readStorage(memberList.getMyNodeId(), fileAccessorCreator, storageUnitCreator));
+                AcceptDataInstance.readStorage(memberList.getMyNodeId(), memberList.getFragmentId(), fileAccessorCreator, storageUnitCreator));
     }
 
     public PrepareAnswer reqPrepare(long instanceNb, Proposal.ID propId) throws StorageException {
@@ -33,7 +33,7 @@ public class Acceptor implements AcceptorRPCHandle {
         synchronized (thisInstance) {
             if (propId.isGreaterThan(thisInstance.getLastPreparedPropId())) {
                 thisInstance.setLastPreparedPropId(propId);
-                thisInstance.saveToStorage(memberList.getMyNodeId(), instanceNb, storageCreator);
+                thisInstance.saveToStorage(memberList.getMyNodeId(), memberList.getFragmentId(), instanceNb, storageCreator);
                 return new PrepareAnswer(true, thisInstance.getLastAcceptedProp());
             } else {
                 return new PrepareAnswer(false, null, thisInstance.getLastPreparedPropId().getNodePropNb());
@@ -50,7 +50,7 @@ public class Acceptor implements AcceptorRPCHandle {
                 return new AcceptAnswer(AcceptAnswer.REFUSED);
             } else {
                 thisInstance.setLastAcceptedProp(proposal);
-                thisInstance.saveToStorage(memberList.getMyNodeId(), instanceNb, storageCreator);
+                thisInstance.saveToStorage(memberList.getMyNodeId(), memberList.getFragmentId(), instanceNb, storageCreator);
                 return new AcceptAnswer(AcceptAnswer.ACCEPTED);
             }
         }
@@ -95,7 +95,7 @@ public class Acceptor implements AcceptorRPCHandle {
     public void removeLogsUntil(long lastInstanceToRemove) throws StorageException {
         AtomicReference<StorageException> exception = new AtomicReference<>(null);
         instances.truncateBefore(lastInstanceToRemove + 1);
-        AcceptDataInstance.deleteStorage(lastInstanceToRemove, memberList.getMyNodeId(), fileAccessorCreator);
+        AcceptDataInstance.deleteStorage(memberList.getMyNodeId(), memberList.getFragmentId(), lastInstanceToRemove, fileAccessorCreator);
         if (exception.get() != null)
             throw exception.get();
     }

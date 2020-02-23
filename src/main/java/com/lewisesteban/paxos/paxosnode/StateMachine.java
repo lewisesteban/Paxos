@@ -10,7 +10,7 @@ import java.io.Serializable;
  */
 public interface StateMachine {
 
-    void setup(int nodeId) throws IOException;
+    void setup(String stateMachineUniqueId) throws IOException;
 
     /**
      * Execute de command on the state machine

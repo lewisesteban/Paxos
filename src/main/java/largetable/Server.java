@@ -16,7 +16,7 @@ public class Server implements StateMachine {
     private static final String KEY_DATA = "d";
 
     private FileAccessorCreator fileAccessorCreator;
-    private int nodeId;
+    private String myId;
     private Long appliedSnapshotLastInstance = null;
     // note: data contained in snapshots is always serialized (String)
     private Snapshot waitingSnapshot = null;
@@ -27,8 +27,8 @@ public class Server implements StateMachine {
     }
 
     @Override
-    public void setup(int nodeId) throws IOException {
-        this.nodeId = nodeId;
+    public void setup(String stateMachineUniqueId) throws IOException {
+        this.myId = stateMachineUniqueId;
         StorageUnit storageUnit = createStorage();
         if (!storageUnit.isEmpty()) {
             long inst = Long.parseLong(storageUnit.read(KEY_INST));
@@ -38,7 +38,7 @@ public class Server implements StateMachine {
     }
 
     private StorageUnit createStorage() throws StorageException {
-        return new SafeSingleFileStorage("stateMachine" + nodeId, null, fileAccessorCreator);
+        return new SafeSingleFileStorage(getFileName(), null, fileAccessorCreator);
     }
 
     @Override
@@ -144,5 +144,9 @@ public class Server implements StateMachine {
 
     public static Callable<StateMachine> creator(FileAccessorCreator fileAccessorCreator) {
         return () -> new Server(fileAccessorCreator);
+    }
+
+    private String getFileName() {
+        return "stateMachine_" + myId;
     }
 }
