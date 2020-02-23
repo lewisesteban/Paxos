@@ -15,7 +15,7 @@ import java.util.Random;
 import java.util.TreeMap;
 
 class TesterClient {
-    private static final int NB_ENTRIES = 3;
+    private static final int NB_ENTRIES = 2;
 
     private String host;
     private String clientId;

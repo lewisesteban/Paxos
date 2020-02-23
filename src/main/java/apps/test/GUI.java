@@ -10,20 +10,28 @@ import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
-// TODO stress test with gui: got error (see picture and txt file)
-// happens only when there are snapshots?
+// TODO fragmentation problem: file naming convention (for instance acceptor files)
 
-// TODO server slow to restart when doing stress test with 1 client.
-// the server does every 100 C-U fast at the begining (~200 ms), but after the client has done many commands,
-// server 2's catching-up becomes slow (5 seconds for 100 instances
-// PS: VM with 2 servers tends to crash
+// TODO after stress test, closed everything, restarted => data lost
 
-// TODO 1 client out of 2 is down for a while, the log grows, then client is restored: next snapshots won't include old logs
-// also, when only 1 out of 2 client is going (and the other has sent 0 cmds), no snapshot is done
+// TODO during stress tests, servers sometimes don't make any snapshots
+// when 1 server goes down, it seems the servers can't do any more snapshots
+// (might have been related to server malfunction due to many simultaneous catching-ups?)
 
-// GETALL, INST-GET, INST-GETALL (getall returns all keys of a fragment)
-// demonstrate every task done one by one
-// throw in a big dataset?
+// TODO vm sometimes crashes (becomes unresponsive or very slow) during stress test
+// Tends to happen when log grows too much.
+// Happened when starting GUI with already-existing log and snapshots. Started client SK, and killed servers a couple of times.
+
+// TODO adapt serial killer to have most of the time only 1 or 2 servers down, sometimes 3, but rarely more
+// then i can have a network with 3 fragments, having 3, 3 and 2 servers respectively
+
+// Demonstrate every task done one by one
+
+// Create client that throws in a big dataset
+
+// Server monitor program:
+// Give it fragment and node as arguments, then enter key and program returns value
+// If a third argument "all" is given, program just returns all keys and their values
 
 public class GUI extends Frame {
     private String username, password = null;
@@ -160,7 +168,6 @@ public class GUI extends Frame {
                 e.printStackTrace();
             }
         }
-        System.out.println("Clients all OK");
     }
 
     private void promptCredentials() {
