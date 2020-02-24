@@ -75,7 +75,6 @@ public class LargeTableTest extends PaxosTestCase {
         assertTrue(InterruptibleVirtualFileAccessor.creator(0).create("acceptor_0_0", null).listFiles().length < 5);
         assertTrue(InterruptibleVirtualFileAccessor.creator(1).create("acceptor_0_1", null).listFiles().length < 5);
         assertTrue(InterruptibleVirtualFileAccessor.creator(2).create("acceptor_0_2", null).listFiles().length < 5);
-        // TODO change file paths
     }
 
     public void testEndClientSnapshot() throws Exception {

@@ -10,7 +10,18 @@ import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
-// TODO change timeout for needed instance
+// TODO GUI tends to crash
+// Happened when clients never died and 2 servers died simultaneously. It seems log grows and snapshots are not created,
+// although all servers (and clients) are up. Server froze with a log size of 700. On terminal, got error:
+//
+// -bash: fork: retry: Resource temporarily unavailable
+// That test was not very intense (few kills/restores, maybe only 3 or 4 on servers).
+//
+// [warning][os,thread] Failed to start thread - pthread_create failed (EAGAIN) for attributes: stacksize: 1024k, guardsize: 0k, detached.
+//
+// Always happens on the same machine (the one that has 1 extra server).
+// ---> Max thread issue? Check for exceptions by running server in foreground.
+// --> Also, when deleting acceptor files, make sure to close open ones.
 
 // TODO adapt serial killer to have most of the time only 1 or 2 servers down, sometimes 3, but rarely more
 // then i can have a network with 3 fragments, having 3, 3 and 2 servers respectively
@@ -22,6 +33,8 @@ import java.util.concurrent.CyclicBarrier;
 // Server monitor program:
 // Give it fragment and node as arguments, then enter key and program returns value
 // If a third argument "all" is given, program just returns all keys and their values
+
+// Make sure EC2 servers have already SSH'd each other
 
 public class GUI extends Frame {
     private String username, password = null;

@@ -39,6 +39,7 @@ public class Proposer implements PaxosProposer {
     private RunningProposalManager runningProposalManager;
     private SnapshotRequester snapshotRequester;
     private ClientCommandContainer clientCommandContainer;
+    private ScatterManager scatterManager;
 
     public Proposer(ClusterHandle memberList, Listener listener,
                     RunningProposalManager runningProposalManager, SnapshotManager snapshotManager,
@@ -49,6 +50,7 @@ public class Proposer implements PaxosProposer {
         this.runningProposalManager = runningProposalManager;
         this.snapshotRequester = new SnapshotRequester(snapshotManager, memberList);
         this.clientCommandContainer = clientCommandContainer;
+        this.scatterManager = new ScatterManager(memberList);
     }
 
     public void updateInst(long remoteHighestInst) {
@@ -289,12 +291,7 @@ public class Proposer implements PaxosProposer {
         if (!proposalChanged) {
             for (RemotePaxosNode node : memberList.getMembers()) {
                 if (node.getId() != memberList.getMyNodeId()) {
-                    executor.submit(() -> {
-                        try {
-                            node.getListener().execute(instanceId, prepared.getCommand());
-                        } catch (IOException ignored) {
-                        }
-                    });
+                    scatterManager.sendCommand(node.getId(), instanceId, prepared.getCommand());
                 }
             }
         }
