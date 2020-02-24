@@ -8,6 +8,8 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * LoopingClient for a single fragment
@@ -22,6 +24,7 @@ public class SingleFragmentClient {
     private PaxosProposer dedicatedProposer;
     private List<PaxosProposer> nodesTried = new ArrayList<>();
     private Random random = new Random();
+    private ExecutorService executorService = Executors.newCachedThreadPool();
 
     private final List<PaxosProposer> nonEndedServers = new ArrayList<>();
     private final List<PaxosProposer> endRequests = new ArrayList<>();
@@ -173,7 +176,8 @@ public class SingleFragmentClient {
         synchronized (endRequests) {
             synchronized (nonEndedServers) {
                 if (!endRequests.contains(server) && nonEndedServers.contains(server)) {
-                    Thread thread = new Thread(() -> {
+                    endRequests.add(server);
+                    executorService.submit(() -> {
                         try {
                             server.endClient(clientId);
                             synchronized (nonEndedServers) {
@@ -187,8 +191,6 @@ public class SingleFragmentClient {
                             }
                         }
                     });
-                    endRequests.add(server);
-                    thread.start();
                 }
             }
         }
