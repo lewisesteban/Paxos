@@ -13,10 +13,14 @@ and add/edit the following line (without quotes):
 "PasswordAuthentication yes"
 You can then restart SSH with the following command: sudo service ssh restart
 
+For the distributed scripts to work, you also need to add each host to the list of known hosts for the SSH connection to
+work. You can do that by SSH'ing to every host once. The host will be added the first time you try to establish an SSH
+connection.
+
 You might also want to edit the files "/etc/security/limits.conf" and "/proc/sys/kernel/threads-max" to allow for more
 threads.
 
-/!\ MAKE SURE YOU HAVE AT LEAST 400 MB OF FREE MEMORY PER SERVER PROCESS
+/!\ MAKE SURE YOU HAVE AT LEAST 1 GB OF FREE MEMORY PER SERVER PROCESS
 If you intend to store large amounts of data, allow for at least at an extra two times the amount of data stored.
 
 Don't forget to handle any firewall or security system (like the "security group" in the case of AWS EC2) to allow for

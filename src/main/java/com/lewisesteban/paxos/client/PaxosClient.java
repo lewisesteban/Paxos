@@ -1,5 +1,6 @@
 package com.lewisesteban.paxos.client;
 
+import com.lewisesteban.paxos.paxosnode.Command;
 import com.lewisesteban.paxos.rpc.paxos.PaxosProposer;
 import com.lewisesteban.paxos.rpc.paxos.RemotePaxosNode;
 import com.lewisesteban.paxos.storage.StorageException;
@@ -27,9 +28,14 @@ public class PaxosClient<NODE extends RemotePaxosNode & PaxosProposer> {
     private FailureManager failureManager;
     private ExecutorService executorService = Executors.newCachedThreadPool();
     private boolean recovered = false;
+    private Command.Factory commandFactory;
 
-    public PaxosClient(List<NODE> allNodes, String clientId, StorageUnit.Creator storage) {
+    public PaxosClient(List<NODE> allNodes, String clientId, StorageUnit.Creator storage) throws StorageException {
         failureManager = new FailureManager(storage, clientId);
+        commandFactory = new Command.Factory(clientId);
+        FailureManager.ClientOperation lastOp = failureManager.getLastStartedOperation();
+        if (lastOp != null)
+            commandFactory.setNextCommandNumber(lastOp.getCmdNb() + 1);
         //noinspection OptionalGetWithoutIsPresent
         nbFragments = allNodes.stream()
                 .mapToInt(RemotePaxosNode::getFragmentId).max().getAsInt() + 1;
@@ -37,8 +43,7 @@ public class PaxosClient<NODE extends RemotePaxosNode & PaxosProposer> {
                 .collect(Collectors.groupingBy(RemotePaxosNode::getFragmentId))
                 .forEach((fragmentNb, fragmentNodes) -> fragments.add(new SingleFragmentClient(
                         fragmentNodes.stream().map(node -> (PaxosProposer) node).collect(Collectors.toList()),
-                        clientId,
-                        failureManager)));
+                        clientId, failureManager, commandFactory)));
     }
 
     /**
@@ -54,7 +59,6 @@ public class PaxosClient<NODE extends RemotePaxosNode & PaxosProposer> {
         if (failedOp != null) {
             failureManager.setOngoingCmdData(failedOp.getCmdData());
             failureManager.setOngoingCmdKeyHash(failedOp.getKeyHash());
-            fragments.forEach(fragment -> fragment.setNextCommandNumber(failedOp.getCmdNb() + 1));
             Serializable result = fragments.get(failedOp.getKeyHash() % nbFragments).doCommand(failedOp.getCmdData(), failedOp.getCmdNb(), failedOp.getInst());
             if (!recovered) {
                 fragments.forEach(SingleFragmentClient::setAllServersNonEnded);
@@ -79,7 +83,6 @@ public class PaxosClient<NODE extends RemotePaxosNode & PaxosProposer> {
         if (failedOp != null) {
             failureManager.setOngoingCmdData(failedOp.getCmdData());
             failureManager.setOngoingCmdKeyHash(failedOp.getKeyHash());
-            fragments.forEach(fragment -> fragment.setNextCommandNumber(failedOp.getCmdNb() + 1));
             Serializable result = fragments.get(failedOp.getKeyHash() % nbFragments).tryCommand(failedOp.getCmdData(), failedOp.getCmdNb(), failedOp.getInst());
             if (!recovered) {
                 fragments.forEach(SingleFragmentClient::setAllServersNonEnded);

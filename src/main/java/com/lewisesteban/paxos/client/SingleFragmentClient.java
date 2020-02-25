@@ -29,16 +29,12 @@ public class SingleFragmentClient {
     private final List<PaxosProposer> nonEndedServers = new ArrayList<>();
     private final List<PaxosProposer> endRequests = new ArrayList<>();
 
-    public SingleFragmentClient(List<PaxosProposer> fragmentNodes, String clientId, FailureManager failureManager) {
+    public SingleFragmentClient(List<PaxosProposer> fragmentNodes, String clientId, FailureManager failureManager, Command.Factory commandFactory) {
         this.nodes = fragmentNodes;
-        this.commandFactory = new Command.Factory(clientId);
+        this.commandFactory = commandFactory;
         this.sender = new ClientCommandSender(failureManager);
         this.clientId = clientId;
         this.dedicatedProposer = fragmentNodes.get(fragmentNodes.size() - 1);
-    }
-
-    void setNextCommandNumber(long commandNb) {
-        commandFactory.setNextCommandNumber(commandNb);
     }
 
     /**
