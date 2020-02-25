@@ -9,6 +9,8 @@ class SerialKiller {
     private Random random = new Random();
     private int nbAlive;
     private Thread thread = null;
+    private int objective;
+    private boolean restoring;
 
     SerialKiller(List<Target> targets) {
         this.targets = targets;
@@ -39,13 +41,14 @@ class SerialKiller {
     private void work(int minWait, int maxWait) {
         nbAlive = 0;
         targets.forEach(target -> { if (target.isAlive()) nbAlive++; });
-        boolean restoring = nbAlive <= targets.size() / 2;
+        restoring = true;
+        objective = targets.size();
         while (keepGoing) {
-            if (shouldChange(restoring))
-                restoring = !restoring;
-            boolean doOpposite = (random.nextInt(4) == 0);
+            if (nbAlive == objective) {
+                changeObjective();
+            }
             try {
-                affectRandom(doOpposite != restoring);
+                affectRandom(restoring);
             } catch (Exception e) {
                 restoring = !restoring;
             } finally {
@@ -86,25 +89,24 @@ class SerialKiller {
         }
     }
 
-    private boolean shouldChange(boolean restoring) {
+    private void changeObjective() {
         if (restoring) {
-            if (nbAlive == targets.size()) {
-                return true;
-            } else if (nbAlive > targets.size() / 2) {
-                int rand = random.nextInt(targets.size() - nbAlive + 2); // the +2 is to keep them alive longer
-                return rand == 0;
-            } else {
-                return false;
+            int rand = random.nextInt(100);
+            int nbKilled;
+            if (rand > 70) {
+                nbKilled = 1;
+            } else if (rand > 40) { // max=size/3
+                nbKilled = random.nextInt(targets.size() / 3) + 1;
+            } else if (rand > 20) { // max=size/3+1
+                nbKilled = random.nextInt(targets.size() / 3 + 1) + 1;
+            } else { // max=size
+                nbKilled = random.nextInt(targets.size()) + 1;
             }
+            objective = targets.size() - nbKilled;
+            restoring = false;
         } else {
-            if (nbAlive == 0) {
-                return true;
-            } else if (nbAlive <= (targets.size() / 2) + 1) { // the +1 is to reduce likelihood of "bad net state"
-                int rand = random.nextInt(nbAlive + 2);
-                return rand <= 1; // the "+2" and "<=1" are to reduce time spent with half the servers down
-            } else {
-                return false;
-            }
+            objective = targets.size();
+            restoring = true;
         }
     }
 }
