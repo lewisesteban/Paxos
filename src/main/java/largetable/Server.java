@@ -6,12 +6,15 @@ import com.lewisesteban.paxos.storage.SafeSingleFileStorage;
 import com.lewisesteban.paxos.storage.StorageException;
 import com.lewisesteban.paxos.storage.StorageUnit;
 import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
+import largetable.instantread.InstantReadServer;
+import largetable.instantread.LTReader;
 
 import java.io.*;
+import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
 
-public class Server implements StateMachine {
+public class Server implements StateMachine, LTReader {
     private static final String KEY_INST = "i";
     private static final String KEY_DATA = "d";
 
@@ -21,6 +24,9 @@ public class Server implements StateMachine {
     // note: data contained in snapshots is always serialized (String)
     private Snapshot waitingSnapshot = null;
     private TreeMap<String, String> table = new TreeMap<>();
+
+    @SuppressWarnings({"FieldCanBeLocal", "unused"})
+    private InstantReadServer instantReader;
 
     public Server(FileAccessorCreator fileAccessorCreator) {
         this.fileAccessorCreator = fileAccessorCreator;
@@ -35,6 +41,7 @@ public class Server implements StateMachine {
             String data = storageUnit.read(KEY_DATA);
             applySnapshot(new Snapshot(inst, data));
         }
+        instantReader = new InstantReadServer(this, myId);
     }
 
     private StorageUnit createStorage() throws StorageException {
@@ -148,5 +155,10 @@ public class Server implements StateMachine {
 
     private String getFileName() {
         return "stateMachine_" + myId;
+    }
+
+    @Override
+    public Map<String, String> read() {
+        return table;
     }
 }

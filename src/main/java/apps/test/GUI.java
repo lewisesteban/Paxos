@@ -10,19 +10,6 @@ import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
-// TODO adapt serial killer to have most of the time only 1 or 2 servers down, sometimes 3, but rarely more
-// then i can have a network with 3 fragments, having 3, 3 and 2 servers respectively
-
-// Demonstrate every task done one by one
-
-// Create client that throws in a big dataset
-
-// Server monitor program:
-// Give it fragment and node as arguments, then enter key and program returns value
-// If a third argument "all" is given, program just returns all keys and their values
-
-// Make sure EC2 servers have already SSH'd each other
-
 public class GUI extends Frame {
     private String username, password = null;
     private JWindow loadingWindow = null;
