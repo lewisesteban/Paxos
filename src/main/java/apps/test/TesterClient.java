@@ -30,6 +30,7 @@ class TesterClient {
     private int commandCounter = 0;
 
     private int cmdVal = 0;
+    private boolean gotRemoteValues = false;
     private String lastAppliedCmd = null;
 
     TesterClient(String host, String clientId) {
@@ -166,13 +167,9 @@ class TesterClient {
 
         private void startTesting() {
             testing = true;
-            // choose a write command (put or append)
-            // execute it
-            // do a get command to check
-            // typically happens when client process is killed by tester program
             Thread testingThread = new Thread(() -> {
                 try {
-                    if (testingValues.isEmpty())
+                    if (!gotRemoteValues)
                         fetchRemoteValues();
                     else
                         restore();
@@ -221,6 +218,7 @@ class TesterClient {
                     testingValues.put(key, val);
                 }
             }
+            gotRemoteValues = true;
         }
 
         private void restore() throws IOException {
@@ -246,7 +244,8 @@ class TesterClient {
             resLine = reader.readLine();
             //System.out.println("#" + clientId + " out:" + resLine);
             while (testing && resLine != null && !resLine.startsWith("OK")) {
-                largetableProcess.getOutputStream().write("again\n".getBytes());
+                String againCmd = command.toLowerCase().startsWith("last") ? command : "again\n";
+                largetableProcess.getOutputStream().write(againCmd.getBytes());
                 //System.out.println("#" + clientId + "  in: AGAIN");
                 largetableProcess.getOutputStream().flush();
                 resLine = reader.readLine();

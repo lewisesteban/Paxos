@@ -34,7 +34,7 @@ class GUISerialKillerPanel extends Panel {
         confPanel.add(minWait);
         confPanel.add(new Label("to"));
         maxWait = new JFormattedTextField(NumberFormat.getIntegerInstance());
-        maxWait.setValue(500L);
+        maxWait.setValue(3000L);
         maxWait.setColumns(4);
         confPanel.add(maxWait);
         add(confPanel);
