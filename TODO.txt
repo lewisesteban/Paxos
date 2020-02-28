@@ -1,0 +1,62 @@
+1. ClientOngoingCommand problem
+2. Acceptor data files
+3. Divide snapshot into multiple files
+
+
+--- 1. ClientOngoingCommand problem ------------------------------------------------------------------------------------
+
+As of now, Paxos servers keep track of the last command of each non-ended client. A snapshot may be created only for
+logs under the last command of every client across the Paxos cluster. This causes two problems:
+- On the server side, when a client is down, Paxos log can grow too much. Recovering after a failure can be very slow
+when the log is too long.
+- On the client side, the client not only has to keep track of all non-ended servers, but is also forced to send "end"
+requests to every server when recovering from a potential failure.
+
+The solution is simple: only keep the acceptor data of the required instance, and not all instances above it.
+    If a command above this instance has been executed already, it means that a consensus (whatever it may be) has been
+reached on that instance, and, although modification of the acceptor data of this instance may be necessary in order to
+know what consensus has been reached (according to the Paxos protocol), these modifications will have no impact on the
+present of future state of the state machine.
+    This means that we only need to keep the acceptor data of a single instance per non-ended client, and this instance
+may also be included in the snapshot. This gives the servers complete freedom over snapshots, and the acceptor log may
+be kept very short, depending on snapshot frequency.
+
+
+--- 2. Acceptor data files ---------------------------------------------------------------------------------------------
+
+As of now, Paxos acceptors keep one file per instance. Creating, opening and closing so many files can be very slow.
+
+Instead, a Paxos acceptor should use only one "log" file and one or more "data" files.
+- The "data" files contain the content of every client command. The length of every entry may vary, so we need to write
+a header at the beginning of each entry in the file. The header will contain the size of the entry. One data file will
+be created per every "SNAPSHOT_FREQUENCY" instances. For example, if Paxos does a snapshot every 300 instances, one data
+file will be created per 300 instances.
+- The "log" file contains the acceptor data of every instance, one after the other. Each entry of the file is the same
+size. Each entry will contain the index (position) of the command data inside the "data" file.
+
+With this system, we can easily do every operation:
+- To add a new instance, append an entry to the log file, and one to the data file corresponding to the instance. For
+example, if the snapshot frequency is 300 instances, instance 601 goes into the third file.
+- To modify an existing instance, modify the entry in the log file, and append a new entry in the data file, ignoring
+the already-existing entry (which may be of a different size).
+- To remove instances (after having created a snapshot), truncate the log file and delete the corresponding data file.
+
+How to safely append an entry to a file?
+You can know when a process crashed in the middle of an append by checking the size of the last entry or of its header.
+
+How to safely modify an entry in a file? (only necessary for the log file, which contains fixed-sized entries)
+- Have another file constantly opened, the "processing" file.
+- Before editing an entry, write its original content in the processing file. It should be written in the first blank
+space of the file, or appended at the end if there is no blank space (see further instructions to understand better).
+- Edit the entry in the log file
+- Replace the previously-written entry in the processing file by a blank entry
+- When the server starts, check processing file:
+    - If there is an incomplete entry, simply remove it (replace by blank).
+    - If there is a complete entry, replace the corresponding entry in the log file by its content.
+
+
+--- 3. Divide snapshot into multiple files -----------------------------------------------------------------------------
+
+Divide snapshot into multiple files
+Keep track of which files have changed between snapshots
+Send files through the network, not the entire snapshot
